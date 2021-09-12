@@ -1,0 +1,14 @@
+func main() int {
+    var a **int;
+    var x *int;
+    var t int;
+    var z *int;
+    var y **int;
+
+    a = &x;
+    z = &t;
+    y = &z;
+    x = *y;
+
+    return 0;
+}

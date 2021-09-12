@@ -1,0 +1,12 @@
+func main() int {
+  var a **int;
+  var b *int;
+  var c *int;
+  var d int;
+
+  c = &d;
+  a = &b;
+  *a = c;
+
+  return 0;
+}

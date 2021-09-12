@@ -1,0 +1,5 @@
+func test(p *int) int{
+    var q int;
+    q=3;
+    return (*p);
+}

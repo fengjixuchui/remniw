@@ -1,0 +1,7 @@
+func main() int {
+    var x int;
+    {
+        x = input;
+    }
+    return x;
+}

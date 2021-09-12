@@ -1,0 +1,3 @@
+func succ(i int) int {
+    return i+1;
+}

@@ -1,0 +1,121 @@
+#include "TypeVisitor.h"
+
+std::set<VarType*> FreeVarTypeCollector::collect(TIPType *Ty)
+{
+    FreeVarTypeCollector Visitor;
+    Ty->accept(Visitor);
+    return Visitor.getVars();
+}
+
+void FreeVarTypeCollector::actAfter(VarType *Ty)
+{
+    Vars.insert(Ty);
+}
+
+void FreeVarTypeCollector::actAfter(AlphaType *Ty)
+{
+    Vars.insert(Ty);
+}
+
+void FreeVarTypeCollector::actAfter(MuType *Ty)
+{
+    // The VarType in MuType is not free VarType, so remove it
+    Vars.erase(Ty->getV());
+}
+
+Type* Substituter::substitute(Type *T, VarType *From, Type* To)
+{
+    Substituter Visitor(From, To);
+    T->accept(Visitor);
+    return Visitor.getResult();
+}
+
+Type* Substituter::getResult()
+{
+    return VisitedTypes.back();
+}
+
+void Substituter::actAfter(FunctionType *Ty)
+{
+    std::vector<Type*> ArgTypes;
+    for (int i = 0; i < Ty->getParamTypes().size() + 1; ++i)
+    {
+        ArgTypes.push_back(std::move(VisitedTypes.back()));
+        VisitedTypes.pop_back();
+    }
+
+    // the post-order visit will reverse the arguments in visitedTypes
+    // so we set them right here
+    std::reverse(ArgTypes.begin(), ArgTypes.end());
+
+    Type* RetType = ArgTypes.back();
+    ArgTypes.pop_back();
+    VisitedTypes.push_back(std::make_shared<FunctionType>(ArgTypes, RetType));
+}
+
+void Substituter::actAfter(IntType *Ty)
+{
+    VisitedTypes.push_back(std::make_shared<IntType>());
+}
+
+void Substituter::actAfter(MuType *Ty)
+{
+    auto TType = VisitedTypes.back();
+    VisitedTypes.pop_back();
+
+    auto VType = std::dynamic_pointer_cast<VarType>(VisitedTypes.back());
+    VisitedTypes.pop_back();
+
+    VisitedTypes.push_back(std::make_shared<MuType>(VType, TType));
+}
+
+void Substituter::actAfter(PointerType *Ty)
+{
+    auto PointeeTy = VisitedTypes.back();
+    VisitedTypes.pop_back();
+    VisitedTypes.push_back(std::make_shared<PointerType>(PointeeTy));
+}
+
+void Substituter::actAfter(VarType *Ty)
+{
+    if (Ty == Target)
+    {
+        auto Copy = Copier::copy(Substitution);
+        VisitedTypes.push_back(Copy);
+    }
+    else
+    {
+        VisitedTypes.push_back(std::make_shared<VarType>(Ty->getASTNode()));
+    }
+}
+void Substituter::actAfter(AlphaType *Ty)
+{
+    if (Ty == Target)
+    {
+        auto Copy = Copier::copy(Substitution);
+        VisitedTypes.push_back(Copy);
+    }
+    else
+    {
+        VisitedTypes.push_back(std::make_shared<AlphaType>(Ty->getASTNode()));
+    }
+}
+
+std::shared_ptr<TIPType> Copier::copy(std::shared_ptr<TIPType> Ty)
+{
+    Copier Visitor;
+    Ty->accept(Visitor);
+    return Visitor.getResult();
+}
+
+void Copier::actAfter(VarType *Ty)
+{
+    VisitedTypes.push_back(std::make_shared<VarType>(Ty->getASTNode()));
+}
+
+void Copier::actAfter(AlphaType *Ty)
+{
+    VisitedTypes.push_back(std::make_shared<AlphaType>(Ty->getASTNode()));
+}
+
+

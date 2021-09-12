@@ -1,0 +1,28 @@
+func posf(b int) int {
+    return 5;
+}
+
+func negf(c int) int {
+    return -5;
+}
+
+func main() int {
+    var pos, neg, top, u int;
+    var f func(int) int;
+    u = 0;
+
+    pos = posf(-4);
+
+    neg = negf(3);
+
+    if(u > 0) {
+        f = posf;
+    }
+    else {
+        f = negf;
+    }
+
+    top = (f)(4);
+
+    return 0;
+}

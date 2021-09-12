@@ -1,0 +1,123 @@
+#pragma once
+
+#include "Type.h"
+#include <set>
+#include <vector>
+
+class TIPTypeVisitor
+{
+public:
+    virtual bool actBefore(VarType *Ty) { return false; }
+    virtual void actAfter(VarType *Ty) {}
+    virtual void visit(VarType *Ty)
+    {
+        if (actBefore(Ty))
+            return;
+        actAfter(Ty);
+    }
+
+    virtual bool actBefore(AlphaType *Ty) { return false; }
+    virtual void actAfter(AlphaType *Ty) {}
+    virtual void visit(AlphaType *Ty)
+    {
+        if (actBefore(Ty))
+            return;
+        actAfter(Ty);
+    }
+
+    virtual bool actBefore(IntType *Ty) { return false; }
+    virtual void actAfter(IntType *Ty) {}
+    virtual void visit(IntType *Ty)
+    {
+        if (actBefore(Ty))
+            return;
+        actAfter(Ty);
+    }
+
+    virtual bool actBefore(PointerType *Ty) { return false; }
+    virtual void actAfter(PointerType *Ty) {}
+    virtual void visit(PointerType *Ty)
+    {
+        if (actBefore(Ty))
+            return;
+        Ty->getPointeeTy()->accept(*this);
+        actAfter(Ty);
+    }
+
+    virtual bool actBefore(FunctionType *Ty) { return false; }
+    virtual void actAfter(FunctionType *Ty) {}
+    virtual void visit(FunctionType *Ty)
+    {
+        if (actBefore(Ty))
+            return;
+        auto ParamsTy = Ty->getParamTys();
+        auto RetTy = Ty->getReturnTy();
+        for (int i = 0; i < ParamsTy.size(); ++i)
+        {
+            ParamsTy[i]->accept(*this);
+        }
+        RetTy->accept(*this);
+        actAfter(Ty);
+    }
+
+    virtual bool actBefore(MuType *Ty) { return false; }
+    virtual void actAfter(MuType *Ty) {}
+    virtual void visit(MuType *Ty)
+    {
+        if (actBefore(Ty))
+            return;
+        Ty->getV()->accept(*this);
+        Ty->getT()->accept(*this);
+        actAfter(Ty);
+    }
+};
+
+class FreeVarTypeCollector : public TIPTypeVisitor
+{
+public:
+    static std::set<VarType*> collect(TIPType *Ty);
+    std::set<VarType*> getVars() { return Vars; }
+
+    virtual void actAfter(VarType *Ty) override;
+    virtual void actAfter(AlphaType *Ty) override;
+    virtual void actAfter(MuType *Ty) override;
+
+private:
+    std::set<VarType*> Vars;
+};
+
+class Substituter : public TIPTypeVisitor
+{
+private:
+    VarType *Target;
+    std::shared_ptr<TIPType> Substitution;
+
+protected:
+    std::vector<std::shared_ptr<TIPType>> VisitedTypes;
+    Substituter() = default;
+
+public:
+    Substituter(VarType *T, std::shared_ptr<TIPType> S) : Target(T), Substitution(S) {}
+
+    static std::shared_ptr<TIPType> substitute(TIPType *T, VarType *V, std::shared_ptr<TIPType> S);
+
+    std::shared_ptr<TIPType> getResult();
+
+    virtual void actAfter(VarType *Ty) override;
+    virtual void actAfter(AlphaType *Ty) override;
+    virtual void actAfter(IntType *Ty) override;
+    virtual void actAfter(PointerType *Ty) override;
+    virtual void actAfter(FunctionType *Ty) override;
+    virtual void actAfter(MuType *Ty) override;
+};
+
+class Copier : public Substituter
+{
+public:
+    Copier() = default;
+
+    static std::shared_ptr<TIPType> copy(std::shared_ptr<TIPType> Ty);
+
+    virtual void actAfter(AlphaType *Ty) override;
+    virtual void actAfter(VarType *Ty) override;
+};

@@ -1,0 +1,42 @@
+func posf(b int) int {
+    return 5;
+}
+
+func negf(c int) int {
+    return -5;
+}
+
+func doref(c int) *int {
+    return &c;
+}
+
+func deref(p *int) int {
+    return *p;
+}
+
+func doublederef(p **int) int{
+    return **p;
+}
+
+func main() int {
+    var pos, neg, top, u int;
+    var f, f2, f3 func(int) int;
+    var f4 func(*int) int;
+    var f5 func(**int) int;
+    u = 0;
+
+    pos = posf(-4);
+
+    neg = negf(3);
+
+    if(u > 0) {
+        f = posf;
+    }
+    else {
+        f = negf;
+    }
+
+    top = (f)(4);
+
+    return 0;
+}
