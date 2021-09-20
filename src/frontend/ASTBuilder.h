@@ -14,6 +14,8 @@ private:
 public:
     ASTBuilder(TypeContext& TyCtx) : TyCtx(TyCtx) {}
 
+    std::unique_ptr<ProgramAST> build(RemniwParser::ProgramContext *Ctx);
+
     virtual antlrcpp::Any visitIntType(RemniwParser::IntTypeContext *Ctx);
 
     virtual antlrcpp::Any visitPointerType(RemniwParser::PointerTypeContext *Ctx);

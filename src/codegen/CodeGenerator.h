@@ -10,7 +10,7 @@ namespace remniw
 class CodeGenerator
 {
 public:
-    static void emit(ProgramAST &, llvm::LLVMContext&);
+    static std::unique_ptr<llvm::Module> emit(ProgramAST &, llvm::LLVMContext&);
 };
 
 }

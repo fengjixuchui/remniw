@@ -11,6 +11,4 @@ target_include_directories(
   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
           ${CMAKE_SOURCE_DIR}/src/frontend)
 
-target_link_libraries(
-  semantic
-  PRIVATE frontend)
+target_link_libraries(semantic PRIVATE frontend)

@@ -1,0 +1,35 @@
+name: build-and-test
+
+defaults:
+  run:
+    shell: bash -ieo pipefail {0}
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - ubuntu-20.04
+          - ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+      - run: ./utils/bootstrap.sh
+      - run: |
+          mkdir build
+          pushd build
+          cmake ../
+          make -j `nproc`
+          make check-remniw
+          popd
+      - name: Cache build
+        if: runner.os == 'Linux'
+        id: cache-build
+        uses: actions/cache@v2
+        with:
+          path: build
+          key: linux-build-${{ github.sha }}

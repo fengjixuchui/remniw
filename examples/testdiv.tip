@@ -1,6 +1,0 @@
-func main() int {
-    var x,y int;
-    x = input;
-    y = input;
-    return x/y;
-}

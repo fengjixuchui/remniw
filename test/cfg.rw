@@ -1,0 +1,24 @@
+// RUN: %remniw %s -o %t ; echo 10 | lli %t | FileCheck %s --check-prefix=CHECK-P
+// RUN: %remniw %s -o %t ; echo -10 | lli %t | FileCheck %s --check-prefix=CHECK-N
+// RUN: %remniw %s -o %t ; echo 0 | lli %t | FileCheck %s --check-prefix=CHECK-Z
+
+func main() int {
+    var n int;
+    var f int;
+    n = input;
+    f = 1;
+    if (n>0) {
+        f = f*n;
+        n = n-1;
+    }
+    output f;
+    output n;
+    return 0;
+}
+
+// CHECK-P: 10
+// CHECK-P-NEXT: 9
+// CHECK-N: 1
+// CHECK-N-NEXT: -10
+// CHECK-Z: 1
+// CHECK-Z-NEXT: 0

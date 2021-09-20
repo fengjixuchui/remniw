@@ -19,6 +19,11 @@ static std::unique_ptr<FunctionAST> visitedFunction = nullptr;
 static Type* visitedType = nullptr;
 static bool exprIsLValue = false;
 
+std::unique_ptr<ProgramAST> ASTBuilder::build(RemniwParser::ProgramContext *Ctx)
+{
+    return std::move(visitProgram(Ctx).as<std::unique_ptr<ProgramAST>>());
+}
+
 antlrcpp::Any ASTBuilder::visitIntType(RemniwParser::IntTypeContext *Ctx)
 {
     visitedType = Type::getIntType(TyCtx);
@@ -114,11 +119,14 @@ antlrcpp::Any ASTBuilder::visitFun(RemniwParser::FunContext *Ctx)
     visit(Ctx->type());
     Type* ReturnType = visitedType;
     // create ast node
-    visitedFunction = std::make_unique<FunctionAST>(FuncName,
-                                                    Type::getFunctionType(ParamTypes, ReturnType),
-                                                    std::move(ParamDecls),
-                                                    std::move(LocalVarDecls),
-                                                    std::move(Body), std::move(Return));
+    visitedFunction = std::make_unique<FunctionAST>(
+        SourceLocation{Ctx->getStart()->getLine(),
+                       Ctx->getStart()->getCharPositionInLine()},
+        FuncName,
+        Type::getFunctionType(ParamTypes, ReturnType),
+        std::move(ParamDecls),
+        std::move(LocalVarDecls),
+        std::move(Body), std::move(Return));
 
     return nullptr;
 }

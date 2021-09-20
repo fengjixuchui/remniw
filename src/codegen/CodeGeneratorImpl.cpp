@@ -122,7 +122,7 @@ Value *VariableExprAST::codegen()
             return IRB->CreateLoad(V->getType()->getPointerElementType(), V, Name);
     }
 
-    if (Function* F = TheModule->getFunction(Name))
+    if (llvm::Function* F = TheModule->getFunction(Name))
     {
         return F;
     }
@@ -145,7 +145,7 @@ Value *FunctionCallExprAST::codegen()
         Value *V = Arg->codegen();
         CallArgs.push_back(V);
     }
-    if (auto *CalledFunction = dyn_cast<Function>(CalledValue))
+    if (auto *CalledFunction = llvm::dyn_cast<llvm::Function>(CalledValue))
     {
         assert(CalledFunction->arg_size() == Args.size() && "Incorrect #arguments passed");
         return IRB->CreateCall(CalledFunction, CallArgs, "call");
@@ -187,7 +187,7 @@ Value *DerefExprAST::codegen()
 
 Value *InputExprAST::codegen()
 {
-    Function *F = IRB->GetInsertBlock()->getParent();
+    llvm::Function *F = IRB->GetInsertBlock()->getParent();
     Value* Ptr = createEntryBlockAlloca(F, "input", IRB->getInt64Ty());
     Value* Call = emitScanf(InputFmtStr, Ptr);
     return IRB->CreateLoad(Ptr->getType()->getPointerElementType(), Ptr);
@@ -251,7 +251,7 @@ Value *IfStmtAST::codegen()
     // Convert condition to a bool by comparing non-equal to 0.
     if (!isa<CmpInst>(CondV))
         CondV = IRB->CreateICmpNE(CondV, ConstantInt::get(IRB->getInt64Ty(), 0, /*IsSigned=*/true), "");
-    Function *F = IRB->GetInsertBlock()->getParent();
+    llvm::Function *F = IRB->GetInsertBlock()->getParent();
     // Create blocks for the then and else cases.  Insert the 'then' block at the
     // end of the function.
     BasicBlock *ThenBB = BasicBlock::Create(*TheLLVMContext, "if.then", F);
@@ -283,7 +283,7 @@ Value *IfStmtAST::codegen()
 
 Value *WhileStmtAST::codegen()
 {
-    Function *F = IRB->GetInsertBlock()->getParent();
+    llvm::Function *F = IRB->GetInsertBlock()->getParent();
     // Make the new basic block for the loop header, inserting after current
     // block.
     BasicBlock *LoopCondBB = BasicBlock::Create(*TheLLVMContext, "while.cond", F);
@@ -336,7 +336,7 @@ Value *DerefAssignmentStmtAST::codegen()
 Value *FunctionAST::codegen()
 {
     // Get the function from the module symbol table.
-    Function *F = TheModule->getFunction(FuncName);
+    llvm::Function *F = TheModule->getFunction(FuncName);
     assert(F && "function is not in the module symbol table");
 
     // Create a new basic block to start insertion into.

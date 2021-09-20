@@ -1,0 +1,20 @@
+// RUN: %remniw %s -o %t ; lli %t | FileCheck %s
+
+func f() int {
+    return 0;
+}
+
+func g() int {
+    var x int;
+    x = f();
+    return x;
+}
+
+func main() int {
+    var u int;
+    u = g();
+    output u;
+    return 0;
+}
+
+// CHECK: 0

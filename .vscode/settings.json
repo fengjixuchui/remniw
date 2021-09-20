@@ -54,6 +54,13 @@
         "stdexcept": "cpp",
         "streambuf": "cpp",
         "thread": "cpp",
-        "typeinfo": "cpp"
-    }
+        "typeinfo": "cpp",
+        "cstring": "cpp",
+        "numeric": "cpp",
+        "random": "cpp",
+        "shared_mutex": "cpp",
+        "cinttypes": "cpp",
+        "*.inc": "cpp"
+    },
+    "cmake.configureOnOpen": true
 }

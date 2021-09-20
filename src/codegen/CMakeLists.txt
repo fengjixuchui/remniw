@@ -6,8 +6,7 @@ target_sources(
                     ${CMAKE_CURRENT_SOURCE_DIR}/CodeGeneratorImpl.cpp)
 
 target_include_directories(
-    codegen
-    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
-            ${CMAKE_SOURCE_DIR}/src/frontend)
+    codegen PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
+                    ${CMAKE_SOURCE_DIR}/src/frontend)
 
 target_link_libraries(codegen PRIVATE frontend)

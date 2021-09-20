@@ -1,0 +1,12 @@
+// RUN: %remniw %s -o %t ; echo 1 | lli %t | FileCheck %s
+
+func main() int {
+    var x int;
+    {
+        x = input;
+    }
+    output x;
+    return 0;
+}
+
+// CHECK: 1

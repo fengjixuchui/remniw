@@ -1,9 +1,0 @@
-func main() int {
-  var x int;
-  var pa, pb *int;
-  x = 5;
-  pa = &x;
-  pb = pa;
-  *pb = 2;
-  return x == 2;
-}

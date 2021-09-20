@@ -241,7 +241,7 @@ public:
     virtual void visit(FunctionAST &Node) override
     {
         Out.indent(Ind) << "Function " << &Node << " '" << Node.getFuncName() << "' "
-            << *Node.getType() << "\n";
+            << *Node.getType() << " <" << Node.getLine() << ':' << Node.getCol() << ">\n";
         Out.indent(Ind+1) << "ParamDecls:\n";
         Ind += 2;
         for (auto *ParmDecl : Node.getParamDecls())

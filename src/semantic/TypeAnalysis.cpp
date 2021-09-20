@@ -5,7 +5,7 @@ namespace remniw
 
 Type* TypeAnalysis::ASTNodeToType(const ASTNode *Node) const
 {
-    if (auto *VariableExpr = dynamic_cast<const VariableExprAST *>(Node))
+    if (auto *VariableExpr = llvm::dyn_cast<VariableExprAST>(Node))
     {
         if (auto *VarDeclNode = SymTab.getVariable(VariableExpr->getName(), CurrentFunction))
         {
@@ -17,12 +17,12 @@ Type* TypeAnalysis::ASTNodeToType(const ASTNode *Node) const
         }
     }
 
-    if (auto *VariableDecl = dynamic_cast<const VarDeclNodeAST *>(Node))
+    if (auto *VariableDecl = llvm::dyn_cast<VarDeclNodeAST>(Node))
     {
         return VariableDecl->getType();
     }
 
-    if (auto *Function = dynamic_cast<const FunctionAST *>(Node))
+    if (auto *Function = llvm::dyn_cast<FunctionAST>(Node))
     {
         return Function->getType();
     }
