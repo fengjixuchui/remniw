@@ -36,7 +36,6 @@ public:
     Type(TypeKind TyKind, TypeContext &C) : TyKind(TyKind), Context(C) {}
     virtual ~Type() {}
 
-    virtual void accept(TypeVisitor &Visitor) = 0;
     virtual void print(llvm::raw_ostream &O) const {};
 
     TypeContext &getContext() const { return Context; }
@@ -59,11 +58,6 @@ class VarType : public Type
 public:
     VarType(const ASTNode *DeclNode, TypeContext &C) :
         Type(TK_VARTYPE, C), DeclNode(DeclNode) {}
-
-    // virtual bool operator==(const Type &Other) const override;
-    // virtual bool operator!=(const Type &Other) const override;
-
-    void accept(TypeVisitor &Visitor) override;
 
     virtual void print(llvm::raw_ostream &OS) const override
     {
@@ -142,8 +136,6 @@ class IntType : public Type
 public:
     IntType(TypeContext &C) : Type(TK_INTTYPE, C) {}
 
-    void accept(TypeVisitor &Visitor) override;
-
     virtual void print(llvm::raw_ostream &OS) const override
     {
         OS << "IntType";
@@ -165,8 +157,6 @@ public:
 
     PointerType(const PointerType &) = delete;
     PointerType &operator=(const PointerType &) = delete;
-
-    void accept(TypeVisitor &Visitor) override;
 
     virtual void print(llvm::raw_ostream &OS) const override
     {
@@ -197,8 +187,6 @@ public:
 
     FunctionType(const FunctionType &) = delete;
     FunctionType &operator=(const FunctionType &) = delete;
-
-    void accept(TypeVisitor &Visitor) override;
 
     virtual void print(llvm::raw_ostream &OS) const override
     {

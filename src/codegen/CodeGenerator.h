@@ -1,7 +1,7 @@
 #pragma once
 
-#include "antlr4-runtime.h"
 #include "AST.h"
+#include "CodeGeneratorImpl.h"
 #include "llvm/IR/LLVMContext.h"
 
 namespace remniw
@@ -9,8 +9,13 @@ namespace remniw
 
 class CodeGenerator
 {
+private:
+    CodeGeneratorImpl *pImpl;
+
 public:
-    static std::unique_ptr<llvm::Module> emit(ProgramAST &, llvm::LLVMContext&);
+    CodeGenerator(llvm::LLVMContext* LLVMContext): pImpl(new CodeGeneratorImpl(LLVMContext)) {}
+    ~CodeGenerator() { delete pImpl; }
+    std::unique_ptr<llvm::Module> emit(ProgramAST*);
 };
 
 }

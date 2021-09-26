@@ -1,3 +1,0 @@
-apply(f,a){
-    return (f)(a);
-}

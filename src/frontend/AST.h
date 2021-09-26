@@ -64,11 +64,9 @@ public:
         Program,
     };
     ASTNode(Kind K, SourceLocation Loc) : ASTNodeKind(K), Loc(Loc) {}
-    virtual ~ASTNode() {}
+    // virtual ~ASTNode() {}
 
-    virtual void accept(ASTVisitor &visitor) = 0;
-
-    virtual llvm::Value *codegen() { return nullptr; }
+    // virtual llvm::Value *codegen() { return nullptr; }
 
     Kind getKind() const { return ASTNodeKind; }
     int getLine() const { return Loc.Line; }
@@ -115,13 +113,9 @@ public:
     VarDeclNodeAST(SourceLocation Loc, std::string Name, remniw::Type* Ty)
         : ASTNode(ASTNode::VarDecl, Loc), Name(Name), Ty(Ty) {}
 
-    void accept(ASTVisitor &visitor) override { visitor.visit(*this); }
-
     llvm::StringRef getName() const { return Name; }
 
     remniw::Type* getType() const { return Ty; }
-
-    llvm::Value *codegen() override;
 
     static bool classof(const ASTNode *Node)
     {
@@ -139,11 +133,7 @@ public:
     NumberExprAST(SourceLocation Loc, int64_t Val) :
         ExprAST(ASTNode::NumberExpr, Loc, /*LValue*/false), Val(Val) {}
 
-    void accept(ASTVisitor &visitor) override { visitor.visit(*this); }
-
     int64_t getValue() const { return Val; }
-
-    llvm::Value *codegen() override;
 
     static bool classof(const ASTNode *Node)
     {
@@ -163,11 +153,7 @@ public:
     VariableExprAST(SourceLocation Loc, std::string Name, bool LValue)
         : ExprAST(ASTNode::VariableExpr, Loc, LValue), Name(Name) { }
 
-    void accept(ASTVisitor &visitor) override { visitor.visit(*this); }
-
     llvm::StringRef getName() const { return Name; }
-
-    llvm::Value *codegen() override;
 
     static bool classof(const ASTNode *Node)
     {
@@ -185,13 +171,10 @@ public:
                         std::vector<std::unique_ptr<ExprAST>> Args)
         : ExprAST(ASTNode::FunctionCallExpr, Loc,/*LValue*/false), Callee(std::move(Callee)), Args(std::move(Args)) { }
 
-    void accept(ASTVisitor &visitor) override { visitor.visit(*this); }
-
     ExprAST *getCallee() const { return Callee.get(); }
 
     std::vector<ExprAST *> getArgs() const { return rawPtrs(Args); }
-
-    llvm::Value *codegen() override;
+    size_t getArgSize() const { return Args.size(); }
 
     static bool classof(const ASTNode *Node)
     {
@@ -208,10 +191,6 @@ class NullExprAST : public ExprAST
 public:
     NullExprAST(SourceLocation Loc) : ExprAST(ASTNode::NullExpr, Loc, /*LValue*/false) {}
 
-    void accept(ASTVisitor &visitor) override { visitor.visit(*this); }
-
-    llvm::Value *codegen() override;
-
     static bool classof(const ASTNode *Node)
     {
         return Node->getKind() == ASTNode::NullExpr;
@@ -227,11 +206,7 @@ public:
     AllocExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Init)
         : ExprAST(ASTNode::AllocExpr, Loc, /*LValue*/true), Init(std::move(Init)) { }
 
-    void accept(ASTVisitor &visitor) override { visitor.visit(*this); }
-
     ExprAST *getInit() const { return Init.get(); }
-
-    llvm::Value *codegen() override;
 
     static bool classof(const ASTNode *Node)
     {
@@ -245,11 +220,7 @@ public:
     RefExprAST(SourceLocation Loc, std::unique_ptr<VariableExprAST> Var)
         : ExprAST(ASTNode::RefExpr, Loc, /*LValue*/false), Var(std::move(Var)) { }
 
-    void accept(ASTVisitor &visitor) override { visitor.visit(*this); }
-
     VariableExprAST *getVar() const { return Var.get(); }
-
-    llvm::Value *codegen() override;
 
     static bool classof(const ASTNode *Node)
     {
@@ -266,11 +237,7 @@ public:
     DerefExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Ptr, bool LValue)
         : ExprAST(ASTNode::DerefExpr, Loc, LValue), Ptr(std::move(Ptr)) { }
 
-    void accept(ASTVisitor &visitor) override { visitor.visit(*this); }
-
     ExprAST *getPtr() const { return Ptr.get(); }
-
-    llvm::Value *codegen() override;
 
     static bool classof(const ASTNode *Node)
     {
@@ -287,10 +254,6 @@ class InputExprAST : public ExprAST
 public:
     InputExprAST(SourceLocation Loc) : ExprAST(ASTNode::InputExpr, Loc, /*LValue*/false) {}
 
-    void accept(ASTVisitor &visitor) override { visitor.visit(*this); }
-
-    llvm::Value *codegen() override;
-
     static bool classof(const ASTNode *Node)
     {
         return Node->getKind() == ASTNode::InputExpr;
@@ -304,26 +267,14 @@ public:
 //     RecordCreateExprAST(SourceLocation Loc)
 //         : ExprAST(Loc)
 //     {
-//     }
-//     llvm::Value *codegen() override;
-//     void accept(ASTVisitor &visitor) override
-//     {
-//         visitor.visit(*this);
-//     }
 // };
 
 // class RecordAccessExprAST : public ExprAST
 // {
-
 // public:
 //     RecordAccessExprAST(SourceLocation Loc)
 //         : ExprAST(Loc)
 //     {
-//     }
-//    llvm::Value *codegen() override;
-//     void accept(ASTVisitor &visitor) override
-//     {
-//         visitor.visit(*this);
 //     }
 // };
 
@@ -344,8 +295,6 @@ public:
                   std::unique_ptr<ExprAST> LHS, std::unique_ptr<ExprAST> RHS)
         : ExprAST(ASTNode::BinaryExpr, Loc, /*LValue*/false), Op(Op),
           LHS(std::move(LHS)), RHS(std::move(RHS)) { }
-
-    void accept(ASTVisitor &visitor) override { visitor.visit(*this); }
 
     OpKind getOp() const { return Op; }
 
@@ -369,8 +318,6 @@ public:
 
     ExprAST *getRHS() const { return RHS.get(); }
 
-    llvm::Value *codegen() override;
-
     static bool classof(const ASTNode *Node)
     {
         return Node->getKind() == ASTNode::BinaryExpr;
@@ -389,11 +336,7 @@ public:
                         std::vector<std::unique_ptr<VarDeclNodeAST>> Vars)
         : StmtAST(ASTNode::LocalVarDeclStmt, Loc), Vars(std::move(Vars)) { }
 
-    void accept(ASTVisitor &visitor) override { visitor.visit(*this); }
-
     std::vector<VarDeclNodeAST *> getVars() const { return rawPtrs(Vars); }
-
-    llvm::Value *codegen() override;
 
     static bool classof(const ASTNode *Node)
     {
@@ -409,10 +352,6 @@ class EmptyStmtAST : public StmtAST
 public:
     EmptyStmtAST(SourceLocation Loc) : StmtAST(ASTNode::EmptyStmt, Loc) {}
 
-    void accept(ASTVisitor &visitor) override { visitor.visit(*this); }
-
-    llvm::Value *codegen() override;
-
     static bool classof(const ASTNode *Node)
     {
         return Node->getKind() == ASTNode::EmptyStmt;
@@ -425,11 +364,7 @@ public:
     OutputStmtAST(SourceLocation Loc, std::unique_ptr<ExprAST> Expr)
         : StmtAST(ASTNode::OutputStmt, Loc), Expr(std::move(Expr)) { }
 
-    void accept(ASTVisitor &visitor) override { visitor.visit(*this); }
-
     ExprAST *getExpr() const { return Expr.get(); }
-
-    llvm::Value *codegen() override;
 
     static bool classof(const ASTNode *Node)
     {
@@ -446,11 +381,7 @@ public:
     BlockStmtAST(SourceLocation Loc, std::vector<std::unique_ptr<StmtAST>> Stmts)
         : StmtAST(ASTNode::BlockStmt, Loc), Stmts(std::move(Stmts)) { }
 
-    void accept(ASTVisitor &visitor) override { visitor.visit(*this); }
-
     std::vector<StmtAST *> getStmts() const { return rawPtrs(Stmts); }
-
-    llvm::Value *codegen() override;
 
     static bool classof(const ASTNode *Node)
     {
@@ -468,11 +399,7 @@ public:
     ReturnStmtAST(SourceLocation Loc, std::unique_ptr<ExprAST> Expr)
         : StmtAST(ASTNode::ReturnStmt, Loc), Expr(std::move(Expr)) { }
 
-    void accept(ASTVisitor &visitor) override { visitor.visit(*this); }
-
     ExprAST *getExpr() const { return Expr.get(); }
-
-    llvm::Value *codegen() override;
 
     static bool classof(const ASTNode *Node)
     {
@@ -491,15 +418,11 @@ public:
         : StmtAST(ASTNode::IfStmt, Loc), Cond(std::move(Cond)), Then(std::move(Then)),
           Else(std::move(Else)) { }
 
-    void accept(ASTVisitor &visitor) override { visitor.visit(*this); }
-
     ExprAST *getCond() const { return Cond.get(); }
 
     StmtAST *getThen() const { return Then.get(); }
 
     StmtAST *getElse() const { return Else.get(); }
-
-    llvm::Value *codegen() override;
 
     static bool classof(const ASTNode *Node)
     {
@@ -519,13 +442,9 @@ public:
                  std::unique_ptr<StmtAST> Body)
         : StmtAST(ASTNode::WhileStmt, Loc), Cond(std::move(Cond)), Body(std::move(Body)) { }
 
-    void accept(ASTVisitor &visitor) override { visitor.visit(*this); }
-
     ExprAST *getCond() const { return Cond.get(); }
 
     StmtAST *getBody() const { return Body.get(); }
-
-    llvm::Value *codegen() override;
 
     static bool classof(const ASTNode *Node)
     {
@@ -544,13 +463,9 @@ public:
                            std::unique_ptr<ExprAST> RHS)
         : StmtAST(ASTNode::BasicAssignmentStmt, Loc), LHS(std::move(LHS)), RHS(std::move(RHS)) { }
 
-    void accept(ASTVisitor &visitor) override { visitor.visit(*this); }
-
     ExprAST *getLHS() const { return LHS.get(); }
 
     ExprAST *getRHS() const { return RHS.get(); }
-
-    llvm::Value *codegen() override;
 
     static bool classof(const ASTNode *Node)
     {
@@ -569,13 +484,9 @@ public:
                            std::unique_ptr<ExprAST> RHS)
         : StmtAST(ASTNode::DerefAssignmentStmt, Loc), LHS(std::move(LHS)), RHS(std::move(RHS)) { }
 
-    void accept(ASTVisitor &visitor) override { visitor.visit(*this); }
-
     ExprAST *getLHS() const { return LHS.get(); }
 
     ExprAST *getRHS() const { return RHS.get(); }
-
-    llvm::Value *codegen() override;
 
     static bool classof(const ASTNode *Node)
     {
@@ -590,28 +501,14 @@ private:
 // {
 // public:
 //     RecordFieldBasicAssignmentStmtAST(SourceLocation Loc)
-//         : StmtAST(Loc)
-//     {
-//     }
-//     llvm::Value *codegen() override;
-//     void accept(ASTVisitor &visitor) override
-//     {
-//         visitor.visit(*this);
-//     }
+//         : StmtAST(Loc) {}
 // };
 
 // class RecordFieldDerefAssignmentStmtAST : public StmtAST
 // {
 // public:
 //     RecordFieldDerefAssignmentStmtAST(SourceLocation Loc)
-//         : StmtAST(Loc)
-//     {
-//     }
-//     llvm::Value *codegen() override;
-//     void accept(ASTVisitor &visitor) override
-//     {
-//         visitor.visit(*this);
-//     }
+//         : StmtAST(Loc) {}
 // };
 
 /// FunctionAST - This class represents a function definition itself.
@@ -631,8 +528,6 @@ public:
           LocalVarDecls(std::move(LocalVarDecls)),
           Body(std::move(Body)),
           ReturnStmt(std::move(ReturnStmt)) { }
-
-    void accept(ASTVisitor &visitor) override { visitor.visit(*this); }
 
     llvm::StringRef getFuncName() const { return FuncName; }
 
@@ -655,8 +550,6 @@ public:
 
     remniw::Type* getReturnType() const { return FuncTy->getReturnType(); }
 
-    llvm::Value *codegen() override;
-
     static bool classof(const ASTNode *Node)
     {
         return Node->getKind() == ASTNode::Function;
@@ -676,8 +569,6 @@ class ProgramAST : public ASTNode
 public:
     ProgramAST(std::vector<std::unique_ptr<FunctionAST>> Functions)
         : ASTNode(ASTNode::Program, SourceLocation{0, 0}), Functions(std::move(Functions)) { }
-
-    void accept(ASTVisitor &visitor) override { visitor.visit(*this); }
 
     std::vector<FunctionAST *> getFunctions() const { return rawPtrs(Functions); }
 

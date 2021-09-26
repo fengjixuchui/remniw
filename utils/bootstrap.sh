@@ -9,6 +9,7 @@ bootstrap_ubuntu_dependencies() {
     sudo ./kitware-archive.sh
 
     sudo apt -y install \
+        byacc \
         cmake \
         default-jdk \
         git \

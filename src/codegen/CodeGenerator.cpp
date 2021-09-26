@@ -9,9 +9,9 @@ using namespace llvm;
 namespace remniw
 {
 
-std::unique_ptr<Module> CodeGenerator::emit(ProgramAST & Program, LLVMContext& Context)
+std::unique_ptr<Module> CodeGenerator::emit(ProgramAST *AST)
 {
-    return Program.codegen(Context);
+    return pImpl->codegen(AST);
 }
 
 }

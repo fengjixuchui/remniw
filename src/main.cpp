@@ -7,8 +7,9 @@
 #include "CodeGenerator.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/ToolOutputFile.h"
 
 #include <iostream>
@@ -17,22 +18,24 @@
 using namespace antlr4;
 using namespace remniw;
 
-static llvm::cl::opt<bool>Verbose("v", llvm::cl::desc("Verbose"));
+#define DEBUG_TYPE "remniw"
+
+static llvm::cl::OptionCategory RemniwCat("remniw compiler options");
 
 static llvm::cl::opt<std::string>
 InputFilename(llvm::cl::Positional,
-               llvm::cl::desc("<input remniw source code>"));
+               llvm::cl::desc("<input remniw source code>"), llvm::cl::cat(RemniwCat));
 
 static llvm::cl::opt<std::string>
 OutputFilename("o", llvm::cl::desc("Override output filename"), llvm::cl::init("a.out"),
-               llvm::cl::value_desc("filename"));
+               llvm::cl::value_desc("filename"), llvm::cl::cat(RemniwCat));
 
 int main(int argc, char *argv[])
 {
+    llvm::cl::HideUnrelatedOptions(RemniwCat);
+    llvm::cl::SetVersionPrinter([](llvm::raw_ostream& OS){ OS << "remniw compiler 0.1\n"; });
     llvm::cl::ParseCommandLineOptions(argc, argv, "remniw compiler\n");
 
-    // llvm::errs().enable_colors(true);
-    // llvm::errs().changeColor(llvm::raw_ostream::RED);
     llvm::LLVMContext TheLLVMContext;
     remniw::TypeContext TheTypeContext;
 
@@ -41,38 +44,37 @@ int main(int argc, char *argv[])
     if(!Stream.good())
     {
         llvm::errs() << "error: no such file: '" << InputFilename << "'\n";
-        exit(1);
+        return 1;
     }
     FrontEnd FE(TheTypeContext);
     std::unique_ptr<ProgramAST> AST = FE.parse(Stream);
 
-    if (Verbose)
+    LLVM_DEBUG(
     {
         llvm::outs() << "===== AST Printer ===== \n";
         ASTPrinter PrettyPrinter(llvm::outs());
-        PrettyPrinter.print(*AST);
-    }
+        PrettyPrinter.print(AST.get());
+    });
 
-    if (Verbose) llvm::outs() << "===== Symbol Table ===== \n";
+    LLVM_DEBUG(llvm::outs() << "===== Symbol Table ===== \n");
     SymbolTableBuilder SymTabBuilder;
-    SymTabBuilder.visit(*AST);
+    SymTabBuilder.build(AST.get());
     // SymTabBuilder.getSymbolTale().print(llvm::outs());
 
-    if (Verbose) llvm::outs() << "===== Type Analysis ===== \n";
+    LLVM_DEBUG(llvm::outs() << "===== Type Analysis ===== \n");
     TypeAnalysis TA(SymTabBuilder.getSymbolTale(), TheTypeContext);
-    TA.visit(*AST);
-    TA.solve();
-    if (Verbose)
+    TA.solve(AST.get());
+    LLVM_DEBUG(
     {
         for(auto Constraint: TA.getConstraints())
         {
             Constraint.print(llvm::outs());
         }
-    }
+    });
 
-    if (Verbose) llvm::outs() << "===== Code Generator ===== \n";
-    std::unique_ptr<llvm::Module> M =
-        CodeGenerator::emit(*AST, TheLLVMContext);
+    LLVM_DEBUG(llvm::outs() << "===== Code Generator ===== \n");
+    CodeGenerator CG(&TheLLVMContext);
+    std::unique_ptr<llvm::Module> M = CG.emit(AST.get());
 
     std::error_code EC;
     llvm::ToolOutputFile Out(OutputFilename, EC, llvm::sys::fs::OF_Text);
@@ -81,7 +83,7 @@ int main(int argc, char *argv[])
         llvm::errs() << EC.message() << '\n';
         return 1;
     }
-    // M->print(llvm::errs(), nullptr);
+    LLVM_DEBUG(M->print(llvm::outs(), nullptr));
     // WriteBitcodeToFile(*M.get(), Out.os());
     M->print(Out.os(), nullptr);
     Out.keep();

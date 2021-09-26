@@ -29,7 +29,7 @@ class ASTVisitor
 {
 public:
     ASTVisitor() {}
-
+    virtual ~ASTVisitor() {}
     virtual void visit(VarDeclNodeAST &) {}
     virtual void visit(NumberExprAST &) {}
     virtual void visit(VariableExprAST &) {}

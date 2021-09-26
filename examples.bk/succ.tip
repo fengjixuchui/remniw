@@ -1,3 +1,0 @@
-succ(i){
-    return i+1;
-}

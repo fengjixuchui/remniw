@@ -4,7 +4,7 @@
 namespace remniw
 {
 
-class ASTPrinter : public RecursiveASTVisitor
+class ASTPrinter : public RecursiveASTVisitor<ASTPrinter>
 {
 private:
     unsigned Ind;
@@ -13,252 +13,252 @@ private:
 public:
     ASTPrinter(llvm::raw_ostream &Out): RecursiveASTVisitor(), Ind(0), Out(Out) {}
 
-    void print(ProgramAST& AST) { AST.accept(*this); }
+    void print(ProgramAST* AST) { visitProgram(AST); }
 
-    virtual bool actBefore(VarDeclNodeAST & Node) override
+    bool actBeforeVisitVarDeclNode(VarDeclNodeAST *Node)
     {
-        Out.indent(Ind) << "VarDeclNode " << &Node << " '" << Node.getName() << "' "
-            << *Node.getType() << " <" << Node.getLine() << ':' << Node.getCol() << ">\n";
+        Out.indent(Ind) << "VarDeclNode " << Node << " '" << Node->getName() << "' "
+            << *Node->getType() << " <" << Node->getLine() << ':' << Node->getCol() << ">\n";
         return false;
     }
 
-    virtual bool actBefore(NumberExprAST &Node) override
+    bool actBeforeVisitNumberExpr(NumberExprAST *Node)
     {
-        Out.indent(Ind) << "NumberExpr " << &Node << " '" << Node.getValue() << "' "
-            << (Node.IsLValue() ? "lvalue" : "rvalue")
-            << " <" << Node.getLine() << ':' << Node.getCol() << ">\n";
+        Out.indent(Ind) << "NumberExpr " << Node << " '" << Node->getValue() << "' "
+            << (Node->IsLValue() ? "lvalue" : "rvalue")
+            << " <" << Node->getLine() << ':' << Node->getCol() << ">\n";
         return false;
     }
 
-    virtual bool actBefore(VariableExprAST &Node) override
+    bool actBeforeVisitVariableExpr(VariableExprAST *Node)
     {
-        Out.indent(Ind) << "VariableExpr " << &Node << " '" << Node.getName() << "' "
-            << (Node.IsLValue() ? "lvalue" : "rvalue")
-            << " <" << Node.getLine() << ':' << Node.getCol() << ">\n";;
+        Out.indent(Ind) << "VariableExpr " << Node << " '" << Node->getName() << "' "
+            << (Node->IsLValue() ? "lvalue" : "rvalue")
+            << " <" << Node->getLine() << ':' << Node->getCol() << ">\n";;
         return false;
     }
 
-    virtual void visit(FunctionCallExprAST &Node) override
+    void visitFunctionCallExpr(FunctionCallExprAST *Node)
     {
-        Out.indent(Ind) << "FunctionCallExpr " << &Node << " <" << Node.getLine() << ':' << Node.getCol() << ">\n";;
+        Out.indent(Ind) << "FunctionCallExpr " << Node << " <" << Node->getLine() << ':' << Node->getCol() << ">\n";;
         Out.indent(Ind+1) << "Callee:\n";
         Ind += 2;
-        Node.getCallee()->accept(*this);
+        visitExpr(Node->getCallee());
         Ind -= 2;
         Out.indent(Ind+1) << "Args:\n";
         Ind += 2;
-        for (auto* Arg: Node.getArgs())
-            Arg->accept(*this);
+        for (auto* Arg: Node->getArgs())
+            visitExpr(Arg);
         Ind -= 2;
     }
 
-    virtual bool actBefore(NullExprAST &Node) override
+    bool actBeforeVisitNullExpr(NullExprAST *Node)
     {
-        Out.indent(Ind) << "NullExpr " << &Node << ", "
-            << (Node.IsLValue() ? "lvalue" : "rvalue")
-            << " <" << Node.getLine() << ':' << Node.getCol() << ">\n";
+        Out.indent(Ind) << "NullExpr " << Node << ", "
+            << (Node->IsLValue() ? "lvalue" : "rvalue")
+            << " <" << Node->getLine() << ':' << Node->getCol() << ">\n";
         return false;
     }
 
-    virtual bool actBefore(AllocExprAST &Node) override
+    bool actBeforeVisitAllocExpr(AllocExprAST *Node)
     {
-        Out.indent(Ind) << "AllocExpr " << &Node << ", "
-            << (Node.IsLValue() ? "lvalue" : "rvalue")
-            << " <" << Node.getLine() << ':' << Node.getCol() << ">\n";
+        Out.indent(Ind) << "AllocExpr " << Node << ", "
+            << (Node->IsLValue() ? "lvalue" : "rvalue")
+            << " <" << Node->getLine() << ':' << Node->getCol() << ">\n";
         return false;
     }
 
-    virtual bool actBefore(RefExprAST &Node) override
+    bool actBeforeVisitRefExpr(RefExprAST *Node)
     {
-        Out.indent(Ind) << "RefExpr " << &Node << ", "
-            << (Node.IsLValue() ? "lvalue" : "rvalue")
-            << " <" << Node.getLine() << ':' << Node.getCol() << ">\n";
+        Out.indent(Ind) << "RefExpr " << Node << ", "
+            << (Node->IsLValue() ? "lvalue" : "rvalue")
+            << " <" << Node->getLine() << ':' << Node->getCol() << ">\n";
         Ind += 1;
         return false;
     }
 
-    virtual void actAfter(RefExprAST &) override
+    void actAfterVisitRefExpr(RefExprAST *)
     {
         Ind -= 1;
     }
 
-    virtual bool actBefore(DerefExprAST &Node) override
+    bool actBeforeVisitDerefExpr(DerefExprAST *Node)
     {
-        Out.indent(Ind) << "DerefExpr " << &Node << ", "
-            << (Node.IsLValue() ? "lvalue" : "rvalue")
-            << " <" << Node.getLine() << ':' << Node.getCol() << ">\n";
+        Out.indent(Ind) << "DerefExpr " << Node << ", "
+            << (Node->IsLValue() ? "lvalue" : "rvalue")
+            << " <" << Node->getLine() << ':' << Node->getCol() << ">\n";
         Ind += 1;
         return false;
     }
 
-    virtual void actAfter(DerefExprAST &) override
+    void actAfterVisitDerefExpr(DerefExprAST *)
     {
         Ind -= 1;
     }
 
-    virtual bool actBefore(InputExprAST &Node) override
+    bool actBeforeVisitInputExpr(InputExprAST *Node)
     {
-        Out.indent(Ind) << "InputExpr " << &Node << ", "
-            << (Node.IsLValue() ? "lvalue" : "rvalue")
-            << " <" << Node.getLine() << ':' << Node.getCol() << ">\n";
+        Out.indent(Ind) << "InputExpr " << Node << ", "
+            << (Node->IsLValue() ? "lvalue" : "rvalue")
+            << " <" << Node->getLine() << ':' << Node->getCol() << ">\n";
         return false;
     }
 
-    virtual bool actBefore(BinaryExprAST &Node) override
+    bool actBeforeVisitBinaryExpr(BinaryExprAST *Node)
     {
-        Out.indent(Ind) << "BinaryExpr " << &Node << " '" << Node.getOpString() << "' "
-            << (Node.IsLValue() ? "lvalue" : "rvalue")
-            << " <" << Node.getLine() << ':' << Node.getCol() << ">\n";
+        Out.indent(Ind) << "BinaryExpr " << Node << " '" << Node->getOpString() << "' "
+            << (Node->IsLValue() ? "lvalue" : "rvalue")
+            << " <" << Node->getLine() << ':' << Node->getCol() << ">\n";
         Ind += 1;
         return false;
     }
 
-    virtual void actAfter(BinaryExprAST &) override
+    void actAfterVisitBinaryExpr(BinaryExprAST *)
     {
         Ind -= 1;
     }
 
-    virtual bool actBefore(LocalVarDeclStmtAST &Node) override
+    bool actBeforeVisitLocalVarDeclStmt(LocalVarDeclStmtAST *Node)
     {
-        Out.indent(Ind) << "LocalVarDeclStmt " << &Node
-            << " <" << Node.getLine() << ':' << Node.getCol() << ">\n";
+        Out.indent(Ind) << "LocalVarDeclStmt " << Node
+            << " <" << Node->getLine() << ':' << Node->getCol() << ">\n";
         Ind += 1;
         return false;
     }
 
-    virtual void actAfter(LocalVarDeclStmtAST &) override
+    void actAfterVisitLocalVarDeclStmt(LocalVarDeclStmtAST *)
     {
         Ind -= 1;
     }
 
-    virtual bool actBefore(EmptyStmtAST &Node) override
+    bool actBeforeVisitEmptyStmt(EmptyStmtAST *Node)
     {
-        Out.indent(Ind) << "EmptyStmt " << &Node
-            << " <" << Node.getLine() << ':' << Node.getCol() << ">\n";
+        Out.indent(Ind) << "EmptyStmt " << Node
+            << " <" << Node->getLine() << ':' << Node->getCol() << ">\n";
         return false;
     }
 
-    virtual bool actBefore(OutputStmtAST &Node) override
+    bool actBeforeVisitOutputStmt(OutputStmtAST *Node)
     {
-        Out.indent(Ind) << "OutputStmt " << &Node
-            << " <" << Node.getLine() << ':' << Node.getCol() << ">\n";
+        Out.indent(Ind) << "OutputStmt " << Node
+            << " <" << Node->getLine() << ':' << Node->getCol() << ">\n";
         Ind += 1;
         return false;
     }
 
-    virtual void actAfter(OutputStmtAST &) override
+    void actAfterVisitOutputStmt(OutputStmtAST *)
     {
         Ind -= 1;
     }
 
-    virtual bool actBefore(BlockStmtAST &Node) override
+    bool actBeforeVisitBlockStmtAST(BlockStmtAST *Node)
     {
-        Out.indent(Ind) << "BlockStmt " << &Node
-            << " <" << Node.getLine() << ':' << Node.getCol() << ">\n";
+        Out.indent(Ind) << "BlockStmt " << Node
+            << " <" << Node->getLine() << ':' << Node->getCol() << ">\n";
         Ind += 1;
         return false;
     }
 
-    virtual void actAfter(BlockStmtAST &) override
+    void actAfterVisitBlockStmtAST(BlockStmtAST *)
     {
         Ind -= 1;
     }
 
-    virtual bool actBefore(ReturnStmtAST &Node) override
+    bool actBeforeVisitReturnStmt(ReturnStmtAST *Node)
     {
-        Out.indent(Ind) << "ReturnStmt " << &Node
-            << " <" << Node.getLine() << ':' << Node.getCol() << ">\n";
+        Out.indent(Ind) << "ReturnStmt " << Node
+            << " <" << Node->getLine() << ':' << Node->getCol() << ">\n";
         Ind += 1;
         return false;
     }
 
-    virtual void actAfter(ReturnStmtAST &) override
+    void actAfterVisitReturnStmt(ReturnStmtAST *)
     {
         Ind -= 1;
     }
 
-    virtual void visit(IfStmtAST &Node) override
+    void visitIfStmt(IfStmtAST *Node)
     {
-        Out.indent(Ind) << "IfStmt " << &Node
-            << " <" << Node.getLine() << ':' << Node.getCol() << ">\n";
+        Out.indent(Ind) << "IfStmt " << Node
+            << " <" << Node->getLine() << ':' << Node->getCol() << ">\n";
         Out.indent(Ind+1) << "Cond:\n";
         Ind += 2;
-        Node.getCond()->accept(*this);
+        visitExpr(Node->getCond());
         Ind -= 2;
         Out.indent(Ind+1) << "Then:\n";
         Ind += 2;
-        Node.getThen()->accept(*this);
+        visitStmt(Node->getThen());
         Ind -= 2;
-        if (Node.getElse())
+        if (Node->getElse())
         {
             Out.indent(Ind+1) << "Else:\n";
             Ind += 2;
-            Node.getElse()->accept(*this);
+            visitStmt(Node->getElse());
             Ind -= 2;
         }
     }
 
-    virtual void visit(WhileStmtAST &Node) override
+    void visitWhileStmt(WhileStmtAST *Node)
     {
-        Out.indent(Ind) << "WhileStmt" << &Node
-            << " <" << Node.getLine() << ':' << Node.getCol() << ">\n";
+        Out.indent(Ind) << "WhileStmt" << Node
+            << " <" << Node->getLine() << ':' << Node->getCol() << ">\n";
         Out.indent(Ind+1) << "Cond:\n";
         Ind += 2;
-        Node.getCond()->accept(*this);
+        visitExpr(Node->getCond());
         Ind -= 2;
         Out.indent(Ind+1) << "Body:\n";
         Ind += 2;
-        Node.getBody()->accept(*this);
+        visitStmt(Node->getBody());
         Ind -= 2;
     }
 
-    virtual bool actBefore(BasicAssignmentStmtAST &Node) override
+    bool actBeforeVisitBasicAssignmentStmt(BasicAssignmentStmtAST *Node)
     {
-        Out.indent(Ind) << "BasicAssignmentStmt " << &Node
-            << " <" << Node.getLine() << ':' << Node.getCol() << ">\n";
+        Out.indent(Ind) << "BasicAssignmentStmt " << Node
+            << " <" << Node->getLine() << ':' << Node->getCol() << ">\n";
         Ind += 1;
         return false;
     }
 
-    virtual void actAfter(BasicAssignmentStmtAST &) override
+    void actAfterVisitBasicAssignmentStmt(BasicAssignmentStmtAST *)
     {
         Ind -= 1;
     }
 
-    virtual bool actBefore(DerefAssignmentStmtAST &Node) override
+    bool actBeforeVisitDerefAssignmentStmt(DerefAssignmentStmtAST *Node)
     {
-        Out.indent(Ind) << "DerefAssignmentStmt " << &Node
-            << " <" << Node.getLine() << ':' << Node.getCol() << ">\n";
+        Out.indent(Ind) << "DerefAssignmentStmt " << Node
+            << " <" << Node->getLine() << ':' << Node->getCol() << ">\n";
         Ind += 1;
         return false;
     }
 
-    virtual void actAfter(DerefAssignmentStmtAST &) override
+    void actAfterVisitDerefAssignmentStmt(DerefAssignmentStmtAST *)
     {
         Ind -= 1;
     }
 
-    virtual void visit(FunctionAST &Node) override
+    void visitFunction(FunctionAST *Node)
     {
-        Out.indent(Ind) << "Function " << &Node << " '" << Node.getFuncName() << "' "
-            << *Node.getType() << " <" << Node.getLine() << ':' << Node.getCol() << ">\n";
+        Out.indent(Ind) << "Function " << Node << " '" << Node->getFuncName() << "' "
+            << *Node->getType() << " <" << Node->getLine() << ':' << Node->getCol() << ">\n";
         Out.indent(Ind+1) << "ParamDecls:\n";
         Ind += 2;
-        for (auto *ParmDecl : Node.getParamDecls())
-            ParmDecl->accept(*this);
+        for (auto *ParmDecl : Node->getParamDecls())
+            visitVarDeclNode(ParmDecl);
         Ind -= 2;
         Out.indent(Ind+1) << "LocalVarDecls:\n";
         Ind += 2;
-        Node.getLocalVarDecls()->accept(*this);
+        visitLocalVarDeclStmt(Node->getLocalVarDecls());
         Ind -= 2;
         Out.indent(Ind+1) << "Body:\n";
         Ind += 2;
-        for (auto *Stmt : Node.getBody())
-            Stmt->accept(*this);
+        for (auto *Stmt : Node->getBody())
+            visitStmt(Stmt);
         Ind -= 2;
         Out.indent(Ind+1) << "Return:\n";
         Ind += 2;
-        Node.getReturn()->accept(*this);
+        visitReturnStmt(Node->getReturn());
         Ind -= 2;
         Out.indent(Ind) << "\n";
     }

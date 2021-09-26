@@ -92,8 +92,10 @@ bool TypeAnalysis::unify(Type* Ty1, Type* Ty2)
     return true;
 }
 
-bool TypeAnalysis::solve()
+bool TypeAnalysis::solve(ProgramAST *AST)
 {
+    visitProgram(AST);
+
     for (TypeConstraint &Constraint : Constraints)
     {
         if (!unify(Constraint.LHS, Constraint.RHS))

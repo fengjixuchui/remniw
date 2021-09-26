@@ -4,218 +4,313 @@
 namespace remniw
 {
 
-void RecursiveASTVisitor::visit(VarDeclNodeAST &VarDeclNode)
+template <typename Derived>
+void RecursiveASTVisitor<Derived>::visitExpr(ExprAST *Expr)
 {
-    if (actBefore(VarDeclNode))
-        return;
-
-    actAfter(VarDeclNode);
+    switch (Expr->getKind())
+    {
+    case ASTNode::NumberExpr:
+        getDerived().visitNumberExpr(static_cast<NumberExprAST*>(Expr));
+        break;
+    case ASTNode::VariableExpr:
+        getDerived().visitVariableExpr(static_cast<VariableExprAST*>(Expr));
+        break;
+    case ASTNode::FunctionCallExpr:
+        getDerived().visitFunctionCallExpr(static_cast<FunctionCallExprAST*>(Expr));
+        break;
+    case ASTNode::NullExpr:
+        getDerived().visitNullExpr(static_cast<NullExprAST*>(Expr));
+        break;
+    case ASTNode::AllocExpr:
+        getDerived().visitAllocExpr(static_cast<AllocExprAST*>(Expr));
+        break;
+    case ASTNode::RefExpr:
+        getDerived().visitRefExpr(static_cast<RefExprAST*>(Expr));
+        break;
+    case ASTNode::DerefExpr:
+        getDerived().visitDerefExpr(static_cast<DerefExprAST*>(Expr));
+        break;
+    case ASTNode::InputExpr:
+        getDerived().visitInputExpr(static_cast<InputExprAST*>(Expr));
+        break;
+    case ASTNode::BinaryExpr:
+        getDerived().visitBinaryExpr(static_cast<BinaryExprAST*>(Expr));
+        break;
+    default:
+        llvm_unreachable("unexpected expr!");
+    }
 }
 
-void RecursiveASTVisitor::visit(NumberExprAST &NumberExpr)
+template <typename Derived>
+void RecursiveASTVisitor<Derived>::visitStmt(StmtAST *Stmt)
 {
-    if (actBefore(NumberExpr))
-        return;
-
-    actAfter(NumberExpr);
+    switch (Stmt->getKind())
+    {
+    case ASTNode::LocalVarDeclStmt:
+        getDerived().visitLocalVarDeclStmt(static_cast<LocalVarDeclStmtAST*>(Stmt));
+        break;
+    case ASTNode::EmptyStmt:
+        getDerived().visitEmptyStmt(static_cast<EmptyStmtAST*>(Stmt));
+        break;
+    case ASTNode::OutputStmt:
+        getDerived().visitOutputStmt(static_cast<OutputStmtAST*>(Stmt));
+        break;
+    case ASTNode::BlockStmt:
+        getDerived().visitBlockStmt(static_cast<BlockStmtAST*>(Stmt));
+        break;
+    case ASTNode::ReturnStmt:
+        getDerived().visitReturnStmt(static_cast<ReturnStmtAST*>(Stmt));
+        break;
+    case ASTNode::IfStmt:
+        getDerived().visitIfStmt(static_cast<IfStmtAST*>(Stmt));
+        break;
+    case ASTNode::WhileStmt:
+        getDerived().visitWhileStmt(static_cast<WhileStmtAST*>(Stmt));
+        break;
+    case ASTNode::BasicAssignmentStmt:
+        getDerived().visitBasicAssignmentStmt(static_cast<BasicAssignmentStmtAST*>(Stmt));
+        break;
+    case ASTNode::DerefAssignmentStmt:
+        getDerived().visitDerefAssignmentStmt(static_cast<DerefAssignmentStmtAST*>(Stmt));
+        break;
+    default:
+        llvm_unreachable("unexpected stmt!");
+    }
 }
 
-void RecursiveASTVisitor::visit(VariableExprAST &VariableExpr)
+template <typename Derived>
+void RecursiveASTVisitor<Derived>::visitVarDeclNode(VarDeclNodeAST *VarDeclNode)
 {
-    if (actBefore(VariableExpr))
+    if (getDerived().actBeforeVisitVarDeclNode(VarDeclNode))
         return;
 
-    actAfter(VariableExpr);
+    getDerived().actAfterVisitVarDeclNode(VarDeclNode);
 }
 
-void RecursiveASTVisitor::visit(FunctionCallExprAST &FunctionCallExpr)
+template <typename Derived>
+void RecursiveASTVisitor<Derived>::visitNumberExpr(NumberExprAST *NumberExpr)
 {
-    if (actBefore(FunctionCallExpr))
+    if (getDerived().actBeforeVisitNumberExpr(NumberExpr))
         return;
 
-    for (auto *Arg : FunctionCallExpr.getArgs())
-        Arg->accept(*this);
-
-    actAfter(FunctionCallExpr);
+    getDerived().actAfterVisitNumberExpr(NumberExpr);
 }
 
-void RecursiveASTVisitor::visit(NullExprAST &NullExpr)
+template <typename Derived>
+void RecursiveASTVisitor<Derived>::visitVariableExpr(VariableExprAST *VariableExpr)
 {
-    if (actBefore(NullExpr))
+    if (getDerived().actBeforeVisitVariableExpr(VariableExpr))
         return;
 
-    actAfter(NullExpr);
+    getDerived().actAfterVisitVariableExpr(VariableExpr);
 }
 
-void RecursiveASTVisitor::visit(AllocExprAST &AllocExpr)
+template <typename Derived>
+void RecursiveASTVisitor<Derived>::visitFunctionCallExpr(FunctionCallExprAST *FunctionCallExpr)
 {
-    if (actBefore(AllocExpr))
+    if (getDerived().actBeforeVisitFunctionCallExpr(FunctionCallExpr))
         return;
 
-    AllocExpr.getInit()->accept(*this);
+    for (auto *Arg : FunctionCallExpr->getArgs())
+        visitExpr(Arg);
 
-    actAfter(AllocExpr);
+    getDerived().actAfterVisitFunctionCallExpr(FunctionCallExpr);
 }
 
-void RecursiveASTVisitor::visit(RefExprAST &RefExpr)
+template <typename Derived>
+void RecursiveASTVisitor<Derived>::visitNullExpr(NullExprAST *NullExpr)
 {
-    if (actBefore(RefExpr))
+    if (getDerived().actBeforeVisitNullExpr(NullExpr))
         return;
 
-    RefExpr.getVar()->accept(*this);
-
-    actAfter(RefExpr);
+    getDerived().actAfterVisitNullExpr(NullExpr);
 }
 
-void RecursiveASTVisitor::visit(DerefExprAST &DerefExpr)
+template <typename Derived>
+void RecursiveASTVisitor<Derived>::visitAllocExpr(AllocExprAST *AllocExpr)
 {
-    if (actBefore(DerefExpr))
+    if (getDerived().actBeforeVisitAllocExpr(AllocExpr))
         return;
 
-    DerefExpr.getPtr()->accept(*this);
+    visitExpr(AllocExpr->getInit());
 
-    actAfter(DerefExpr);
+    getDerived().actAfterVisitAllocExpr(AllocExpr);
 }
 
-void RecursiveASTVisitor::visit(InputExprAST &InputExpr)
+template <typename Derived>
+void RecursiveASTVisitor<Derived>::visitRefExpr(RefExprAST *RefExpr)
 {
-    if (actBefore(InputExpr))
+    if (getDerived().actBeforeVisitRefExpr(RefExpr))
         return;
 
-    actAfter(InputExpr);
+    visitExpr(RefExpr->getVar());
+
+    actAfterVisitRefExpr(RefExpr);
 }
 
-void RecursiveASTVisitor::visit(BinaryExprAST &BinaryExpr)
+template <typename Derived>
+void RecursiveASTVisitor<Derived>::visitDerefExpr(DerefExprAST *DerefExpr)
 {
-    if (actBefore(BinaryExpr))
+    if (getDerived().actBeforeVisitDerefExpr(DerefExpr))
         return;
 
-    BinaryExpr.getLHS()->accept(*this);
-    BinaryExpr.getRHS()->accept(*this);
+    visitExpr(DerefExpr->getPtr());
 
-    actAfter(BinaryExpr);
+    getDerived().actAfterVisitDerefExpr(DerefExpr);
 }
 
-void RecursiveASTVisitor::visit(LocalVarDeclStmtAST &LocalVarDeclStmt)
+template <typename Derived>
+void RecursiveASTVisitor<Derived>::visitInputExpr(InputExprAST *InputExpr)
 {
-    if (actBefore(LocalVarDeclStmt))
+    if (getDerived().actBeforeVisitInputExpr(InputExpr))
         return;
 
-    for (auto *VarDeclNode : LocalVarDeclStmt.getVars())
-        VarDeclNode->accept(*this);
-
-    actAfter(LocalVarDeclStmt);
+    getDerived().actAfterVisitInputExpr(InputExpr);
 }
 
-void RecursiveASTVisitor::visit(EmptyStmtAST &EmptyStmt)
+template <typename Derived>
+void RecursiveASTVisitor<Derived>::visitBinaryExpr(BinaryExprAST *BinaryExpr)
 {
-    if (actBefore(EmptyStmt))
+    if (getDerived().actBeforeVisitBinaryExpr(BinaryExpr))
         return;
 
-    actAfter(EmptyStmt);
+    visitExpr(BinaryExpr->getLHS());
+    visitExpr(BinaryExpr->getRHS());
+
+    getDerived().actAfterVisitBinaryExpr(BinaryExpr);
 }
 
-void RecursiveASTVisitor::visit(OutputStmtAST &OutputStmt)
+template <typename Derived>
+void RecursiveASTVisitor<Derived>::visitLocalVarDeclStmt(LocalVarDeclStmtAST *LocalVarDeclStmt)
 {
-    if (actBefore(OutputStmt))
+    if (getDerived().actBeforeVisitLocalVarDeclStmt(LocalVarDeclStmt))
         return;
 
-    OutputStmt.getExpr()->accept(*this);
+    for (auto *VarDeclNode : LocalVarDeclStmt->getVars())
+        visitVarDeclNode(VarDeclNode);
 
-    actAfter(OutputStmt);
+    actAfterVisitLocalVarDeclStmt(LocalVarDeclStmt);
 }
 
-void RecursiveASTVisitor::visit(BlockStmtAST &BlockStmt)
+template <typename Derived>
+void RecursiveASTVisitor<Derived>::visitEmptyStmt(EmptyStmtAST *EmptyStmt)
 {
-    if (actBefore(BlockStmt))
+    if (getDerived().actBeforeVisitEmptyStmt(EmptyStmt))
         return;
 
-    for (auto *Stmt : BlockStmt.getStmts())
-        Stmt->accept(*this);
-
-    actAfter(BlockStmt);
+    getDerived().actAfterVisitEmptyStmt(EmptyStmt);
 }
 
-void RecursiveASTVisitor::visit(ReturnStmtAST &ReturnStmt)
+template <typename Derived>
+void RecursiveASTVisitor<Derived>::visitOutputStmt(OutputStmtAST *OutputStmt)
 {
-    if (actBefore(ReturnStmt))
+    if (getDerived().actBeforeVisitOutputStmt(OutputStmt))
         return;
 
-    ReturnStmt.getExpr()->accept(*this);
+    visitExpr(OutputStmt->getExpr());
 
-    actAfter(ReturnStmt);
+    getDerived().actAfterVisitOutputStmt(OutputStmt);
 }
 
-void RecursiveASTVisitor::visit(IfStmtAST &IfStmt)
+template <typename Derived>
+void RecursiveASTVisitor<Derived>::visitBlockStmt(BlockStmtAST *BlockStmt)
 {
-    if (actBefore(IfStmt))
+    if (getDerived().actBeforeVisitBlockStmt(BlockStmt))
         return;
 
-    IfStmt.getCond()->accept(*this);
-    IfStmt.getThen()->accept(*this);
-    if (IfStmt.getElse())
-        IfStmt.getElse()->accept(*this);
+    for (auto *Stmt : BlockStmt->getStmts())
+        visitStmt(Stmt);
 
-    actAfter(IfStmt);
+    getDerived().actAfterVisitBlockStmt(BlockStmt);
 }
 
-void RecursiveASTVisitor::visit(WhileStmtAST &WhileStmt)
+template <typename Derived>
+void RecursiveASTVisitor<Derived>::visitReturnStmt(ReturnStmtAST *ReturnStmt)
 {
-    if (actBefore(WhileStmt))
+    if (getDerived().actBeforeVisitReturnStmt(ReturnStmt))
         return;
 
-    WhileStmt.getCond()->accept(*this);
-    WhileStmt.getBody()->accept(*this);
+    visitExpr(ReturnStmt->getExpr());
 
-    actAfter(WhileStmt);
+    getDerived().actAfterVisitReturnStmt(ReturnStmt);
 }
 
-void RecursiveASTVisitor::visit(BasicAssignmentStmtAST &BasicAssignmentStmt)
+template <typename Derived>
+void RecursiveASTVisitor<Derived>::visitIfStmt(IfStmtAST *IfStmt)
 {
-    if (actBefore(BasicAssignmentStmt))
+    if (getDerived().actBeforeVisitIfStmt(IfStmt))
         return;
 
-    BasicAssignmentStmt.getLHS()->accept(*this);
-    BasicAssignmentStmt.getRHS()->accept(*this);
+    visitExpr(IfStmt->getCond());
+    visitStmt(IfStmt->getThen());
+    if (IfStmt->getElse())
+        visitStmt(IfStmt->getElse());
 
-    actAfter(BasicAssignmentStmt);
+    getDerived().actAfterVisitIfStmt(IfStmt);
 }
 
-void RecursiveASTVisitor::visit(DerefAssignmentStmtAST &DerefAssignmentStmt)
+template <typename Derived>
+void RecursiveASTVisitor<Derived>::visitWhileStmt(WhileStmtAST *WhileStmt)
 {
-    if (actBefore(DerefAssignmentStmt))
+    if (getDerived().actBeforeVisitWhileStmt(WhileStmt))
         return;
 
-    DerefAssignmentStmt.getLHS()->accept(*this);
-    DerefAssignmentStmt.getRHS()->accept(*this);
+    visitExpr(WhileStmt->getCond());
+    visitStmt(WhileStmt->getBody());
 
-    actAfter(DerefAssignmentStmt);
+    getDerived().actAfterVisitWhileStmt(WhileStmt);
 }
 
-void RecursiveASTVisitor::visit(FunctionAST &Function)
+template <typename Derived>
+void RecursiveASTVisitor<Derived>::visitBasicAssignmentStmt(BasicAssignmentStmtAST *BasicAssignmentStmt)
 {
-    if (actBefore(Function))
+    if (getDerived().actBeforeVisitBasicAssignmentStmt(BasicAssignmentStmt))
         return;
 
-    for (auto *VarDeclNode : Function.getParamDecls())
-        VarDeclNode->accept(*this);
-    Function.getLocalVarDecls()->accept(*this);
-    for (auto *Stmt : Function.getBody())
-        Stmt->accept(*this);
-    Function.getReturn()->accept(*this);
+    visitExpr(BasicAssignmentStmt->getLHS());
+    visitExpr(BasicAssignmentStmt->getRHS());
 
-    actAfter(Function);
+    getDerived().actAfterVisitBasicAssignmentStmt(BasicAssignmentStmt);
 }
 
-void RecursiveASTVisitor::visit(ProgramAST &Program)
+template <typename Derived>
+void RecursiveASTVisitor<Derived>::visitDerefAssignmentStmt(DerefAssignmentStmtAST *DerefAssignmentStmt)
 {
-    if (actBefore(Program))
+    if (getDerived().actBeforeVisitDerefAssignmentStmt(DerefAssignmentStmt))
         return;
 
-    for (auto *Function : Program.getFunctions())
-        Function->accept(*this);
+    visitExpr(DerefAssignmentStmt->getLHS());
+    visitExpr(DerefAssignmentStmt->getRHS());
 
-    actAfter(Program);
+    getDerived().actAfterVisitDerefAssignmentStmt(DerefAssignmentStmt);
+}
+
+template <typename Derived>
+void RecursiveASTVisitor<Derived>::visitFunction(FunctionAST *Function)
+{
+    if (getDerived().actBeforeVisitFunction(Function))
+        return;
+
+    for (auto *VarDeclNode : Function->getParamDecls())
+        visitVarDeclNode(VarDeclNode);
+    visitLocalVarDeclStmt(Function->getLocalVarDecls());
+    for (auto *Stmt : Function->getBody())
+        visitStmt(Stmt);
+    visitReturnStmt(Function->getReturn());
+
+    getDerived().actAfterVisitFunction(Function);
+}
+
+template <typename Derived>
+void RecursiveASTVisitor<Derived>::visitProgram(ProgramAST *Program)
+{
+    if (getDerived().actBeforeVisitProgram(Program))
+        return;
+
+    for (auto *Function : Program->getFunctions())
+        visitFunction(Function);
+
+    getDerived().actAfterVisitFunction(Program);
 }
 
 }

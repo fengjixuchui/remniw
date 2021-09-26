@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AST.h"
+#include "RecursiveASTVisitor.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseMapInfo.h"
 #include <unordered_map>
@@ -81,35 +82,40 @@ struct SymbolTable
     llvm::DenseMap<ExprAST *, FunctionAST *> ReturnExprs;
 };
 
-class SymbolTableBuilder : public RecursiveASTVisitor
+class SymbolTableBuilder : public RecursiveASTVisitor<SymbolTableBuilder>
 {
 public:
     SymbolTableBuilder() : SymTab(), CurrentFunction(nullptr) {}
+
+    void build(ProgramAST* AST)
+    {
+        visitProgram(AST);
+    }
 
     SymbolTable& getSymbolTale()
     {
         return SymTab;
     }
 
-    virtual bool actBefore(FunctionAST &Function) override
+    bool actBeforeVisitFunction(FunctionAST *Function)
     {
-        CurrentFunction = &Function;
+        CurrentFunction = Function;
         return false;
     }
 
-    virtual void actAfter(FunctionAST &Function) override
+    void actAfterVisitFunction(FunctionAST *Function)
     {
-        SymTab.addFunction(CurrentFunction->getFuncName(), &Function);
+        SymTab.addFunction(CurrentFunction->getFuncName(), Function);
     }
 
-    virtual void actAfter(VarDeclNodeAST &VarDeclNode) override
+    void actAfterVisitVarDeclNode(VarDeclNodeAST *VarDeclNode)
     {
-        SymTab.addVariable(VarDeclNode.getName(), &VarDeclNode, CurrentFunction);
+        SymTab.addVariable(VarDeclNode->getName(), VarDeclNode, CurrentFunction);
     }
 
-    virtual void actAfter(ReturnStmtAST & ReturnStmt) override
+    void actAfterVisitReturnStmt(ReturnStmtAST *ReturnStmt)
     {
-        SymTab.addReturnExpr(ReturnStmt.getExpr(), CurrentFunction);
+        SymTab.addReturnExpr(ReturnStmt->getExpr(), CurrentFunction);
     }
 
 private:
