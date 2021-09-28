@@ -62,9 +62,8 @@ public:
 
     // virtual antlrcpp::Any visitRecordAccessExpr(RemniwParser::RecordAccessExprContext *Ctx);
 
-    // FIXME: visitID, visitIdExpr
     virtual antlrcpp::Any visitId(RemniwParser::IdContext *Ctx);
-/*
+
     // virtual antlrcpp::Any visitInteger(RemniwParser::IntegerContext *Ctx);
 
     // virtual antlrcpp::Any visitParameters(RemniwParser::ParametersContext *Ctx);
@@ -72,7 +71,6 @@ public:
     // virtual antlrcpp::Any visitVarDeclarations(RemniwParser::VarDeclarationsContext *Ctx);
 
     // virtual antlrcpp::Any visitArguments(RemniwParser::ArgumentsContext *Ctx);
-*/
 
     virtual antlrcpp::Any visitEmptyStmt(RemniwParser::EmptyStmtContext *Ctx);
 
