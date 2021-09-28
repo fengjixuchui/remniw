@@ -78,8 +78,6 @@ public:
 
     bool solve(ProgramAST *AST);
 
-    bool verify();
-
     std::vector<TypeConstraint> getConstraints() { return Constraints; }
 
     // visitor
@@ -90,14 +88,14 @@ public:
     }
 
     // I: [[I]] = int
-    void actAfter(NumberExprAST *NumberExpr)
+    void actAfterVisitNumberExpr(NumberExprAST *NumberExpr)
     {
         Constraints.emplace_back(ASTNodeToType(NumberExpr), Type::getIntType(TypeCtx));
     }
 
     // E1 op E2: [[E1]] = [[E2]] = [[E1 op E2]] = int
     // E1 == E2: [[E1]] = [[E2]] ^ [[E1 == E2]] = int
-    void actAfter(BinaryExprAST *BinaryExpr)
+    void actAfterVisitBinaryExpr(BinaryExprAST *BinaryExpr)
     {
         auto *IntTy = Type::getIntType(TypeCtx);
         Constraints.emplace_back(ASTNodeToType(BinaryExpr), IntTy);
@@ -113,45 +111,45 @@ public:
     }
 
     // input: [[input]] = int
-    void actAfter(InputExprAST *InputExpr)
+    void actAfterVisitInputExpr(InputExprAST *InputExpr)
     {
         Constraints.emplace_back(ASTNodeToType(InputExpr), Type::getIntType(TypeCtx));
     }
 
     // X = E: [[X]] = [[E]]
-    void actAfter(BasicAssignmentStmtAST *BasicAssignmentStmt)
+    void actAfterVisitBasicAssignmentStmt(BasicAssignmentStmtAST *BasicAssignmentStmt)
     {
         Constraints.emplace_back(ASTNodeToType(BasicAssignmentStmt->getLHS()), ASTNodeToType(BasicAssignmentStmt->getRHS()));
     }
 
     // *E1 = E2: [[E1]] = &[[E2]]
-    void actAfter(DerefAssignmentStmtAST *DerefAssignmentStmt)
+    void actAfterVisitDerefAssignmentStmt(DerefAssignmentStmtAST *DerefAssignmentStmt)
     {
         Constraints.emplace_back(ASTNodeToType(DerefAssignmentStmt->getLHS()),
                                  ASTNodeToType(DerefAssignmentStmt->getRHS())->getPointerTo());
     }
 
     // output E: [[E]] = int
-    void actAfter(OutputStmtAST *OutputStmt)
+    void actAfterVisitOutputStmt(OutputStmtAST *OutputStmt)
     {
         Constraints.emplace_back(ASTNodeToType(OutputStmt->getExpr()), Type::getIntType(TypeCtx));
     }
 
     // if (E) S1 else S2: [[E]] = int
-    void actAfter(IfStmtAST *IfStmt)
+    void actAfterVisitIfStmt(IfStmtAST *IfStmt)
     {
         Constraints.emplace_back(ASTNodeToType(IfStmt->getCond()), Type::getIntType(TypeCtx));
     }
 
     // while (E) S: [[E]] = int
-    void actAfter(WhileStmtAST *WhileStmt)
+    void actAfterVisitWhileStmt(WhileStmtAST *WhileStmt)
     {
         Constraints.emplace_back(ASTNodeToType(WhileStmt->getCond()), Type::getIntType(TypeCtx));
     }
 
     // main(X1,...,Xn){ ...return E; }: [[X1]] = ...[[Xn]] = [[E]] = int
     // X(X1,...,Xn){ ...return E; }: [[X]] = ([[X1]],...,[[Xn]])->[[E]]
-    void actAfter(FunctionAST *Function)
+    void actAfterVisitFunction(FunctionAST *Function)
     {
         std::vector<Type*> ParamTypes;
         ReturnStmtAST *Ret = Function->getReturn();
@@ -176,7 +174,7 @@ public:
     }
 
     // E(E1,...,En): [[E]] = ([[E1]],...,[[En]])->[[E(E1,...,En)]]
-    void actAfter(FunctionCallExprAST *FunctionCallExpr)
+    void actAfterVisitFunctionCallExpr(FunctionCallExprAST *FunctionCallExpr)
     {
         std::vector<Type*> ArgTypes;
         for (auto *Arg : FunctionCallExpr->getArgs())
@@ -188,14 +186,14 @@ public:
     }
 
     // alloc E: [[alloc E]] = &[[E]]
-    void actAfter(AllocExprAST *AllocExpr)
+    void actAfterVisitAllocExpr(AllocExprAST *AllocExpr)
     {
         Constraints.emplace_back(ASTNodeToType(AllocExpr),
                     ASTNodeToType(AllocExpr->getInit())->getPointerTo());
     }
 
     // &X: [[&X]] = &[[X]]
-    void actAfter(RefExprAST *RefExpr)
+    void actAfterVisitRefExpr(RefExprAST *RefExpr)
     {
         Constraints.emplace_back(ASTNodeToType(RefExpr),
                     ASTNodeToType(RefExpr->getVar())->getPointerTo());
@@ -203,14 +201,14 @@ public:
 
     // FIXME
     // null: [[null]] = &α
-    void actAfter(NullExprAST *NullExpr)
+    void actAfterVisitNullExpr(NullExprAST *NullExpr)
     {
         // Constraints.emplace_back(ASTNodeToType(&NullExpr),
         //                          std::make_shared<PointerType>(std::make_shared<AlphaType>(&NullExpr)));
     }
 
     // *E: [[E]] = &[[*E]]
-    void actAfter(DerefExprAST *DerefExpr)
+    void actAfterVisitDerefExpr(DerefExprAST *DerefExpr)
     {
         Constraints.emplace_back(ASTNodeToType(DerefExpr->getPtr()),
                     ASTNodeToType(DerefExpr)->getPointerTo());

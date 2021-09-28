@@ -1,9 +1,44 @@
 #include "Type.h"
-// #include "TypeVisitor.h"
 #include "llvm/Support/Casting.h"
 
 namespace remniw
 {
+
+void Type::print(llvm::raw_ostream &OS) const
+{
+    switch (getTypeKind())
+    {
+    case Type::TK_VARTYPE:
+    {
+        OS << "[[VarType@" << llvm::cast<VarType>(this)->getASTNode() << "]]";
+        return;
+    }
+    case Type::TK_INTTYPE:
+    {
+        OS << "IntType";
+        return;
+    }
+    case Type::TK_POINTERTYPE:
+    {
+        llvm::cast<PointerType>(this)->getPointeeType()->print(OS << "*");
+        return;
+    }
+    case Type::TK_FUNCTIONTYPE:
+    {
+        auto *FTy = llvm::cast<FunctionType>(this);
+        OS << "(";
+        for (auto *ParamTy : FTy->getParamTypes())
+        {
+            ParamTy->print(OS);
+            OS << ",";
+        }
+        OS << ")->";
+        FTy->getReturnType()->print(OS);
+        return;
+    }
+    }
+    llvm_unreachable("Invalid TypeKind");
+}
 
 IntType *Type::getIntType(TypeContext &C)
 {

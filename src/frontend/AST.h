@@ -1,6 +1,5 @@
 #pragma once
 
-#include "ASTVisitor.h"
 #include "Type.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
@@ -12,8 +11,6 @@
 
 namespace remniw
 {
-
-class ASTVisitor;
 
 template <typename T>
 std::vector<T *> rawPtrs(const std::vector<std::unique_ptr<T>> &v)
@@ -63,10 +60,8 @@ public:
         // Program
         Program,
     };
-    ASTNode(Kind K, SourceLocation Loc) : ASTNodeKind(K), Loc(Loc) {}
-    // virtual ~ASTNode() {}
 
-    // virtual llvm::Value *codegen() { return nullptr; }
+    ASTNode(Kind K, SourceLocation Loc) : ASTNodeKind(K), Loc(Loc) {}
 
     Kind getKind() const { return ASTNodeKind; }
     int getLine() const { return Loc.Line; }
@@ -148,8 +143,6 @@ private:
 class VariableExprAST : public ExprAST
 {
 public:
-    // VariableExprAST(SourceLocation Loc, const std::string &Name)
-    //     : ExprAST(Loc), Name(Name) { }
     VariableExprAST(SourceLocation Loc, std::string Name, bool LValue)
         : ExprAST(ASTNode::VariableExpr, Loc, LValue), Name(Name) { }
 
@@ -262,20 +255,16 @@ public:
 
 // class RecordCreateExprAST : public ExprAST
 // {
-
 // public:
 //     RecordCreateExprAST(SourceLocation Loc)
-//         : ExprAST(Loc)
-//     {
+//         : ExprAST(Loc) {}
 // };
 
 // class RecordAccessExprAST : public ExprAST
 // {
 // public:
 //     RecordAccessExprAST(SourceLocation Loc)
-//         : ExprAST(Loc)
-//     {
-//     }
+//         : ExprAST(Loc) {}
 // };
 
 class BinaryExprAST : public ExprAST
@@ -432,7 +421,6 @@ public:
 private:
     std::unique_ptr<ExprAST> Cond;
     std::unique_ptr<StmtAST> Then, Else;
-
 };
 
 class WhileStmtAST : public StmtAST

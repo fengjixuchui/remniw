@@ -1,4 +1,5 @@
 // RUN: %remniw %s -o %t ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t -debug ; lli %t | FileCheck %s
 
 func main() int {
     var a,b int;

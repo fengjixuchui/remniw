@@ -404,7 +404,7 @@ void RecursiveASTVisitor<Derived>::visitProgram(ProgramAST *Program)
         return;
 
     for (auto *Function : Program->getFunctions())
-        visitFunction(Function);
+        getDerived().visitFunction(Function);
 
     getDerived().actAfterVisitProgram(Program);
 }

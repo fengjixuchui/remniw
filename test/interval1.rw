@@ -1,4 +1,5 @@
 // RUN: %remniw %s -o %t ; echo  3 2 1 0 | lli %t | FileCheck %s
+// RUN: %remniw %s -o %t -debug ; echo  3 2 1 0 | lli %t | FileCheck %s
 
 func main() int {
     var x,y int;

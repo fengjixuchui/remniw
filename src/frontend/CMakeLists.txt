@@ -9,12 +9,9 @@ add_library(frontend)
 target_sources(frontend PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Type.h
                                 ${CMAKE_CURRENT_SOURCE_DIR}/Type.cpp
                                 ${CMAKE_CURRENT_SOURCE_DIR}/AST.h
-                                # ${CMAKE_CURRENT_SOURCE_DIR}/AST.cpp
                                 ${CMAKE_CURRENT_SOURCE_DIR}/ASTBuilder.h
                                 ${CMAKE_CURRENT_SOURCE_DIR}/ASTBuilder.cpp
-                                ${CMAKE_CURRENT_SOURCE_DIR}/ASTVisitor.h
                                 ${CMAKE_CURRENT_SOURCE_DIR}/RecursiveASTVisitor.h
-                                # ${CMAKE_CURRENT_SOURCE_DIR}/RecursiveASTVisitor.cpp
                                 ${CMAKE_CURRENT_SOURCE_DIR}/ASTPrinter.h
                                 ${CMAKE_CURRENT_SOURCE_DIR}/FrontEnd.h
                                 ${CMAKE_CURRENT_SOURCE_DIR}/FrontEnd.cpp

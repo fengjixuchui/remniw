@@ -34,9 +34,8 @@ public:
 
 public:
     Type(TypeKind TyKind, TypeContext &C) : TyKind(TyKind), Context(C) {}
-    virtual ~Type() {}
 
-    virtual void print(llvm::raw_ostream &O) const {};
+    void print(llvm::raw_ostream &OS) const;
 
     TypeContext &getContext() const { return Context; }
     TypeKind getTypeKind() const { return TyKind; }
@@ -58,11 +57,6 @@ class VarType : public Type
 public:
     VarType(const ASTNode *DeclNode, TypeContext &C) :
         Type(TK_VARTYPE, C), DeclNode(DeclNode) {}
-
-    virtual void print(llvm::raw_ostream &OS) const override
-    {
-        OS << "[[VarType@" << DeclNode << "]]";
-    }
 
     static bool classof(const Type *Ty)
     {
@@ -136,11 +130,6 @@ class IntType : public Type
 public:
     IntType(TypeContext &C) : Type(TK_INTTYPE, C) {}
 
-    virtual void print(llvm::raw_ostream &OS) const override
-    {
-        OS << "IntType";
-    }
-
     static bool classof(const Type *Ty)
     {
         return Ty->getTypeKind() == TK_INTTYPE;
@@ -157,11 +146,6 @@ public:
 
     PointerType(const PointerType &) = delete;
     PointerType &operator=(const PointerType &) = delete;
-
-    virtual void print(llvm::raw_ostream &OS) const override
-    {
-        PointeeTy->print(OS << "*");
-    }
 
     static bool classof(const Type *Ty)
     {
@@ -187,18 +171,6 @@ public:
 
     FunctionType(const FunctionType &) = delete;
     FunctionType &operator=(const FunctionType &) = delete;
-
-    virtual void print(llvm::raw_ostream &OS) const override
-    {
-        OS << "(";
-        for (auto *ParamTy : ParamTys)
-        {
-            ParamTy->print(OS);
-            OS << ",";
-        }
-        OS << ")->";
-        RetTy->print(OS);
-    }
 
     static bool classof(const Type *Ty)
     {

@@ -60,7 +60,8 @@
         "random": "cpp",
         "shared_mutex": "cpp",
         "cinttypes": "cpp",
-        "*.inc": "cpp"
+        "*.inc": "cpp",
+        "*.def": "cpp"
     },
     "cmake.configureOnOpen": true
 }

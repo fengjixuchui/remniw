@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
     LLVM_DEBUG(llvm::outs() << "===== Symbol Table ===== \n");
     SymbolTableBuilder SymTabBuilder;
     SymTabBuilder.build(AST.get());
-    // SymTabBuilder.getSymbolTale().print(llvm::outs());
+    LLVM_DEBUG(SymTabBuilder.getSymbolTale().print(llvm::outs()));
 
     LLVM_DEBUG(llvm::outs() << "===== Type Analysis ===== \n");
     TypeAnalysis TA(SymTabBuilder.getSymbolTale(), TheTypeContext);
@@ -67,9 +67,7 @@ int main(int argc, char *argv[])
     LLVM_DEBUG(
     {
         for(auto Constraint: TA.getConstraints())
-        {
             Constraint.print(llvm::outs());
-        }
     });
 
     LLVM_DEBUG(llvm::outs() << "===== Code Generator ===== \n");
