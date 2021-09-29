@@ -4,18 +4,17 @@
 #include "CodeGeneratorImpl.h"
 #include "llvm/IR/LLVMContext.h"
 
-namespace remniw
-{
+namespace remniw {
 
-class CodeGenerator
-{
+class CodeGenerator {
 private:
-    CodeGeneratorImpl *pImpl;
+    CodeGeneratorImpl* pImpl;
 
 public:
-    CodeGenerator(llvm::LLVMContext* LLVMContext): pImpl(new CodeGeneratorImpl(LLVMContext)) {}
+    CodeGenerator(llvm::LLVMContext* LLVMContext):
+        pImpl(new CodeGeneratorImpl(LLVMContext)) {}
     ~CodeGenerator() { delete pImpl; }
     std::unique_ptr<llvm::Module> emit(ProgramAST*);
 };
 
-}
+}  // namespace remniw

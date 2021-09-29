@@ -1,12 +1,12 @@
 /*
    FILE: x_array.gen
-  
+
    Copyright (c) 1997 Princeton University
 
    All rights reserved.
 
    This software is to be used for non-commercial purposes only,
-   unless authorized permission to do otherwise is obtained.  
+   unless authorized permission to do otherwise is obtained.
    For more information, contact spam@ee.princeton.edu
 */
 
@@ -20,16 +20,16 @@ Arguments are (Type_name = $1,Pointer_Type = $2)
 
 typedef X_arrayp $1;
 
-#define $1_create(sz) (($1 *)X_arrayp_create(sz))
-#define $1_destroy(tl) X_arrayp_destroy(tl)
-#define $1_fetch(tl,i) (($2)X_arrayp_fetch(tl,i))
-#define $1_set(tl,i,t) X_arrayp_set(tl,i,t)
-#define $1_grow(tl,i) X_arrayp_grow(tl,i)
-#define $1_expand(tl,i) X_arrayp_expand(tl,i)
-#define $1_extend(tl,t) X_arrayp_extend(tl,t)
-#define $1_ub(tl) X_arrayp_ub(tl)
-#define $1_grab_from(d,s) X_arrayp_grab_from(d,s)
-#define $1_freeze(tl) X_arrayp_freeze(tl)
+#define $1_create(sz)      (($1 *)X_arrayp_create(sz))
+#define $1_destroy(tl)     X_arrayp_destroy(tl)
+#define $1_fetch(tl, i)    (($2)X_arrayp_fetch(tl, i))
+#define $1_set(tl, i, t)   X_arrayp_set(tl, i, t)
+#define $1_grow(tl, i)     X_arrayp_grow(tl, i)
+#define $1_expand(tl, i)   X_arrayp_expand(tl, i)
+#define $1_extend(tl, t)   X_arrayp_extend(tl, t)
+#define $1_ub(tl)          X_arrayp_ub(tl)
+#define $1_grab_from(d, s) X_arrayp_grab_from(d, s)
+#define $1_freeze(tl)      X_arrayp_freeze(tl)
 ')')
 
 /*
@@ -63,8 +63,8 @@ void $1_freeze($1 *);
 
 ifelse(TARGET,`implementation',`define(DECLARE_X_ARRAY,`
 
-#include <assert.h>
 #include "x_array.h"
+#include <assert.h>
 
 $1 *$1_create(int sz)
 {

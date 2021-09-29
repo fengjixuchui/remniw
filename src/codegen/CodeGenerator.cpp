@@ -6,12 +6,10 @@
 
 using namespace llvm;
 
-namespace remniw
-{
+namespace remniw {
 
-std::unique_ptr<Module> CodeGenerator::emit(ProgramAST *AST)
-{
+std::unique_ptr<Module> CodeGenerator::emit(ProgramAST *AST) {
     return pImpl->codegen(AST);
 }
 
-}
+}  // namespace remniw

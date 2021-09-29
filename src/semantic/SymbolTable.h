@@ -6,72 +6,47 @@
 #include "llvm/ADT/DenseMapInfo.h"
 #include <unordered_map>
 
-namespace remniw
-{
+namespace remniw {
 
-// struct VarMapEntry
-// {
-//     // Name of the referenced variable and which function it locates in
-//     std::string VaribaleName;
-//     FunctionAST* Function;
-
-//     VarMapEntry(std::string VarName, FunctionAST* Func) :
-//         VaribaleName(VarName), Function(Func) {}
-
-//     // Implement operator== so that FileEntry can be used as key in
-//     // unordered containers.
-//     bool operator==(const VarMapEntry &RHS) const
-//     {
-//         return VaribaleName == RHS.VaribaleName && Function == RHS.Function;
-//     }
-//     bool operator!=(const VarMapEntry &RHS) const {
-//         return VaribaleName != RHS.VaribaleName || Function != RHS.Function;
-//     };
-// };
-
-struct SymbolTable
-{
+struct SymbolTable {
     SymbolTable() {}
 
-    bool addFunction(llvm::StringRef FunctionName, FunctionAST *Function)
-    {
+    bool addFunction(llvm::StringRef FunctionName, FunctionAST *Function) {
         return Functions.insert({FunctionName, Function}).second;
     }
 
-    bool addVariable(llvm::StringRef VariableName, VarDeclNodeAST *Variable, FunctionAST *Function)
-    {
-        return Variables.insert({{VariableName, Function}, Variable}).second;
+    bool addVariable(llvm::StringRef VariableName, VarDeclNodeAST *Variable,
+                     FunctionAST *Function) {
+        return Variables.insert({std::make_pair(VariableName, Function), Variable})
+            .second;
     }
 
-    bool addReturnExpr(ExprAST* ReturnExpr, FunctionAST *Function)
-    {
+    bool addReturnExpr(ExprAST *ReturnExpr, FunctionAST *Function) {
         return ReturnExprs.insert({ReturnExpr, Function}).second;
     }
 
-    FunctionAST *getFunction(llvm::StringRef FunctionName)
-    {
+    FunctionAST *getFunction(llvm::StringRef FunctionName) {
         if (Functions.count(FunctionName))
             return Functions[FunctionName];
         return nullptr;
     }
 
-    VarDeclNodeAST *getVariable(llvm::StringRef VariableName, FunctionAST* Function)
-    {
+    VarDeclNodeAST *getVariable(llvm::StringRef VariableName, FunctionAST *Function) {
         auto Key = std::make_pair(VariableName, Function);
         if (Variables.count(Key))
             return Variables[Key];
         return nullptr;
     }
 
-    void print(llvm::raw_ostream &OS)
-    {
-        for(auto &p: Functions)
+    void print(llvm::raw_ostream &OS) {
+        for (auto &p : Functions)
             OS << "Function: '" << p.first << "' " << p.second << "\n";
-        for(auto &p: Variables)
-            OS << "Variable: '" << p.first.first << "' " << p.second
-               << " (of function '" << p.first.first << "')\n";
-        for(auto &p : ReturnExprs)
-            OS << "ReturnExpr: '" << p.first << "' (of function '" << p.second->getFuncName() << "')\n";
+        for (auto &p : Variables)
+            OS << "Variable: '" << p.first.first << "' " << p.second << " (of function '"
+               << p.first.first << "')\n";
+        for (auto &p : ReturnExprs)
+            OS << "ReturnExpr: '" << p.first << "' (of function '"
+               << p.second->getFuncName() << "')\n";
     }
 
     // < FunctionName, FunctionAST* >
@@ -82,45 +57,34 @@ struct SymbolTable
     llvm::DenseMap<ExprAST *, FunctionAST *> ReturnExprs;
 };
 
-class SymbolTableBuilder : public RecursiveASTVisitor<SymbolTableBuilder>
-{
+class SymbolTableBuilder: public RecursiveASTVisitor<SymbolTableBuilder> {
 public:
-    SymbolTableBuilder() : SymTab(), CurrentFunction(nullptr) {}
+    SymbolTableBuilder(): SymTab(), CurrentFunction(nullptr) {}
 
-    void build(ProgramAST* AST)
-    {
-        visitProgram(AST);
-    }
+    void build(ProgramAST *AST) { visitProgram(AST); }
 
-    SymbolTable& getSymbolTale()
-    {
-        return SymTab;
-    }
+    SymbolTable &getSymbolTale() { return SymTab; }
 
-    bool actBeforeVisitFunction(FunctionAST *Function)
-    {
+    bool actBeforeVisitFunction(FunctionAST *Function) {
         CurrentFunction = Function;
         return false;
     }
 
-    void actAfterVisitFunction(FunctionAST *Function)
-    {
+    void actAfterVisitFunction(FunctionAST *Function) {
         SymTab.addFunction(CurrentFunction->getFuncName(), Function);
     }
 
-    void actAfterVisitVarDeclNode(VarDeclNodeAST *VarDeclNode)
-    {
+    void actAfterVisitVarDeclNode(VarDeclNodeAST *VarDeclNode) {
         SymTab.addVariable(VarDeclNode->getName(), VarDeclNode, CurrentFunction);
     }
 
-    void actAfterVisitReturnStmt(ReturnStmtAST *ReturnStmt)
-    {
+    void actAfterVisitReturnStmt(ReturnStmtAST *ReturnStmt) {
         SymTab.addReturnExpr(ReturnStmt->getExpr(), CurrentFunction);
     }
 
 private:
     SymbolTable SymTab;
-    FunctionAST* CurrentFunction;
+    FunctionAST *CurrentFunction;
 };
 
-}
+}  // namespace remniw

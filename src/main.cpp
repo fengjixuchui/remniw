@@ -1,19 +1,18 @@
 #include "AST.h"
 #include "ASTPrinter.h"
+#include "CodeGenerator.h"
 #include "FrontEnd.h"
 #include "SymbolTable.h"
 #include "Type.h"
 #include "TypeAnalysis.h"
-#include "CodeGenerator.h"
+#include "antlr4-runtime.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/FileSystem.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/ToolOutputFile.h"
-
+#include "llvm/Support/raw_ostream.h"
 #include <iostream>
-#include <antlr4-runtime.h>
 
 using namespace antlr4;
 using namespace remniw;
@@ -23,17 +22,18 @@ using namespace remniw;
 static llvm::cl::OptionCategory RemniwCat("remniw compiler options");
 
 static llvm::cl::opt<std::string>
-InputFilename(llvm::cl::Positional,
-               llvm::cl::desc("<input remniw source code>"), llvm::cl::cat(RemniwCat));
+    InputFilename(llvm::cl::Positional, llvm::cl::desc("<input remniw source code>"),
+                  llvm::cl::cat(RemniwCat));
 
 static llvm::cl::opt<std::string>
-OutputFilename("o", llvm::cl::desc("Override output filename"), llvm::cl::init("a.out"),
-               llvm::cl::value_desc("filename"), llvm::cl::cat(RemniwCat));
+    OutputFilename("o", llvm::cl::desc("Override output filename"),
+                   llvm::cl::init("a.out"), llvm::cl::value_desc("filename"),
+                   llvm::cl::cat(RemniwCat));
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char* argv[]) {
     llvm::cl::HideUnrelatedOptions(RemniwCat);
-    llvm::cl::SetVersionPrinter([](llvm::raw_ostream& OS){ OS << "remniw compiler 0.1\n"; });
+    llvm::cl::SetVersionPrinter(
+        [](llvm::raw_ostream& OS) { OS << "remniw compiler 0.1\n"; });
     llvm::cl::ParseCommandLineOptions(argc, argv, "remniw compiler\n");
 
     llvm::LLVMContext TheLLVMContext;
@@ -41,16 +41,14 @@ int main(int argc, char *argv[])
 
     std::ifstream Stream;
     Stream.open(InputFilename);
-    if(!Stream.good())
-    {
+    if (!Stream.good()) {
         llvm::errs() << "error: no such file: '" << InputFilename << "'\n";
         return 1;
     }
     FrontEnd FE(TheTypeContext);
     std::unique_ptr<ProgramAST> AST = FE.parse(Stream);
 
-    LLVM_DEBUG(
-    {
+    LLVM_DEBUG({
         llvm::outs() << "===== AST Printer ===== \n";
         ASTPrinter PrettyPrinter(llvm::outs());
         PrettyPrinter.print(AST.get());
@@ -64,9 +62,8 @@ int main(int argc, char *argv[])
     LLVM_DEBUG(llvm::outs() << "===== Type Analysis ===== \n");
     TypeAnalysis TA(SymTabBuilder.getSymbolTale(), TheTypeContext);
     TA.solve(AST.get());
-    LLVM_DEBUG(
-    {
-        for(auto Constraint: TA.getConstraints())
+    LLVM_DEBUG({
+        for (auto Constraint : TA.getConstraints())
             Constraint.print(llvm::outs());
     });
 
@@ -76,8 +73,7 @@ int main(int argc, char *argv[])
 
     std::error_code EC;
     llvm::ToolOutputFile Out(OutputFilename, EC, llvm::sys::fs::OF_Text);
-    if (EC)
-    {
+    if (EC) {
         llvm::errs() << EC.message() << '\n';
         return 1;
     }

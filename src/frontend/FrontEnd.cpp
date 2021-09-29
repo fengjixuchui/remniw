@@ -3,34 +3,29 @@
 #include "RemniwLexer.h"
 #include "RemniwParser.h"
 #include "llvm/Support/Debug.h"
-#include <antlr4-runtime.h>
+#include "antlr4-runtime.h"
 
 using namespace antlr4;
 
 #define DEBUG_TYPE "remniw"
 
-namespace remniw
-{
+namespace remniw {
 
-std::unique_ptr<ProgramAST> FrontEnd::parse(std::istream& stream)
-{
+std::unique_ptr<ProgramAST> FrontEnd::parse(std::istream& stream) {
     ANTLRInputStream Input(stream);
     RemniwLexer Lexer(&Input);
     CommonTokenStream Tokens(&Lexer);
     Tokens.fill();
-    LLVM_DEBUG(
-    {
+    LLVM_DEBUG({
         llvm::outs() << "===== Lexer ===== \n";
-        for (auto token : Tokens.getTokens())
-        {
+        for (auto token : Tokens.getTokens()) {
             llvm::outs() << token->toString() << "\n";
         }
     });
 
     RemniwParser Parser(&Tokens);
     RemniwParser::ProgramContext* Program = Parser.program();
-    LLVM_DEBUG(
-    {
+    LLVM_DEBUG({
         llvm::outs() << "===== Parser ===== \n";
         llvm::outs() << Program->toStringTree(&Parser, true) << "\n";
         if (Parser.getNumberOfSyntaxErrors())
@@ -41,4 +36,4 @@ std::unique_ptr<ProgramAST> FrontEnd::parse(std::istream& stream)
     return Builder.build(Program);
 }
 
-}
+}  // namespace remniw

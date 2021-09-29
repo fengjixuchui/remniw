@@ -2,19 +2,17 @@
 
 #include "AST.h"
 
-namespace remniw
-{
+namespace remniw {
 
-class FrontEnd
-{
+class FrontEnd {
 private:
     TypeContext& TheTypeContext;
 
 public:
-    FrontEnd(TypeContext& TheTypeContext) : TheTypeContext(TheTypeContext) {}
+    FrontEnd(TypeContext& TheTypeContext): TheTypeContext(TheTypeContext) {}
 
     // Parse an input stream and return an AST.
     std::unique_ptr<ProgramAST> parse(std::istream& stream);
 };
 
-}
+}  // namespace remniw

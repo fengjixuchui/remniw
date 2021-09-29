@@ -1,18 +1,19 @@
 #pragma once
 
-#include "antlr4-runtime.h"
+#include "AST.h"
 #include "RemniwBaseVisitor.h"
+#include "Type.h"
+#include "antlr4-runtime.h"
+#include <memory>
 
-namespace remniw
-{
+namespace remniw {
 
-class ASTBuilder : public RemniwBaseVisitor
-{
+class ASTBuilder: public RemniwBaseVisitor {
 private:
-    TypeContext& TyCtx;
+    TypeContext &TyCtx;
 
 public:
-    ASTBuilder(TypeContext& TyCtx) : TyCtx(TyCtx) {}
+    ASTBuilder(TypeContext &TyCtx): TyCtx(TyCtx) {}
 
     std::unique_ptr<ProgramAST> build(RemniwParser::ProgramContext *Ctx);
 
@@ -58,19 +59,13 @@ public:
 
     virtual antlrcpp::Any visitFuncCallExpr(RemniwParser::FuncCallExprContext *Ctx);
 
-    // virtual antlrcpp::Any visitRecordCreateExpr(RemniwParser::RecordCreateExprContext *Ctx);
+    // virtual antlrcpp::Any visitRecordCreateExpr(RemniwParser::RecordCreateExprContext
+    // *Ctx);
 
-    // virtual antlrcpp::Any visitRecordAccessExpr(RemniwParser::RecordAccessExprContext *Ctx);
+    // virtual antlrcpp::Any visitRecordAccessExpr(RemniwParser::RecordAccessExprContext
+    // *Ctx);
 
     virtual antlrcpp::Any visitId(RemniwParser::IdContext *Ctx);
-
-    // virtual antlrcpp::Any visitInteger(RemniwParser::IntegerContext *Ctx);
-
-    // virtual antlrcpp::Any visitParameters(RemniwParser::ParametersContext *Ctx);
-
-    // virtual antlrcpp::Any visitVarDeclarations(RemniwParser::VarDeclarationsContext *Ctx);
-
-    // virtual antlrcpp::Any visitArguments(RemniwParser::ArgumentsContext *Ctx);
 
     virtual antlrcpp::Any visitEmptyStmt(RemniwParser::EmptyStmtContext *Ctx);
 
@@ -84,13 +79,17 @@ public:
 
     virtual antlrcpp::Any visitWhileStmt(RemniwParser::WhileStmtContext *Ctx);
 
-    virtual antlrcpp::Any visitBasicAssignmentStmt(RemniwParser::BasicAssignmentStmtContext *Ctx);
+    virtual antlrcpp::Any
+    visitBasicAssignmentStmt(RemniwParser::BasicAssignmentStmtContext *Ctx);
 
-    virtual antlrcpp::Any visitDerefAssignmentStmt(RemniwParser::DerefAssignmentStmtContext *Ctx);
+    virtual antlrcpp::Any
+    visitDerefAssignmentStmt(RemniwParser::DerefAssignmentStmtContext *Ctx);
 
-    virtual antlrcpp::Any visitRecordFieldBasicAssignmentStmt(RemniwParser::RecordFieldBasicAssignmentStmtContext *Ctx);
+    virtual antlrcpp::Any visitRecordFieldBasicAssignmentStmt(
+        RemniwParser::RecordFieldBasicAssignmentStmtContext *Ctx);
 
-    virtual antlrcpp::Any visitRecordFieldDerefAssignmentStmt(RemniwParser::RecordFieldDerefAssignmentStmtContext *Ctx);
+    virtual antlrcpp::Any visitRecordFieldDerefAssignmentStmt(
+        RemniwParser::RecordFieldDerefAssignmentStmtContext *Ctx);
 };
 
-}
+}  // namespace remniw
