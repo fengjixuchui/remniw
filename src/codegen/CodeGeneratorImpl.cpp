@@ -115,7 +115,9 @@ Value *CodeGeneratorImpl::codegenExpr(ExprAST *Expr) {
     case ASTNode::AllocExpr:
         Ret = codegenAllocExpr(static_cast<AllocExprAST *>(Expr));
         break;
-    case ASTNode::RefExpr: Ret = codegenRefExpr(static_cast<RefExprAST *>(Expr)); break;
+    case ASTNode::RefExpr:
+        Ret = codegenRefExpr(static_cast<RefExprAST *>(Expr));
+        break;
     case ASTNode::DerefExpr:
         Ret = codegenDerefExpr(static_cast<DerefExprAST *>(Expr));
         break;
@@ -125,7 +127,8 @@ Value *CodeGeneratorImpl::codegenExpr(ExprAST *Expr) {
     case ASTNode::BinaryExpr:
         Ret = codegenBinaryExpr(static_cast<BinaryExprAST *>(Expr));
         break;
-    default: llvm_unreachable("unexpected expr!");
+    default:
+        llvm_unreachable("unexpected expr!");
     }
     return Ret;
 }
@@ -148,7 +151,9 @@ Value *CodeGeneratorImpl::codegenStmt(StmtAST *Stmt) {
     case ASTNode::ReturnStmt:
         Ret = codegenReturnStmt(static_cast<ReturnStmtAST *>(Stmt));
         break;
-    case ASTNode::IfStmt: Ret = codegenIfStmt(static_cast<IfStmtAST *>(Stmt)); break;
+    case ASTNode::IfStmt:
+        Ret = codegenIfStmt(static_cast<IfStmtAST *>(Stmt));
+        break;
     case ASTNode::WhileStmt:
         Ret = codegenWhileStmt(static_cast<WhileStmtAST *>(Stmt));
         break;
@@ -158,7 +163,8 @@ Value *CodeGeneratorImpl::codegenStmt(StmtAST *Stmt) {
     case ASTNode::DerefAssignmentStmt:
         Ret = codegenDerefAssignmentStmt(static_cast<DerefAssignmentStmtAST *>(Stmt));
         break;
-    default: llvm_unreachable("unexpected stmt!");
+    default:
+        llvm_unreachable("unexpected stmt!");
     }
     return Ret;
 }
