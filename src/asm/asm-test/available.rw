@@ -1,0 +1,11 @@
+// RUN: %remniw %s -o %t ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t -debug ; lli %t | FileCheck %s
+
+func main() int {
+    var x,y,z,a,b int;
+    a = 2;
+    b = 3;
+    z = a+b; // z = 5
+    y = a*b; // y = 6
+    return z + y;
+}

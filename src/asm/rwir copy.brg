@@ -1,0 +1,342 @@
+%{
+#include "helper.h"
+%}
+
+# TODO: autogen from llvm/include/llvm/IR/Instruction.def
+
+%term Const         =  0
+
+# Terminator Instructions
+%term Ret           =  1
+%term Br            =  2
+%term Switch        =  3
+%term IndirectBr    =  4
+%term Invoke        =  5
+%term Resume        =  6
+%term Unreachable   =  7
+%term CleanupRet    =  8
+%term CatchRet      =  9
+%term CatchSwitch   = 10
+%term CallBr        = 11
+
+# Standard unary operators
+%term FNeg          = 12
+
+# Standard binary operators
+%term Add  = 13
+%term FAdd = 14
+%term Sub  = 15
+%term FSub = 16
+%term Mul  = 17
+%term FMul = 18
+%term UDiv = 19
+%term SDiv = 20
+%term FDiv = 21
+%term URem = 22
+%term SRem = 23
+%term FRem = 24
+
+# Logical operators (integer operands)
+%term Shl  = 25
+%term LShr = 26
+%term AShr = 27
+%term And  = 28
+%term Or   = 29
+%term Xor  = 30
+
+# Memory operators
+%term Alloca        = 31
+%term Load          = 32
+%term Store         = 33
+%term GetElementPtr = 34
+%term Fence         = 35
+%term AtomicCmpXchg = 36
+%term AtomicRMW     = 37
+
+# Cast operators
+%term Trunc         = 38
+%term ZExt          = 39
+%term SExt          = 40
+%term FPToUI        = 41
+%term FPToSI        = 42
+%term UIToFP        = 43
+%term SIToFP        = 44
+%term FPTrunc       = 45
+%term FPExt         = 46
+%term PtrToInt      = 47
+%term IntToPtr      = 48
+%term BitCast       = 49
+%term AddrSpaceCast = 50
+
+# FUNCLETPAD
+%term CleanupPad    = 51
+%term CatchPad      = 52
+
+# Other operators
+%term ICmp              = 53
+%term FCmp              = 54
+%term PHI               = 55
+%term Call              = 56
+%term Select            = 57
+%term UserOp1           = 58
+%term UserOp2           = 59
+%term VAArg             = 60
+%term ExtractElement    = 61
+%term InsertElement     = 62
+%term ShuffleVector     = 63
+%term ExtractValue      = 64
+%term InsertValue       = 65
+%term LandingPad        = 66
+%term Freeze            = 67
+
+# %term REG IMM MEM LABEL ARGS NOARGS PTR GlobalValue
+
+%declare<void> stmt<int indent>;
+%declare<void> reg<int indent>;
+%declare<void> imm<int indent>;
+%declare<void> mem<int indent>;
+
+%%
+
+#reg:    stmt
+#    { $cost[0].cost = $cost[1].cost; }
+#    = {
+#        $action[1](indent);
+#        std::cerr << "reg:  stmt\n";
+#    };
+
+#reg:    REG
+#    { $cost[0].cost = 1; }
+#    = {
+#        std::cerr<< "reg:   REG\n";
+#    };
+
+#reg:    IMM
+#    { $cost[0].cost = 1; }
+#    = {
+#        std::cerr<< "reg:   IMM\n";
+#    };
+
+#imm:    IMM
+#    { $cost[0].cost = 0; }
+#    = {
+#        std::cerr << "imm:  IMM\n";
+#        std::cerr << "\t" << $1->val << "\n";
+#    };
+
+#mem:    MEM
+#    { $cost[0].cost = 10; }
+#    = {
+#        std::cerr << "mem:   MEM\n";
+#    };
+
+imm:    Const
+    { $cost[0].cost = 0; }
+    = {
+        std::cerr << "imm:  Const\n";
+        std::cerr << "\t" << $1->val << "\n";
+    };
+
+stmt:   Ret(reg)
+    { $cost[0].cost = $cost[2].cost + 1; }
+    = {
+        $action[2](indent);
+        // x64 assembly Ret takes no argument, return value is passed by %rax
+        // std::cout << "movq rax, " << $2->getMemVal() << "\n";
+        // std::cout << "movq %rbp, %rsp\n";
+        // std::cout << "popq %rbp\n";
+        // std::cout << "retq\n";
+        std::cerr << "stmt: Ret(reg)\n";
+    };
+
+mem:   Alloca(imm)
+    { $cost[0].cost = 1; }
+    = {
+        $action[2](indent);
+        // std::cout << "subq $" << std::to_string($2->val) <<", %rsp\n";
+        // std::cerr << "mem:   Alloca(imm)\n";
+    };
+
+reg:   Load(mem)
+    { $cost[0].cost = $cost[2].cost + 1; }
+    = {
+        $action[2](indent);
+        std::cerr << "reg:   Load(mem)\n";
+    };
+
+#stmt:   Load(imm)
+#    { $cost[0].cost = $cost[2].cost + 1; }
+#    = {
+#        $action[2](indent);
+#        std::cerr << "stmt:   Load(imm)\n";
+#    };
+
+#stmt:   Load(mem)
+#    { $cost[0].cost = $cost[2].cost + 1; }
+#    = {
+#        $action[2](indent);
+#        std::cerr << "stmt:   Load(mem)\n";
+#        std::cout << "movq -" << $2->offset << "(%rbp)" <<", %rax\n";
+#    };
+
+stmt:   Store(reg, reg)
+    { $cost[0].cost = $cost[2].cost + $cost[3].cost; }
+    = {
+        $action[2](indent);
+        $action[3](indent);
+        std::cerr << "stmt:   Store(reg, reg)\n";
+    };
+
+stmt:   Store(imm, reg)
+    { $cost[0].cost = $cost[2].cost + $cost[3].cost; }
+    = {
+        $action[2](indent);
+        $action[3](indent);
+        std::cerr << "stmt:   Store(imm, reg)\n";
+    };
+
+stmt:   Store(imm, mem)
+    { $cost[0].cost = $cost[2].cost + $cost[3].cost; }
+    = {
+        $action[2](indent);
+        $action[3](indent);
+        std::cerr << "stmt:   Store(imm, mem)\n";
+        std::cout << "movq $" << $2->val << ", -" << std::to_string($3->offset)<< "(%rbp)\n";
+    };
+
+stmt:   Store(mem, reg)
+    { $cost[0].cost = $cost[2].cost + $cost[3].cost; }
+    = {
+        $action[2](indent);
+        $action[3](indent);
+        std::cerr << "stmt:   Store(mem, reg)\n";
+    };
+
+# x64 add(src:rmi, dst:rm)
+stmt:   Add(reg, reg)
+    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
+    = {
+        $action[2](indent);
+        $action[3](indent);
+        std::cerr << "stmt:   Add(reg, reg)\n";
+    };
+
+stmt:   Add(reg, imm)
+    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+    = {
+        $action[2](indent);
+        $action[3](indent);
+        std::cerr << "stmt:   Add(reg, mem)\n";
+
+    };
+
+stmt:   Add(imm, reg)
+    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+    = {
+        $action[2](indent);
+        $action[3](indent);
+        std::cerr << "stmt:   Add(imm, reg)\n";
+    };
+
+stmt:   Add(imm, mem)
+    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+    = {
+        $action[2](indent);
+        $action[3](indent);
+        std::cerr << "stmt:   Add(imm, mem)\n";
+    };
+
+stmt:   Sub(reg, reg)
+    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
+    = {
+        $action[2](indent);
+        $action[3](indent);
+        std::cerr << "stmt:   Sub(reg, reg)\n";
+    };
+
+stmt:   Mul(reg, reg)
+    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 4; }
+    = {
+        $action[2](indent);
+        $action[3](indent);
+        std::cerr << "stmt:   Mul(reg, reg)\n";
+    };
+%%
+
+/* burm_trace - print trace message for matching p */
+static void burm_trace(NODEPTR p, int eruleno, COST cost) {
+	if (shouldTrace)
+		std::cerr << "0x" << p << " matched " << burm_string[eruleno] << " = " << eruleno << " with cost " << cost.cost << "\n";
+}
+
+static void gen(NODEPTR p) {
+    if (burm_label(p) == 0)
+        std::cerr << "no cover\n";
+    else {
+        stmt_action(p->x.state,0);
+        if (shouldCover != 0)
+            dumpCover(p, 1, 0);
+    }
+}
+
+static Tree* tree(int op, Tree* l, Tree* r) {
+    Tree* t = (Tree*) malloc(sizeof *t);
+
+    t->op = op;
+    t->kids[0] = l; t->kids[1] = r;
+    t->val = 0;
+    t->x.state = 0;
+    return t;
+}
+
+#include "llvm/IR/Module.h"
+#include "llvm/IR/LLVMContext.h"
+// #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/SourceMgr.h"
+#include "llvm/IRReader/IRReader.h"
+
+using namespace llvm;
+
+//static cl::opt<std::string>
+//InputFilename(cl::Positional, cl::desc("<input bitcode>"), cl::init("-"));
+
+int main(int argc, char *argv[]) {
+/*
+    Tree t;
+    int i;
+
+    for (i = 1; i < argc ; ++i) {
+        if (strcmp(argv[i], "--cover") == 0){
+            shouldCover = 1;
+        }
+        if (strcmp(argv[i], "--trace") == 0){
+            shouldTrace = 1;
+        }
+    }
+    printf("a = 1 - 2 + 0;\n");
+    t = tree(Add,
+        tree(Sub,
+            (t = tree(IMM, nullptr, nullptr), t->val = 1, t),
+            (t = tree(IMM, nullptr, nullptr), t->val = 2, t)),
+        (t = tree(IMM, nullptr, nullptr), t->val = 0, t)
+    );
+    gen(t);
+*/
+
+    // parse arguments from command line
+    // cl::ParseCommandLineOptions(argc, argv, "llc-olive\n");
+
+    // prepare llvm context to read bitcode file
+    LLVMContext Context;
+    SMDiagnostic Error;
+    std::unique_ptr<Module> M = parseIRFile(/*InputFilename*/argv[1], Error, Context);
+
+    ExprTreeBuilder Builder(M->getDataLayout());
+    Builder.visit(*M);
+    for(auto* T: Builder.ExprTrees)
+    {
+        std::cout << "====Tree====\n";
+        gen(T);
+    }
+    return 0;
+}
