@@ -154,13 +154,6 @@ stmt:   Store(reg, mem)
         std::cerr << "[DEBUG] " << "stmt:   Store(reg, mem)\n";
     };
 
-#FIXME
-#  %x = alloca i64, align 8
-#  %y = alloca i64*, align 8
-#  %y2 = load i64*, i64** %y, align 8
-#  %1 = load i64, i64* %y2, align 8
-#  %2 = load i64*, i64** %y, align 8
-#  store i64 %1, i64* %2, align 8
 stmt:   Store(reg, reg)
     { $cost[0].cost = $cost[2].cost + $cost[3].cost; }
     = {
@@ -197,7 +190,6 @@ label: Label
     { $cost[0].cost = 0; }
     = {
         std::cerr << "[DEBUG] " << "label: Label\n";
-        // std::cout << $1->getLabelString() << "\n";
     };
 
 cond: ICmp(reg, reg)
@@ -237,7 +229,7 @@ stmt: Br(cond, label, label)
         $action[2](indent);
         std::string JmpTrue, JmpFalse;
         auto *CI = llvm::cast<llvm::CmpInst>($2->getInstruction());
-            switch (CI->getPredicate()) {
+        switch (CI->getPredicate()) {
             case llvm::CmpInst::Predicate::ICMP_EQ:
                 JmpTrue = "je ";
                 JmpFalse = "jne ";
@@ -252,8 +244,7 @@ stmt: Br(cond, label, label)
                 break;
             default:
                 llvm_unreachable("unexpected CmpInst!\n");
-            }
-        // std::cout << op << $4->getRegLocString() << "\n";
+        }
         std::cerr << "[DEBUG] " << "stmt: Br(cond, label, label)\n";
         llvm::BasicBlock* NextBB = CI->getParent()->getNextNode();
         if (NextBB == $3->getBasicBlock())
@@ -479,16 +470,6 @@ static void gen(NODEPTR p) {
             dumpCover(p, 1, 0);
     }
 }
-
-// static Tree* tree(int op, Tree* l, Tree* r) {
-//     Tree* t = (Tree*) malloc(sizeof *t);
-
-//     t->op = op;
-//     t->kids[0] = l; t->kids[1] = r;
-//     t->getImmVal() = 0;
-//     t->x.state = 0;
-//     return t;
-// }
 
 #include "llvm/IR/Module.h"
 #include "llvm/IR/LLVMContext.h"

@@ -75,13 +75,15 @@ enum Register {
 
 class RegisterAllocator {
 public:
-    RegisterAllocator(): RegIndex(0) {}
+    RegisterAllocator(): Flip(false) {}
     Register getAvailableRegister(){
         // FIXME
-        return Register::R8;
+        Register Ret = Flip ? Register::R8 : Register::R9;
+        Flip = !Flip;
+        return Ret;
     }
 private:
-    int RegIndex;
+    bool Flip;
 };
 
 
@@ -111,14 +113,10 @@ public:
     {
         // ImmNode members
         int64_t ImmVal;
-        // FIXME:
-        struct
-        {
-            // MemNode members
-            uint64_t Offset;
-            // RegNode members
-            Register RegLoc;
-        };
+        // MemNode members
+        uint64_t Offset;
+        // RegNode members
+        Register RegLoc;
         // RegisterAllocator *RA;
         // InstNode members
         llvm::Instruction* Inst;
@@ -261,74 +259,6 @@ private:
         };
     }
 };
-
-// class ImmNode : public Node
-// {
-// public:
-//     ImmNode(int64_t Val, std::vector<Node *> Kids):
-//         Node(Kind::ImmNode, /*Op*/0, Kids), Val(Val) {}
-
-//     std::string getImmVal() {
-//         return std::string("$") + std::to_string(Val);
-//     }
-// private:
-//     int64_t Val;
-// };
-
-// class MemNode : public Node
-// {
-// public:
-//     MemNode(int64_t Offset, std::vector<Node *> Kids):
-//         Node(Kind::MemNode, /*Op=31*/Alloca, Kids), Offset(Offset) {}
-
-//     std::string getMemLoc() {
-//         return std::string("-") + std::to_string(Offset) + std::string("(%rbp)");
-//     }
-// private:
-//     int64_t Offset;
-// };
-
-// class RegNode: public Node
-// {
-// public:
-//     RegNode(RegisterAllocator *RA, std::vector<Node *> Kids):
-//         Node(Kind::RegNode, /*Op=32*/Load, Kids), RA(RA) {}
-
-//     std::string getRegLoc() {
-//         return MemLoc;
-//     }
-
-//     void setRegLoc(bool UseRegisterAllocator, std::string Loc = "") {
-//         if (UseRegisterAllocator) {
-//             MemLoc = RA->getAvailableRegister();
-//         }
-//         else {
-//             MemLoc = Loc;
-//         }
-//     }
-
-// private:
-//     RegisterAllocator *RA;
-//     std::string MemLoc;
-// };
-
-// class InstNode: public Node
-// {
-// public:
-//     RegNode(llvm::Instruction* Inst, std::vector<Node *> Kids):
-//         Node(Kind::InstNode, /*Op=32*/Inst->getOpCode(), Kids), Inst(Inst) {}
-// private:
-//     llvm::Instruction* Inst;
-// };
-
-// class LabelNode: public Node
-// {
-// public:
-//     RegNode(llvm::BasicBlock* BB, std::vector<Node *> Kids):
-//         Node(Kind::LabelNode, /*Op=32*/Label, Kids), BB(BB) {}
-// private:
-//     llvm::BasicBlock* BB;
-// };
 
 typedef Node *NODEPTR;
 
@@ -531,15 +461,15 @@ public:
             ExprTrees.push_back(InstNode);
     }
 
-    // Tree visitReturnInst(llvm::ReturnInst &I);
-    // Tree visitLoadInst(llvm::LoadInst &I);
-    // Tree visitStoreInst(llvm::StoreInst &I);
-    // Tree visitCallInst(llvm::CallInst &I);
-    // Tree visitICmpInst(llvm::ICmpInst &I);
-    // Tree visitAdd(llvm::BinaryOperator &I);
-    // Tree visitSub(llvm::BinaryOperator &I);
-    // Tree visitMul(llvm::BinaryOperator &I);
-    // Tree visitSDiv(llvm::BinaryOperator &I);
+    // Node* visitReturnInst(llvm::ReturnInst &I);
+    // Node* visitLoadInst(llvm::LoadInst &I);
+    // Node* visitStoreInst(llvm::StoreInst &I);
+    // Node* visitCallInst(llvm::CallInst &I);
+    // Node* visitICmpInst(llvm::ICmpInst &I);
+    // Node* visitAdd(llvm::BinaryOperator &I);
+    // Node* visitSub(llvm::BinaryOperator &I);
+    // Node* visitMul(llvm::BinaryOperator &I);
+    // Node* visitSDiv(llvm::BinaryOperator &I);
 
     /// Specify what to return for unhandled instructions.
     Node *visitInstruction(llvm::Instruction &I) {
