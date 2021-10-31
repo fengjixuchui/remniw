@@ -4,25 +4,25 @@
 main:
 pushq %rbp
 movq %rsp, %rbp
-subq $16, %rsp
+subq $24, %rsp
 .LB_entry:
-movq $17,-8(%rbp)
+movq $42,-8(%rbp)
+movq $43,-16(%rbp)
 movq -8(%rbp), %r8
-movq %r8, %rax
-cqto
-movq $3, %r8
-idivq %r8
-movq %rax, %r8
-addq $17, %r8
-movq %r8, -16(%rbp)
-movq $13,-8(%rbp)
+movq $1, %r9
+cmpq %r8, %r9
+jle .LB_if.else
+.LB_if.then:
 movq -8(%rbp), %r8
-movq %r8, %rax
-cqto
-movq $3, %r8
-idivq %r8
-movq %rax, %r8
+addq $12, %r8
 movq %r8, -16(%rbp)
+jmp .LB_if.end
+.LB_if.else:
+movq -8(%rbp), %r8
+imulq $34, %r8
+movq %r8, -16(%rbp)
+jmp .LB_if.end
+.LB_if.end:
 movq -16(%rbp), %r8
 movq %r8, %rax
 movq %rbp, %rsp

@@ -10,5 +10,5 @@ func main() int {
     x = *y;
     p = x;
     y = &p;
-    return *y;
+    return *y; // 6
 }

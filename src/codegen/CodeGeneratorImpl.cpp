@@ -292,7 +292,7 @@ Value *CodeGeneratorImpl::codegenIfStmt(IfStmtAST *IfStmt) {
     Value *CondV = codegenExpr(IfStmt->getCond());
     assert(CondV && "invalid condtion operand of IfStmt!");
     // Convert condition to a bool by comparing non-equal to 0.
-    if (!isa<CmpInst>(CondV))
+    if (!CondV->getType()->isIntegerTy(1))
         CondV = IRB->CreateICmpNE(
             CondV, ConstantInt::get(IRB->getInt64Ty(), 0, /*IsSigned=*/true), "");
     llvm::Function *F = IRB->GetInsertBlock()->getParent();

@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string>
 #include "helper.h"
-#define Const 0
+#define Undef 0
 #define Ret 1
 #define Br 2
 #define Switch 3
@@ -73,17 +73,21 @@
 #define InsertValue 65
 #define LandingPad 66
 #define Freeze 67
+#define Const 68
+#define Label 69
 
 struct burm_state {
   int op;
   NODEPTR node;
   struct burm_state **kids;
-  COST cost[5];
+  COST cost[7];
   struct {
     unsigned burm_stmt:3;
     unsigned burm_reg:5;
     unsigned burm_imm:1;
     unsigned burm_mem:1;
+    unsigned burm_label:1;
+    unsigned burm_cond:2;
   } rule;
 };
 

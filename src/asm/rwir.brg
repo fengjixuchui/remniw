@@ -4,7 +4,7 @@
 
 # TODO: autogen from llvm/include/llvm/IR/Instruction.def
 
-%term Const         =  0
+%term Undef         =  0
 
 # Terminator Instructions
 %term Ret           =  1
@@ -89,10 +89,15 @@
 %term LandingPad        = 66
 %term Freeze            = 67
 
+%term Const            = 68
+%term Label            = 69
+
 %declare<void> stmt<int indent>;
 %declare<void> reg<int indent>;
 %declare<void> imm<int indent>;
 %declare<void> mem<int indent>;
+%declare<void> label<int indent>;
+%declare<void> cond<int indent>;
 
 %%
 
@@ -108,7 +113,7 @@ stmt:   Ret(reg)
     = {
         $action[2](indent);
         // x64 assembly Ret takes no argument, return value is passed by %rax
-        std::cout << "movq " << $2->getRegLoc() << ", %rax\n";
+        std::cout << "movq " << $2->getRegLocString() << ", %rax\n";
         std::cerr << "[DEBUG] " << "stmt:    Ret(reg)\n";
     };
 
@@ -125,7 +130,7 @@ reg:   Load(mem)
         $action[2](indent);
         $0->setRegLoc(true);
         std::cout << "movq " << $2->getMemLoc() << ", "
-                  << $0->getRegLoc() << "\n";
+                  << $0->getRegLocString() << "\n";
         std::cerr << "[DEBUG] " << "reg:   Load(mem)\n";
     };
 
@@ -134,8 +139,8 @@ reg:   Load(reg)
     = {
         $action[2](indent);
         $0->setRegLoc(true);
-        std::cout << "movq (" << $2->getRegLoc() << "), "
-                  << $0->getRegLoc() << "\n";
+        std::cout << "movq (" << $2->getRegLocString() << "), "
+                  << $0->getRegLocString() << "\n";
         std::cerr << "[DEBUG] " << "reg:   Load(reg)\n";
     };
 
@@ -144,9 +149,26 @@ stmt:   Store(reg, mem)
     = {
         $action[2](indent);
         $action[3](indent);
-        std::cout << "movq " << $2->getRegLoc() << ", "
+        std::cout << "movq " << $2->getRegLocString() << ", "
                   << $3->getMemLoc() << "\n";
         std::cerr << "[DEBUG] " << "stmt:   Store(reg, mem)\n";
+    };
+
+#FIXME
+#  %x = alloca i64, align 8
+#  %y = alloca i64*, align 8
+#  %y2 = load i64*, i64** %y, align 8
+#  %1 = load i64, i64* %y2, align 8
+#  %2 = load i64*, i64** %y, align 8
+#  store i64 %1, i64* %2, align 8
+stmt:   Store(reg, reg)
+    { $cost[0].cost = $cost[2].cost + $cost[3].cost; }
+    = {
+        $action[2](indent);
+        $action[3](indent);
+        std::cout << "movq " << $2->getRegLocString() << ", "
+                  << "(" << $3->getRegLocString() << ")\n";
+        std::cerr << "[DEBUG] " << "stmt:   Store(reg, reg)\n";
     };
 
 stmt:   Store(imm, mem)
@@ -166,9 +188,95 @@ stmt:   Store(mem, mem)
         $action[3](indent);
         $0->setRegLoc(true);
         std::cout << "leaq " << $2->getMemLoc() << ", "
-                  << $0->getRegLoc() << "\n";
-        std::cout << "movq " << $0->getRegLoc() << ", " << $3->getMemLoc() << "\n";
+                  << $0->getRegLocString() << "\n";
+        std::cout << "movq " << $0->getRegLocString() << ", " << $3->getMemLoc() << "\n";
         std::cerr << "[DEBUG] " << "stmt:   Store(imm, mem)\n";
+    };
+
+label: Label
+    { $cost[0].cost = 0; }
+    = {
+        std::cerr << "[DEBUG] " << "label: Label\n";
+        // std::cout << $1->getLabelString() << "\n";
+    };
+
+cond: ICmp(reg, reg)
+    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 0; }
+    = {
+        $action[2](indent);
+        $action[3](indent);
+        std::cerr << "[DEBUG] " << "cond: ICmp(reg, reg)\n";
+        std::cout << "cmpq " << $3->getRegLocString() << ", " << $2->getRegLocString() << "\n";
+    };
+
+cond: ICmp(reg, imm)
+    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 0; }
+    = {
+        $action[2](indent);
+        $action[3](indent);
+        std::cerr << "[DEBUG] " << "cond: ICmp(reg, imm)\n";
+        std::cout << "cmpq " << $3->getImmVal() << ", " << $2->getRegLocString() << "\n";
+    };
+
+cond: ICmp(imm, reg)
+    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 0; }
+    = {
+        $action[2](indent);
+        $action[3](indent);
+        std::cerr << "[DEBUG] " << "cond: ICmp(imm, reg)\n";
+        // FIXME: here we manually use Register R9
+        std::cout << "movq " << $2->getImmVal() << ", "
+                  << "%r9" << "\n";
+        std::cout << "cmpq " << $3->getRegLocString() << ", " << "%r9" << "\n";
+    };
+
+# conditional jump
+stmt: Br(cond, label, label)
+    { $cost[0].cost = $cost[2].cost + $cost[3].cost + $cost[4].cost + 1; }
+    = {
+        $action[2](indent);
+        std::string JmpTrue, JmpFalse;
+        auto *CI = llvm::cast<llvm::CmpInst>($2->getInstruction());
+            switch (CI->getPredicate()) {
+            case llvm::CmpInst::Predicate::ICMP_EQ:
+                JmpTrue = "je ";
+                JmpFalse = "jne ";
+                break;
+            case llvm::CmpInst::Predicate::ICMP_NE:
+                JmpTrue = "jne ";
+                JmpFalse = "je ";
+                break;
+            case llvm::CmpInst::Predicate::ICMP_SGT:
+                JmpTrue = "jg ";
+                JmpFalse = "jle ";
+                break;
+            default:
+                llvm_unreachable("unexpected CmpInst!\n");
+            }
+        // std::cout << op << $4->getRegLocString() << "\n";
+        std::cerr << "[DEBUG] " << "stmt: Br(cond, label, label)\n";
+        llvm::BasicBlock* NextBB = CI->getParent()->getNextNode();
+        if (NextBB == $3->getBasicBlock())
+        {
+            std::cout << JmpFalse << $4->getLabelString() << "\n";
+        }
+        else if (NextBB == $4->getBasicBlock())
+        {
+            std::cout << JmpTrue << $3->getLabelString() << "\n";
+        }
+        else
+        {
+            std::cout << JmpTrue << $3->getLabelString() << "\n";
+            std::cout << JmpFalse << $4->getLabelString() << "\n";
+        }
+    };
+
+# unconditional jump
+stmt: Br(label, Undef, Undef)
+    { $cost[0].cost = $cost[2].cost + 1; }
+    = {
+        std::cout << "jmp " << $2->getLabelString() << "\n";
+        std::cerr << "[DEBUG] " << "stmt: Br(label)\n";
     };
 
 reg:   Add(reg, reg)
@@ -176,7 +284,7 @@ reg:   Add(reg, reg)
     = {
         $action[2](indent);
         $action[3](indent);
-        std::cout << "addq " << $2->getRegLoc() << ", " << $3->getRegLoc() << "\n";
+        std::cout << "addq " << $2->getRegLocString() << ", " << $3->getRegLocString() << "\n";
         $0->setRegLoc(false, $3->getRegLoc());
         std::cerr << "[DEBUG] " << "reg:   Add(reg, reg)\n";
     };
@@ -187,7 +295,7 @@ reg:   Add(reg, imm)
         $action[2](indent);
         $action[3](indent);
         std::cout << "addq " << $3->getImmVal() << ", "
-                  << $2->getRegLoc() << "\n";
+                  << $2->getRegLocString() << "\n";
         $0->setRegLoc(false, $2->getRegLoc());
         std::cerr << "[DEBUG] " << "reg:   Add(reg, imm)\n";
     };
@@ -198,7 +306,7 @@ reg:   Add(imm, reg)
         $action[2](indent);
         $action[3](indent);
         std::cout << "addq " << $2->getImmVal() << ", "
-                  << $3->getRegLoc() << "\n";
+                  << $3->getRegLocString() << "\n";
         $0->setRegLoc(false, $3->getRegLoc());
         std::cerr << "[DEBUG] " << "reg:   Add(imm, reg)\n";
     };
@@ -217,8 +325,8 @@ reg:   Sub(reg, reg)
     = {
         $action[2](indent);
         $action[3](indent);
-        std::cout << "subq " << $2->getRegLoc() << ", "
-                  << $3->getRegLoc() << "\n";
+        std::cout << "subq " << $2->getRegLocString() << ", "
+                  << $3->getRegLocString() << "\n";
         $0->setRegLoc(false, $3->getRegLoc());
         std::cerr << "[DEBUG] " << "reg:   Sub(reg, reg)\n";
     };
@@ -230,9 +338,9 @@ reg:   Sub(reg, imm)
         $action[3](indent);
         $0->setRegLoc(true);
         std::cout << "movq " << $3->getImmVal() << ", "
-                  << $0->getRegLoc() << "\n";
-        std::cout << "subq " << $2->getRegLoc() << ", "
-                  << $0->getRegLoc() << "\n";
+                  << $0->getRegLocString() << "\n";
+        std::cout << "subq " << $2->getRegLocString() << ", "
+                  << $0->getRegLocString() << "\n";
         std::cerr << "[DEBUG] " << "reg:   Sub(reg, imm)\n";
     };
 
@@ -242,7 +350,7 @@ reg:   Sub(imm, reg)
         $action[2](indent);
         $action[3](indent);
         std::cout << "subq " << $2->getImmVal() << ", "
-                  << $3->getRegLoc() << "\n";
+                  << $3->getRegLocString() << "\n";
         $0->setRegLoc(false, $3->getRegLoc());
         std::cerr << "[DEBUG] " << "reg:   Sub(imm, reg)\n";
     };
@@ -261,8 +369,8 @@ reg:   Mul(reg, reg)
     = {
         $action[2](indent);
         $action[3](indent);
-        std::cout << "imulq " << $2->getRegLoc() << ", "
-                  << $3->getRegLoc() << "\n";
+        std::cout << "imulq " << $2->getRegLocString() << ", "
+                  << $3->getRegLocString() << "\n";
         $0->setRegLoc(false, $3->getRegLoc());
         std::cerr << "[DEBUG] " << "reg:   Mul(reg, reg)\n";
     };
@@ -273,7 +381,7 @@ reg:   Mul(reg, imm)
         $action[2](indent);
         $action[3](indent);
         std::cout << "imulq " << $3->getImmVal() << ", "
-                  << $2->getRegLoc() << "\n";
+                  << $2->getRegLocString() << "\n";
         $0->setRegLoc(false, $2->getRegLoc());
         std::cerr << "[DEBUG] " << "reg:   Mul(reg, imm)\n";
 
@@ -285,7 +393,7 @@ reg:   Mul(imm, reg)
         $action[2](indent);
         $action[3](indent);
         std::cout << "imulq " << $2->getImmVal() << ", "
-                  << $3->getRegLoc() << "\n";
+                  << $3->getRegLocString() << "\n";
         $0->setRegLoc(false, $3->getRegLoc());
         std::cerr << "[DEBUG] " << "reg:   Mul(imm, reg)\n";
     };
@@ -304,10 +412,10 @@ reg:   SDiv(reg, reg)
     = {
         $action[2](indent);
         $action[3](indent);
-        std::cout << "movq " << $2->getRegLoc() << ", %rax\n";
+        std::cout << "movq " << $2->getRegLocString() << ", %rax\n";
         std::cout << "cqto\n";
-        std::cout << "idivq " << $3->getRegLoc() << "\n";
-        $0->setRegLoc(false, "%rax");
+        std::cout << "idivq " << $3->getRegLocString() << "\n";
+        $0->setRegLoc(false, Register::RAX);
         std::cerr << "[DEBUG] " << "reg:   SDiv(reg, reg)\n";
     };
 
@@ -316,13 +424,13 @@ reg:   SDiv(reg, imm)
     = {
         $action[2](indent);
         $action[3](indent);
-        std::cout << "movq " << $2->getRegLoc() << ", %rax\n";
+        std::cout << "movq " << $2->getRegLocString() << ", %rax\n";
         std::cout << "cqto\n";
         $0->setRegLoc(true);
         std::cout << "movq " << $3->getImmVal() << ", "
-                  << $0->getRegLoc() << "\n";
-        std::cout << "idivq " << $0->getRegLoc() << "\n";
-        std::cout << "movq %rax, " << $0->getRegLoc() << "\n";
+                  << $0->getRegLocString() << "\n";
+        std::cout << "idivq " << $0->getRegLocString() << "\n";
+        std::cout << "movq %rax, " << $0->getRegLocString() << "\n";
         std::cerr << "[DEBUG] " << "reg:   SDiv(reg, imm)\n";
 
     };
@@ -334,8 +442,8 @@ reg:   SDiv(imm, reg)
         $action[3](indent);
         std::cout << "movq " << $2->getImmVal() << ", %rax\n";
         std::cout << "cqto\n";
-        std::cout << "idivq " << $3->getRegLoc() << "\n";
-        $0->setRegLoc(false, "%rax");
+        std::cout << "idivq " << $3->getRegLocString() << "\n";
+        $0->setRegLoc(false, Register::RAX);
         std::cerr << "[DEBUG] " << "reg:   SDiv(imm, reg)\n";
     };
 
@@ -348,9 +456,9 @@ reg:   SDiv(imm, imm)
         std::cout << "cqto\n";
         $0->setRegLoc(true);
         std::cout << "movq " << $2->getImmVal() << ", "
-                  << $0->getRegLoc() << "\n";
-        std::cout << "idivq " << $0->getRegLoc() << "\n";
-        std::cout << "movq %rax, " << $0->getRegLoc() << "\n";
+                  << $0->getRegLocString() << "\n";
+        std::cout << "idivq " << $0->getRegLocString() << "\n";
+        std::cout << "movq %rax, " << $0->getRegLocString() << "\n";
         std::cerr << "[DEBUG] " << "reg:   SDiv(imm, imm)\n";
     };
 
@@ -366,7 +474,7 @@ static void gen(NODEPTR p) {
     if (burm_label(p) == 0)
         std::cerr << "[DEBUG] " << "no cover\n";
     else {
-        stmt_action(p->x.state,0);
+        stmt_action(p->getState(),0);
         if (shouldCover != 0)
             dumpCover(p, 1, 0);
     }
@@ -406,6 +514,8 @@ void FunctionASM::EmitAssembly()
     // body
     for(auto* T: ExprTrees)
     {
+        if (T->getOp() == /*Label*/69)
+            std::cout << T->getLabelString() << ":\n";
         gen(T);
     }
 
