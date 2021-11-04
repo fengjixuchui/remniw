@@ -73,12 +73,37 @@ enum Register {
     R15,
 };
 
+static Register ArgRegs[] = { RDI, RSI, RDX, RCX, R8, R9 };
+
+static inline const char* convertRegisterToString(Register Reg)
+{
+    switch (Reg) {
+    case RAX:   return "%rax";
+    case RBX:   return "%rbx";
+    case RCX:   return "%rcx";
+    case RDX:   return "%rdx";
+    case RSP:   return "%rsp";
+    case RBP:   return "%rbp";
+    case RDI:   return "%rdi";
+    case RSI:   return "%rsi";
+    case R8:    return "%r8";
+    case R9:    return "%r9";
+    case R10:   return "%r10";
+    case R11:   return "%r11";
+    case R12:   return "%r12";
+    case R13:   return "%r13";
+    case R14:   return "%r14";
+    case R15:   return "%r15";
+    };
+    llvm_unreachable("unexpected Register\n");
+}
+
 class RegisterAllocator {
 public:
     RegisterAllocator(): Flip(false) {}
     Register getAvailableRegister(){
         // FIXME
-        Register Ret = Flip ? Register::R8 : Register::R9;
+        Register Ret = Flip ? Register::R14 : Register::R15;
         Flip = !Flip;
         return Ret;
     }
@@ -101,7 +126,8 @@ public:
         MemNode,
         RegNode,
         InstNode,
-        LabelNode
+        LabelNode,
+        ArgsNode
     };
 
  private:
@@ -114,10 +140,9 @@ public:
         // ImmNode members
         int64_t ImmVal;
         // MemNode members
-        uint64_t Offset;
+        int64_t Offset;
         // RegNode members
         Register RegLoc;
-        // RegisterAllocator *RA;
         // InstNode members
         llvm::Instruction* Inst;
         // LabelNode members
@@ -137,9 +162,12 @@ public:
 
     void setState(burm_state* S) { State = S; }
 
-    // Node: The elements of std::vector are stored contiguously, so elements
+    // Note: The elements of std::vector are stored contiguously, so elements
     // can be accessed using offsets to regular pointers to elements
     Node** getKids() { return &Kids[0]; }
+
+    void setKids(const std::vector<Node*> &Ks) { Kids = Ks; }
+
 
     static Node* getUndefNode()
     {
@@ -154,7 +182,7 @@ public:
         return Ret;
     }
 
-    static Node* getMemNode(uint64_t Offset, std::vector<Node *> Kids)
+    static Node* getMemNode(int64_t Offset, std::vector<Node *> Kids)
     {
         Node* Ret = new Node(Kind::MemNode, /*Alloca*/31, Kids);
         Ret->setMemOffset(Offset);
@@ -163,7 +191,8 @@ public:
 
     static Node* getRegNode(Register Reg, std::vector<Node *> Kids)
     {
-        Node* Ret = new Node(Kind::RegNode, /*FIXME*/-1, Kids);
+        Node* Ret = new Node(Kind::RegNode, /*Reg*/71, Kids);
+        Ret->setRegLoc(false, Reg);
         return Ret;
     }
 
@@ -181,6 +210,12 @@ public:
         return Ret;
     }
 
+    static Node* getArgsNode(std::vector<Node *> Kids)
+    {
+        Node* Ret = new Node(Kind::ArgsNode, /*Args*/70, Kids);
+        return Ret;
+    }
+
     /** ================= ImmNode Functions =================== **/
     std::string getImmVal() {
         return std::string("$") + std::to_string(ImmVal);
@@ -190,10 +225,10 @@ public:
 
     /** ================= MemNode Functions =================== **/
     std::string getMemLoc() {
-        return std::string("-") + std::to_string(Offset) + std::string("(%rbp)");
+        return /*std::string("-") +*/ std::to_string(Offset) + std::string("(%rbp)");
     }
 
-    void setMemOffset(uint64_t O) { Offset = O; }
+    void setMemOffset(int64_t O) { Offset = O; }
 
     /** ================= RegNode Functions =================== **/
     std::string getRegLocString() {
@@ -232,32 +267,12 @@ public:
 
     std::string getLabelString()
     {
-        return std::string(".LB_") + BB->getName().str();
+        return std::string(".LB_") + BB->getName().str() + std::string("_") +
+                BB->getParent()->getName().str();
     }
 
 private:
-    const char* convertRegisterToString(Register Reg)
-    {
-        switch (Reg) {
-        case RAX:   return "%rax";
-        case RBX:   return "%rbx";
-        case RCX:   return "%rcx";
-        case RDX:   return "%rdx";
-        case RSP:   return "%rsp";
-        case RBP:   return "%rbp";
-        case RDI:   return "%rdi";
-        case RSI:   return "%rsi";
-        case R8:    return "%r8";
-        case R9:    return "%r9";
-        case R10:   return "%r10";
-        case R11:   return "%r11";
-        case R12:   return "%r12";
-        case R13:   return "%r13";
-        case R14:   return "%r14";
-        case R15:   return "%r15";
-        default:    llvm_unreachable("unexpected Register\n");
-        };
-    }
+
 };
 
 typedef Node *NODEPTR;
@@ -308,14 +323,14 @@ static void burm_trace(NODEPTR, int, COST);
 
 class FunctionASM {
 public:
-    FunctionASM(int64_t LovalVariableSpaceInBytes, llvm::SmallVector<Node *> ExprTrees,
+    FunctionASM(int64_t TotalAllocaSizeInBytes, llvm::SmallVector<Node *> ExprTrees,
                 std::string FuncName):
-        LovalVariableSpaceInBytes(LovalVariableSpaceInBytes),
+        TotalAllocaSizeInBytes(TotalAllocaSizeInBytes),
         ExprTrees(ExprTrees),
         FuncName(FuncName) {}
     void EmitAssembly();
 private:
-    int64_t LovalVariableSpaceInBytes;
+    int64_t TotalAllocaSizeInBytes;
     llvm::SmallVector<Node *> ExprTrees;
     std::string FuncName;
 };
@@ -324,10 +339,10 @@ class ExprTreeBuilder : public llvm::InstVisitor<ExprTreeBuilder, Node*> {
 public:
     llvm::SmallVector<FunctionASM> Functions;
     llvm::DenseMap<llvm::Instruction *, Node *> InstMap;
-    llvm::DenseMap<llvm::BasicBlock *, Node *> BBNodeMap;
+    llvm::DenseMap<llvm::Argument *, Node *> ArgMap;
     llvm::SmallVector<Node *> ExprTrees;
     const llvm::DataLayout &DL;
-    uint64_t offset; // clear per function
+    int64_t offset; // clear per function
     RegisterAllocator *RA;
 
 public:
@@ -356,10 +371,25 @@ public:
         offset = 0;
         ExprTrees.clear();
 
+        for (unsigned i = 0, e = F.arg_size(); i !=e; ++i)
+        {
+            llvm::Argument* Arg = F.getArg(i);
+            Node *ArgNode;
+            if (i < 6)
+            {
+                ArgNode = Node::getRegNode(ArgRegs[i], {});
+            }
+            else
+            {
+                ArgNode = Node::getMemNode(8 * (i - 6 + 2), {});
+            }
+            ArgMap[Arg] = ArgNode;
+        }
+
         for (auto &I : instructions(F)) {
             if (auto *AI = llvm::dyn_cast<llvm::AllocaInst>(&I)) {
                 uint64_t AllocaSizeInBytes = getAllocaSizeInBytes(*AI);
-                offset += AllocaSizeInBytes;
+                offset -= AllocaSizeInBytes;
                 auto *AllocaNode =
                     Node::getMemNode(offset,
                         { Node::getImmNode(AllocaSizeInBytes, {}) });
@@ -380,7 +410,7 @@ public:
             }
         }
 
-        FunctionASM Func(offset, ExprTrees, F.getName().str());
+        FunctionASM Func(-offset, ExprTrees, F.getName().str());
         Functions.push_back(Func);
     }
 
@@ -394,6 +424,12 @@ public:
         {
             auto it = InstMap.find(I);
             assert(it != InstMap.end() && "operands must be previously defined");
+            return it->second;
+        }
+        else if (auto *Arg = llvm::dyn_cast<llvm::Argument>(V))
+        {
+            auto it = ArgMap.find(Arg);
+            assert(it != ArgMap.end() && "operands must be previously defined");
             return it->second;
         }
         llvm_unreachable("unhandled operand");
@@ -461,10 +497,27 @@ public:
             ExprTrees.push_back(InstNode);
     }
 
+    Node* visitCallInst(llvm::CallInst &CI)
+    {
+        std::vector<Node*> Kids;
+        Node* Args = Node::getArgsNode({Node::getUndefNode(),Node::getUndefNode()});
+        Node* CurrentNode = Args;
+        for (unsigned i = 0, e = CI.arg_size(); i != e; ++i)
+        {
+            Node* ArgsTmp = Node::getArgsNode({Node::getUndefNode(),Node::getUndefNode()});
+            CurrentNode->setKids({visitOperand(CI.getArgOperand(i)), ArgsTmp});
+            CurrentNode = ArgsTmp;
+        }
+        Node *T = Node::getInstNode(&CI, {Args});
+        InstMap[&CI] = T;
+        if (CI.use_empty())
+            ExprTrees.push_back(T);
+        return T;
+    }
+
     // Node* visitReturnInst(llvm::ReturnInst &I);
     // Node* visitLoadInst(llvm::LoadInst &I);
     // Node* visitStoreInst(llvm::StoreInst &I);
-    // Node* visitCallInst(llvm::CallInst &I);
     // Node* visitICmpInst(llvm::ICmpInst &I);
     // Node* visitAdd(llvm::BinaryOperator &I);
     // Node* visitSub(llvm::BinaryOperator &I);

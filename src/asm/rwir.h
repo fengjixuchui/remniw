@@ -75,12 +75,14 @@
 #define Freeze 67
 #define Const 68
 #define Label 69
+#define Args 70
+#define Reg 71
 
 struct burm_state {
   int op;
   NODEPTR node;
   struct burm_state **kids;
-  COST cost[7];
+  COST cost[9];
   struct {
     unsigned burm_stmt:3;
     unsigned burm_reg:5;
@@ -88,6 +90,8 @@ struct burm_state {
     unsigned burm_mem:1;
     unsigned burm_label:1;
     unsigned burm_cond:2;
+    unsigned burm_arg:2;
+    unsigned burm_args:2;
   } rule;
 };
 
