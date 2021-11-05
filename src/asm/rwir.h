@@ -84,7 +84,7 @@ struct burm_state {
   struct burm_state **kids;
   COST cost[9];
   struct {
-    unsigned burm_stmt:3;
+    unsigned burm_stmt:4;
     unsigned burm_reg:5;
     unsigned burm_imm:1;
     unsigned burm_mem:1;

@@ -146,7 +146,11 @@ public:
         // InstNode members
         llvm::Instruction* Inst;
         // LabelNode members
-        llvm::BasicBlock* BB;
+        struct
+        {
+            const char* StringPtr;
+            size_t StringSize;
+        };
     };
 
 
@@ -203,10 +207,10 @@ public:
         return Ret;
     }
 
-    static Node* getLabelNode(llvm::BasicBlock* BB, std::vector<Node *> Kids)
+    static Node* getLabelNode(llvm::StringRef StrRef, std::vector<Node *> Kids)
     {
         Node* Ret = new Node(Kind::LabelNode, /*Label*/69, Kids);
-        Ret->setBasicBlock(BB);
+        Ret->setLabelString(StrRef);
         return Ret;
     }
 
@@ -225,7 +229,7 @@ public:
 
     /** ================= MemNode Functions =================== **/
     std::string getMemLoc() {
-        return /*std::string("-") +*/ std::to_string(Offset) + std::string("(%rbp)");
+        return std::to_string(Offset) + std::string("(%rbp)");
     }
 
     void setMemOffset(int64_t O) { Offset = O; }
@@ -258,18 +262,41 @@ public:
     void setInstruction(llvm::Instruction *I) { Inst = I; }
 
     /** ================= InstNode Functions =================== **/
-    llvm::BasicBlock* getBasicBlock()
-    {
-        return BB;
-    }
 
-    void setBasicBlock(llvm::BasicBlock *B) { BB = B; }
+    void setLabelString(llvm::StringRef StrRef)
+    {
+        StringPtr = StrRef.data();
+        StringSize = StrRef.size();
+    }
 
     std::string getLabelString()
     {
-        return std::string(".LB_") + BB->getName().str() + std::string("_") +
-                BB->getParent()->getName().str();
+        return std::string(".LB_") + std::string(StringPtr, StringSize) + std::string("_") +
+                std::to_string(reinterpret_cast<uint64_t>(this));
     }
+
+    std::string getLabelString2()
+    {
+        return std::string(StringPtr, StringSize);
+    }
+
+    std::string getLabelString3()
+    {
+        return std::string("$") + std::string(StringPtr, StringSize);
+    }
+
+    // llvm::BasicBlock* getBasicBlock()
+    // {
+    //     return BB;
+    // }
+
+    // void setLabelString(llvm::BasicBlock *B) { BB = B; }
+
+    // std::string getLabelString()
+    // {
+    //     return std::string(".LB_") + BB->getName().str() + std::string("_") +
+    //             BB->getParent()->getName().str();
+    // }
 
 private:
 
@@ -404,7 +431,7 @@ public:
             // when calling FunctionASM::EmitAssembly.
             // But multiple redundant LabelNodes for same BB is used,
             // cause we also have LabelNode for same BB used in BranchInstNode.
-            ExprTrees.push_back(Node::getLabelNode(&BB, {}));
+            ExprTrees.push_back(Node::getLabelNode(BB.getName(), {}));
             for(auto &I : BB) {
                 InstVisitor::visit(I);
             }
@@ -432,6 +459,11 @@ public:
             assert(it != ArgMap.end() && "operands must be previously defined");
             return it->second;
         }
+        else if (auto *F = llvm::dyn_cast<llvm::Function>(V))
+        {
+            Node* T =  Node::getLabelNode(F->getName(), {});
+            return T;
+        }
         llvm_unreachable("unhandled operand");
         return nullptr;
     }
@@ -457,10 +489,10 @@ public:
     {
         Node *InstNode;
         if (BI.isUnconditional()) {
-            InstNode = Node::getInstNode(&BI,
-                                         {Node::getLabelNode(BI.getSuccessor(0), {}),
-                                          Node::getUndefNode(),
-                                          Node::getUndefNode()});
+            InstNode =
+                Node::getInstNode(&BI, {Node::getLabelNode(BI.getSuccessor(0)->getName(), {}),
+                                        Node::getUndefNode(),
+                                        Node::getUndefNode()});
         }
         else
         {
@@ -468,7 +500,7 @@ public:
                 llvm::ConstantInt::getTrue(llvm::Type::getInt1Ty(BI.getContext())))
             {
                 InstNode = Node::getInstNode(&BI,
-                                            {Node::getLabelNode(BI.getSuccessor(0), {}),
+                                            {Node::getLabelNode(BI.getSuccessor(0)->getName(), {}),
                                             Node::getUndefNode(),
                                             Node::getUndefNode()});
             }
@@ -476,7 +508,7 @@ public:
                 llvm::ConstantInt::getFalse(llvm::Type::getInt1Ty(BI.getContext())))
             {
                 InstNode = Node::getInstNode(&BI,
-                                            {Node::getLabelNode(BI.getSuccessor(1), {}),
+                                            {Node::getLabelNode(BI.getSuccessor(1)->getName(), {}),
                                             Node::getUndefNode(),
                                             Node::getUndefNode()});
             }
@@ -487,8 +519,8 @@ public:
                     "BI.getCondition() not in InstMap");
                 InstNode = Node::getInstNode(&BI,
                                     { InstMap[ICI],
-                                        Node::getLabelNode(BI.getSuccessor(0), {}),
-                                        Node::getLabelNode(BI.getSuccessor(1), {})});
+                                        Node::getLabelNode(BI.getSuccessor(0)->getName(), {}),
+                                        Node::getLabelNode(BI.getSuccessor(1)->getName(), {})});
             }
 
         }
@@ -508,11 +540,21 @@ public:
             CurrentNode->setKids({visitOperand(CI.getArgOperand(i)), ArgsTmp});
             CurrentNode = ArgsTmp;
         }
-        Node *T = Node::getInstNode(&CI, {Args});
-        InstMap[&CI] = T;
+        Node *Ret;
+        if (auto *Callee = CI.getCalledFunction()) // direct call
+        {
+            Ret = Node::getInstNode(&CI, {Node::getLabelNode(Callee->getName(),{}),
+                                          Args});
+        }
+        else // indirect call
+        {
+            Ret = Node::getInstNode(&CI, {visitOperand(CI.getCalledOperand()),
+                                          Args});
+        }
+        InstMap[&CI] = Ret;
         if (CI.use_empty())
-            ExprTrees.push_back(T);
-        return T;
+            ExprTrees.push_back(Ret);
+        return Ret;
     }
 
     // Node* visitReturnInst(llvm::ReturnInst &I);

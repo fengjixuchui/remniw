@@ -196,6 +196,16 @@ stmt:   Store(mem, mem)
         std::cout << "movq " << convertRegisterToString(AvailableRegister) << ", " << $3->getMemLoc() << "\n";
     };
 
+stmt:   Store(label, mem)
+    { $cost[0].cost = $cost[2].cost + $cost[3].cost; }
+    = {
+        $action[2](indent);
+        $action[3](indent);
+        std::cerr << "[DEBUG] " << "stmt:   Store(label, mem)\n";
+        std::cout << "movq " << $2->getLabelString3() << ","
+                  << $3->getMemLoc() << "\n";
+    };
+
 label: Label
     { $cost[0].cost = 0; }
     = {
@@ -257,11 +267,12 @@ stmt: Br(cond, label, label)
         }
         std::cerr << "[DEBUG] " << "stmt: Br(cond, label, label)\n";
         llvm::BasicBlock* NextBB = CI->getParent()->getNextNode();
-        if (NextBB == $3->getBasicBlock())
+        auto *BI = llvm::cast<llvm::BranchInst>($1->getInstruction());
+        if (NextBB == BI->getSuccessor(0))
         {
             std::cout << JmpFalse << $4->getLabelString() << "\n";
         }
-        else if (NextBB == $4->getBasicBlock())
+        else if (NextBB == BI->getSuccessor(1))
         {
             std::cout << JmpTrue << $3->getLabelString() << "\n";
         }
@@ -509,20 +520,37 @@ args:   Args(arg, args)
         std::cerr << "[DEBUG] " << "args:   ARGS(value, args)\n";
     };
 
-reg:    Call(args)
+# direct call
+reg:    Call(label, args)
+    { $cost[0].cost = $cost[2].cost + 1; }
+    = {
+        std::cerr << "[DEBUG] " << "reg:    Call(label, args)\n";
+        $action[2](indent);
+        $action[3](indent, 0);
+        auto* CB = llvm::cast<llvm::CallBase>($1->getInstruction());
+        std::cout << "callq " << $2->getLabelString2() << "\n";
+        $0->setRegLoc(false, Register::RAX);
+    };
+
+# indirect call
+reg:    Call(reg, args)
     { $cost[0].cost = $cost[2].cost + 1; }
     = {
         std::cerr << "[DEBUG] " << "reg:    Call(args)\n";
-        $action[2](indent, 0);
-        auto* CB = llvm::cast<llvm::CallBase>($1->getInstruction());
-        if (auto *Callee = CB->getCalledFunction()) // direct call
-        {
-            std::cout << "callq " << Callee->getName().str() << "\n";
-        }
-        else // indirect call
-        {
-            std::cout << "callq indirectcall" << "\n";
-        }
+        $action[2](indent);
+        $action[3](indent, 0);
+        std::cout << "callq " << "*" << $2->getRegLocString() << "\n";
+        $0->setRegLoc(false, Register::RAX);
+    };
+
+# indirect call
+reg:    Call(mem, args)
+    { $cost[0].cost = $cost[2].cost + 1; }
+    = {
+        std::cerr << "[DEBUG] " << "reg:    Call(args)\n";
+        $action[2](indent);
+        $action[3](indent, 0);
+        std::cout << "callq " << "*" << $2->getMemLoc() << "\n";
         $0->setRegLoc(false, Register::RAX);
     };
 
