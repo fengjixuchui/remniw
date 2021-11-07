@@ -90,7 +90,7 @@ struct burm_state {
     unsigned burm_mem:1;
     unsigned burm_label:1;
     unsigned burm_cond:2;
-    unsigned burm_arg:2;
+    unsigned burm_arg:3;
     unsigned burm_args:2;
   } rule;
 };

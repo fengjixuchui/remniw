@@ -5,27 +5,27 @@ main:
 pushq %rbp
 movq %rsp, %rbp
 subq $16, %rsp
-.LB_entry:
+.LB_entry_140736543857424:
 movq $10,-8(%rbp)
-leaq -8(%rbp), %r9
-movq %r9, -16(%rbp)
-jmp .LB_while.cond
-.LB_while.cond:
-movq -16(%rbp), %r8
-movq (%r8), %r9
-cmpq $0, %r9
-jle .LB_while.end
-.LB_while.body:
-movq -16(%rbp), %r8
-movq (%r8), %r9
-movq $1, %r8
-subq %r8, %r9
-movq -16(%rbp), %r8
-movq %r9, (%r8)
-jmp .LB_while.cond
-.LB_while.end:
-movq -8(%rbp), %r8
-movq %r8, %rax
+leaq -8(%rbp), %r15
+movq %r15, -16(%rbp)
+jmp .LB_while.cond_140736543855504
+.LB_while.cond_140736543855504:
+movq -16(%rbp), %r14
+movq (%r14), %r15
+cmpq $0, %r15
+jle .LB_while.end_140736543856304
+.LB_while.body_140736543857328:
+movq -16(%rbp), %r14
+movq (%r14), %r15
+movq $1, %r14
+subq %r15, %r14
+movq -16(%rbp), %r15
+movq %r14, (%r15)
+jmp .LB_while.cond_140736543855504
+.LB_while.end_140736543856304:
+movq -8(%rbp), %r14
+movq %r14, %rax
 movq %rbp, %rsp
 popq %rbp
 retq

@@ -5,7 +5,7 @@ f:
 pushq %rbp
 movq %rsp, %rbp
 subq $16, %rsp
-.LB_entry_140736873791072:
+.LB_entry_140736310891280:
 movq %rdi, -16(%rbp)
 movq %rsi, -8(%rbp)
 movq -16(%rbp), %r15
@@ -25,13 +25,11 @@ main:
 pushq %rbp
 movq %rsp, %rbp
 subq $32, %rsp
-.LB_entry_140736873793312:
+.LB_entry_140736310910304:
 movq $12,-8(%rbp)
 movq $17,-16(%rbp)
-movq -8(%rbp), %r15
-movq %r15, %rdi
-movq -16(%rbp), %r14
-movq %r14, %rsi
+movq $1, %rdi
+movq $2, %rsi
 callq f
 movq %rax, -24(%rbp)
 movq -24(%rbp), %r15
