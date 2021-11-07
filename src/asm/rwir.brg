@@ -198,7 +198,7 @@ stmt:   Store(mem, mem)
     = {
         $action[2](Out);
         $action[3](Out);
-        std::cerr << "[DEBUG] " << "stmt:   Store(imm, mem)\n";
+        std::cerr << "[DEBUG] " << "stmt:   Store(mem, mem)\n";
         auto AvailableRegister = RA->getAvailableRegister();
         Out << "leaq " << $2->getMemLoc() << ", "
                   << convertRegisterToString(AvailableRegister) << "\n";
@@ -487,10 +487,15 @@ arg:  reg
         $action[1](Out);
         std::cerr << "[DEBUG] " << "arg:  reg\n";
         if (argNo < 6)
-            Out << "movq " << $0->getRegLocString() << ", "
-                      << convertRegisterToString(ArgRegs[argNo]) << "\n";
+        {
+            Out << "movq " << $1->getRegLocString() << ", "
+                << convertRegisterToString(ArgRegs[argNo]) << "\n";
+        }
         else
-            Out << "TODO: stack pass argument\n";
+        {
+            Out << "movq " << $1->getRegLocString() << ", "
+                << (8 * (argNo - 6)) << "(%rsp)" << "\n";
+        }
     };
 
 arg:  imm
@@ -498,10 +503,15 @@ arg:  imm
     = {
         std::cerr << "[DEBUG] " << "arg:  imm\n";
         if (argNo < 6)
+        {
             Out << "movq " << $1->getImmVal() << ", "
                       << convertRegisterToString(ArgRegs[argNo]) << "\n";
+        }
         else
-            Out << "TODO: stack pass argument\n";
+        {
+            Out << "movq " << $1->getImmVal() << ", "
+                << (8 * (argNo - 6)) << "(%rsp)" << "\n";
+        }
     };
 
 arg:  mem
@@ -509,10 +519,15 @@ arg:  mem
     = {
         std::cerr << "[DEBUG] " << "arg:  mem\n";
         if (argNo < 6)
+        {
             Out << "movq " << $1->getMemLoc() << ", "
                       << convertRegisterToString(ArgRegs[argNo]) << "\n";
+        }
         else
-            Out << "TODO: stack pass argument\n";
+        {
+            Out << "movq " << $1->getMemLoc() << ", "
+                << (8 * (argNo - 6)) << "(%rsp)" << "\n";
+        }
     };
 
 arg: label
@@ -520,10 +535,15 @@ arg: label
     = {
         std::cerr << "[DEBUG] " << "arg:  mem\n";
         if (argNo < 6)
+        {
             Out << "movq " << $1->getLabelString4() << ", "
                       << convertRegisterToString(ArgRegs[argNo]) << "\n";
+        }
         else
-            Out << "TODO: stack pass argument\n";
+        {
+            Out << "movq " << $1->getLabelString4() << ", "
+                << (8 * (argNo - 6)) << "(%rsp)" << "\n";
+        }
     };
 
 args:   Args(Undef, Undef)

@@ -396,7 +396,7 @@ public:
             Out << ".L." << p.first->getName().str() << ":\n";
             Out << ".asciz ";
             Out << "\"";
-            llvm::printEscapedString(p.second.str(), Out);
+            llvm::printEscapedString(p.second, Out);
             Out << "\"\n";
         }
     }
@@ -461,34 +461,26 @@ public:
             }
             else
             {
-                ArgNode = Node::getMemNode(8 * (i - 6 + 2), {});
+                llvm::Type *Ty = F.getArg(i)->getType();
+                uint64_t SizeInBytes =
+                    F.getParent()->getDataLayout().getTypeAllocSize(Ty);
+                ArgNode =
+                    Node::getMemNode(8 * (i - 6 + 2),
+                                     { Node::getImmNode(SizeInBytes, {}) });
             }
             ArgMap[Arg] = ArgNode;
         }
 
-        for (auto &BB : F) {
-            LabelMap[&BB] = Node::getLabelNode(BB.getName(), {});
-            for(auto &I : BB) {
-                if (auto *AI = llvm::dyn_cast<llvm::AllocaInst>(&I)) {
-                    uint64_t AllocaSizeInBytes = getAllocaSizeInBytes(*AI);
-                    offset -= AllocaSizeInBytes;
-                    auto *AllocaNode =
-                        Node::getMemNode(offset,
-                            { Node::getImmNode(AllocaSizeInBytes, {}) });
-                    InstMap[&I] = AllocaNode;
-                }
-            }
-        }
-
         // body
         for (auto &BB : F) {
-            ExprTrees.push_back(LabelMap[&BB]);
+            ExprTrees.push_back(visitOperand(&BB));
             for(auto &I : BB) {
                InstVisitor::visit(I);
            }
         }
 
-        AsmFunction Func(-offset, ExprTrees, F.getName().str());
+        AsmFunction Func((-offset + 16 - 1) / 16 * 16 /* align to 16-bytes*/,
+                         ExprTrees, F.getName().str());
         Functions.push_back(Func);
     }
 
@@ -534,7 +526,11 @@ public:
         else if (auto *BB = llvm::dyn_cast<llvm::BasicBlock>(V))
         {
             auto it = LabelMap.find(V);
-            assert(it != LabelMap.end() && "operands must be previously defined");
+            if (it == LabelMap.end())
+            {
+                LabelMap[V] = Node::getLabelNode(BB->getName(), {});
+                return LabelMap[V];
+            }
             return it->second;
         }
         llvm_unreachable("unhandled operand");
@@ -554,8 +550,13 @@ public:
         return SizeInBytes * ArraySize;
     }
 
-    Node* visitAllocaInst(llvm::AllocaInst &I){
-        return nullptr;
+    Node* visitAllocaInst(llvm::AllocaInst &AI){
+        uint64_t AllocaSizeInBytes = getAllocaSizeInBytes(AI);
+        offset -= AllocaSizeInBytes;
+        auto *AllocaNode =
+            Node::getMemNode(offset,
+                { Node::getImmNode(AllocaSizeInBytes, {}) });
+        InstMap[&AI] = AllocaNode;
     }
 
     Node* visitBranchInst(llvm::BranchInst &BI)
@@ -612,6 +613,13 @@ public:
             Node* ArgsTmp = Node::getArgsNode({Node::getUndefNode(),Node::getUndefNode()});
             CurrentNode->setKids({visitOperand(CI.getArgOperand(i)), ArgsTmp});
             CurrentNode = ArgsTmp;
+            if (i >= 6) // push arg on stack
+            {
+                llvm::Type *Ty = CI.getArgOperand(i)->getType();
+                uint64_t SizeInBytes =
+                    CI.getModule()->getDataLayout().getTypeAllocSize(Ty);
+                offset -= SizeInBytes;
+            }
         }
         Node *Ret;
         if (auto *Callee = CI.getCalledFunction()) // direct call

@@ -434,15 +434,15 @@ int burm_line_numbers[] = {
   /* 32 */  459,
   /* 33 */  471,
   /* 34 */  486,
-  /* 35 */  498,
-  /* 36 */  509,
-  /* 37 */  520,
-  /* 38 */  531,
-  /* 39 */  537,
-  /* 40 */  546,
-  /* 41 */  558,
-  /* 42 */  569,
-  /* 43 */  580,
+  /* 35 */  503,
+  /* 36 */  519,
+  /* 37 */  535,
+  /* 38 */  551,
+  /* 39 */  557,
+  /* 40 */  566,
+  /* 41 */  578,
+  /* 42 */  589,
+  /* 43 */  600,
 };
 
 #pragma GCC diagnostic push
@@ -1605,10 +1605,15 @@ llvm::raw_ostream &Out, unsigned argNo)
         reg_action(_s,Out);
         std::cerr << "[DEBUG] " << "arg:  reg\n";
         if (argNo < 6)
+        {
             Out << "movq " << _s->node->getRegLocString() << ", "
-                      << convertRegisterToString(ArgRegs[argNo]) << "\n";
+                << convertRegisterToString(ArgRegs[argNo]) << "\n";
+        }
         else
-            Out << "TODO: stack pass argument\n";
+        {
+            Out << "movq " << _s->node->getRegLocString() << ", "
+                << (8 * (argNo - 6)) << "(%rsp)" << "\n";
+        }
     
 }
   break;
@@ -1619,10 +1624,15 @@ llvm::raw_ostream &Out, unsigned argNo)
 
         std::cerr << "[DEBUG] " << "arg:  imm\n";
         if (argNo < 6)
+        {
             Out << "movq " << _s->node->getImmVal() << ", "
                       << convertRegisterToString(ArgRegs[argNo]) << "\n";
+        }
         else
-            Out << "TODO: stack pass argument\n";
+        {
+            Out << "movq " << _s->node->getImmVal() << ", "
+                << (8 * (argNo - 6)) << "(%rsp)" << "\n";
+        }
     
 }
   break;
@@ -1633,10 +1643,15 @@ llvm::raw_ostream &Out, unsigned argNo)
 
         std::cerr << "[DEBUG] " << "arg:  mem\n";
         if (argNo < 6)
+        {
             Out << "movq " << _s->node->getMemLoc() << ", "
                       << convertRegisterToString(ArgRegs[argNo]) << "\n";
+        }
         else
-            Out << "TODO: stack pass argument\n";
+        {
+            Out << "movq " << _s->node->getMemLoc() << ", "
+                << (8 * (argNo - 6)) << "(%rsp)" << "\n";
+        }
     
 }
   break;
@@ -1647,10 +1662,15 @@ llvm::raw_ostream &Out, unsigned argNo)
 
         std::cerr << "[DEBUG] " << "arg:  mem\n";
         if (argNo < 6)
+        {
             Out << "movq " << _s->node->getLabelString4() << ", "
                       << convertRegisterToString(ArgRegs[argNo]) << "\n";
+        }
         else
-            Out << "TODO: stack pass argument\n";
+        {
+            Out << "movq " << _s->node->getLabelString4() << ", "
+                << (8 * (argNo - 6)) << "(%rsp)" << "\n";
+        }
     
 }
   break;
