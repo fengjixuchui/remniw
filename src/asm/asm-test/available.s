@@ -4,8 +4,8 @@
 main:
 pushq %rbp
 movq %rsp, %rbp
-subq $40, %rsp
-.LB_entry_140737166694992:
+subq $48, %rsp
+.L.entry_140737317058176:
 movq $2,-32(%rbp)
 movq $3,-40(%rbp)
 movq -32(%rbp), %r15
@@ -24,3 +24,7 @@ movq %rbp, %rsp
 popq %rbp
 retq
 
+.L.fmtstr:
+.asciz "%lli"
+.L.fmtstr.1:
+.asciz "%lli\0A"

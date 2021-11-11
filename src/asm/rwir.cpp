@@ -423,7 +423,7 @@ int burm_line_numbers[] = {
   /* 21 */  337,
   /* 22 */  346,
   /* 23 */  357,
-  /* 24 */  370,
+  /* 24 */  368,
   /* 25 */  381,
   /* 26 */  390,
   /* 27 */  401,
@@ -440,9 +440,9 @@ int burm_line_numbers[] = {
   /* 38 */  551,
   /* 39 */  557,
   /* 40 */  566,
-  /* 41 */  578,
-  /* 42 */  589,
-  /* 43 */  600,
+  /* 41 */  581,
+  /* 42 */  592,
+  /* 43 */  603,
 };
 
 #pragma GCC diagnostic push
@@ -1057,7 +1057,7 @@ llvm::raw_ostream &Out)
 
         mem_action(_s->kids[0],Out);
         mem_action(_s->kids[1],Out);
-        std::cerr << "[DEBUG] " << "stmt:   Store(imm, mem)\n";
+        std::cerr << "[DEBUG] " << "stmt:   Store(mem, mem)\n";
         auto AvailableRegister = RA->getAvailableRegister();
         Out << "leaq " << _s->kids[0]->node->getMemLoc() << ", "
                   << convertRegisterToString(AvailableRegister) << "\n";
@@ -1251,8 +1251,8 @@ llvm::raw_ostream &Out)
         reg_action(_s->kids[0],Out);
         reg_action(_s->kids[1],Out);
         std::cerr << "[DEBUG] " << "reg:   Sub(reg, reg)\n";
-        Out << "subq " << _s->kids[0]->node->getRegLocString() << ", "
-                  << _s->kids[1]->node->getRegLocString() << "\n";
+        Out << "subq " << _s->kids[1]->node->getRegLocString() << ", "
+                  << _s->kids[0]->node->getRegLocString() << "\n";
         _s->node->setRegLoc(false, _s->kids[1]->node->getRegLoc());
     
 }
@@ -1265,11 +1265,9 @@ llvm::raw_ostream &Out)
         reg_action(_s->kids[0],Out);
         imm_action(_s->kids[1],Out);
         std::cerr << "[DEBUG] " << "reg:   Sub(reg, imm)\n";
-        _s->node->setRegLoc(true);
-        Out << "movq " << _s->kids[1]->node->getImmVal() << ", "
-                  << _s->node->getRegLocString() << "\n";
-        Out << "subq " << _s->kids[0]->node->getRegLocString() << ", "
-                  << _s->node->getRegLocString() << "\n";
+        Out << "subq " << _s->kids[1]->node->getImmVal() << ", "
+                  << _s->kids[0]->node->getRegLocString() << "\n";
+        _s->node->setRegLoc(false, _s->kids[0]->node->getRegLoc());
     
 }
   break;
@@ -1281,9 +1279,11 @@ llvm::raw_ostream &Out)
         imm_action(_s->kids[0],Out);
         reg_action(_s->kids[1],Out);
         std::cerr << "[DEBUG] " << "reg:   Sub(imm, reg)\n";
-        Out << "subq " << _s->kids[0]->node->getImmVal() << ", "
-                  << _s->kids[1]->node->getRegLocString() << "\n";
-        _s->node->setRegLoc(false, _s->kids[1]->node->getRegLoc());
+        _s->node->setRegLoc(true);
+        Out << "movq " << _s->kids[0]->node->getImmVal() << ", "
+                  << _s->node->getRegLocString() << "\n";
+        Out << "subq " << _s->kids[1]->node->getRegLocString() << ", "
+                  << _s->node->getRegLocString() << "\n";
     
 }
   break;
@@ -1428,6 +1428,9 @@ llvm::raw_ostream &Out)
         label_action(_s->kids[0],Out);
         args_action(_s->kids[1],Out, 0);
         auto* CB = llvm::cast<llvm::CallBase>(_s->node->getInstruction());
+        std::string Callee = _s->kids[0]->node->getLabelString2();
+        if (Callee == "printf" || Callee == "scanf")
+            Out << "xorl %eax, %eax\n";
         Out << "callq " << _s->kids[0]->node->getLabelString2() << "\n";
         _s->node->setRegLoc(false, Register::RAX);
     
@@ -1644,7 +1647,7 @@ llvm::raw_ostream &Out, unsigned argNo)
         std::cerr << "[DEBUG] " << "arg:  mem\n";
         if (argNo < 6)
         {
-            Out << "movq " << _s->node->getMemLoc() << ", "
+            Out << "leaq " << _s->node->getMemLoc() << ", "
                       << convertRegisterToString(ArgRegs[argNo]) << "\n";
         }
         else

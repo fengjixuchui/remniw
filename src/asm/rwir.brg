@@ -347,8 +347,8 @@ reg:   Sub(reg, reg)
         $action[2](Out);
         $action[3](Out);
         std::cerr << "[DEBUG] " << "reg:   Sub(reg, reg)\n";
-        Out << "subq " << $2->getRegLocString() << ", "
-                  << $3->getRegLocString() << "\n";
+        Out << "subq " << $3->getRegLocString() << ", "
+                  << $2->getRegLocString() << "\n";
         $0->setRegLoc(false, $3->getRegLoc());
     };
 
@@ -358,11 +358,9 @@ reg:   Sub(reg, imm)
         $action[2](Out);
         $action[3](Out);
         std::cerr << "[DEBUG] " << "reg:   Sub(reg, imm)\n";
-        $0->setRegLoc(true);
-        Out << "movq " << $3->getImmVal() << ", "
-                  << $0->getRegLocString() << "\n";
-        Out << "subq " << $2->getRegLocString() << ", "
-                  << $0->getRegLocString() << "\n";
+        Out << "subq " << $3->getImmVal() << ", "
+                  << $2->getRegLocString() << "\n";
+        $0->setRegLoc(false, $2->getRegLoc());
     };
 
 reg:   Sub(imm, reg)
@@ -371,9 +369,11 @@ reg:   Sub(imm, reg)
         $action[2](Out);
         $action[3](Out);
         std::cerr << "[DEBUG] " << "reg:   Sub(imm, reg)\n";
-        Out << "subq " << $2->getImmVal() << ", "
-                  << $3->getRegLocString() << "\n";
-        $0->setRegLoc(false, $3->getRegLoc());
+        $0->setRegLoc(true);
+        Out << "movq " << $2->getImmVal() << ", "
+                  << $0->getRegLocString() << "\n";
+        Out << "subq " << $3->getRegLocString() << ", "
+                  << $0->getRegLocString() << "\n";
     };
 
 reg:   Sub(imm, imm)
@@ -520,7 +520,7 @@ arg:  mem
         std::cerr << "[DEBUG] " << "arg:  mem\n";
         if (argNo < 6)
         {
-            Out << "movq " << $1->getMemLoc() << ", "
+            Out << "leaq " << $1->getMemLoc() << ", "
                       << convertRegisterToString(ArgRegs[argNo]) << "\n";
         }
         else
@@ -568,6 +568,9 @@ reg:    Call(label, args)
         $action[2](Out);
         $action[3](Out, 0);
         auto* CB = llvm::cast<llvm::CallBase>($1->getInstruction());
+        std::string Callee = $2->getLabelString2();
+        if (Callee == "printf" || Callee == "scanf")
+            Out << "xorl %eax, %eax\n";
         Out << "callq " << $2->getLabelString2() << "\n";
         $0->setRegLoc(false, Register::RAX);
     };
