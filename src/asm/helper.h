@@ -444,9 +444,9 @@ public:
         for (auto p: GlobalVariables)
         {
             Out << p.first->getName().str() << ":\n";
-            Out << ".asciz ";
+            Out << "\t.asciz ";
             Out << "\"";
-            llvm::printEscapedString(p.second, Out);
+            Out.write_escaped(p.second);
             Out << "\"\n";
         }
     }
