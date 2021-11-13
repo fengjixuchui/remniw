@@ -7,5 +7,14 @@ func main() int {
     b = 3;
     z = a+b; // z = 5
     y = a*b; // y = 6
-    return z + y;
+    while (y > a+b) { // y=6, a+b=5; y=6, a+b=6
+        a = a+1; // a = 3
+        x = a+b; // x = 6
+    }
+    output a;
+    output x;
+    return 0;
 }
+
+// CHECK: 3
+// CHECK-NEXT: 6

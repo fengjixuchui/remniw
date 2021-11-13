@@ -19,6 +19,9 @@ entry:
   %x4 = load i64, i64* %x, align 8
   %add = add i64 %x4, 1
   store i64 %add, i64* %y, align 8
-  %y5 = load i64, i64* %y, align 8
-  ret i64 %y5
+  %x5 = load i64, i64* %x, align 8
+  %printf = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([6 x i8], [6 x i8]* @fmtstr.1, i32 0, i32 0), i64 %x5)
+  ret i64 0
 }
+
+declare i32 @printf(i8*, ...)

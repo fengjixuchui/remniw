@@ -11,6 +11,7 @@ func main() int {
     x=12;
     y=17;
     z=f(x, y);
+    output z;
     return z;
 }
 

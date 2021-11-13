@@ -12,6 +12,8 @@ func main() int {
         x = w; //x=0
     }
     y = x + 1;
-    return y;
+    output x;
+    return 0;
 }
 
+// CHECK: 0

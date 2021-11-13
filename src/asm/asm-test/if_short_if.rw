@@ -5,13 +5,16 @@
 
 func main() int {
     var x,y,z int;
-    x = 0;
-    y = 0;
-    z = 0;
+    x = input;
+    y = input;
+    z = input;
     if (x == 0)
         if (y == 0)
-            z = 12;
+            output z;
         else
-            z = 34;
-    return z; // 12
+            output x;
+    return 0;
 }
+
+// CHECK1: 123
+// CHECK2: 0

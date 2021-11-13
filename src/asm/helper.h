@@ -127,8 +127,10 @@ public:
         MemNode,
         RegNode,
         InstNode,
-        LabelNode,
-        ArgsNode
+        ArgsNode,
+        FunctionLabelNode,
+        BasicBlockLabelNode,
+        ConstantStringLabelNode,
     };
 
 //  private:
@@ -137,7 +139,7 @@ public:
     Kind NodeKind;
     int Op;
     std::vector<Node *> Kids;
-    bool Evaluated;
+    bool ActionExecuted;
     union
     {
         // ImmNode members
@@ -153,14 +155,16 @@ public:
         {
             const char* StringPtr;
             size_t StringSize;
+            uint32_t UniqueCounter; // Counter for tracking unique names
         };
     };
+    static uint32_t LastUnique;
 
 public:
     /** ================= Common Functions =================== **/
 
     Node(Kind NodeKind, int Op, std::vector<Node *> Kids):
-        NodeKind(NodeKind), Op(Op), Kids(Kids), Evaluated(false) {}
+        NodeKind(NodeKind), Op(Op), Kids(Kids), ActionExecuted(false) {}
 
     const char* getNodeKind()
     {
@@ -176,10 +180,14 @@ public:
             return "RegNode";
         case InstNode:
             return "InstNode";
-        case LabelNode:
-            return "LabelNode";
         case ArgsNode:
             return "ArgsNode";
+        case FunctionLabelNode:
+            return "FunctionLabelNode";
+        case BasicBlockLabelNode:
+            return "BasicBlockLabelNode";
+        case ConstantStringLabelNode:
+            return "ConstantStringLabelNode";
         default:
             llvm_unreachable("unexpected NodeKind");
         }
@@ -197,9 +205,9 @@ public:
 
     void setKids(const std::vector<Node*> &Ks) { Kids = Ks; }
 
-    bool isEvaluated() { return Evaluated; }
+    bool isActionExecuted() { return ActionExecuted; }
 
-    void setEvaluated() { Evaluated = true; }
+    void setActionExecuted() { ActionExecuted = true; }
 
     static Node* getUndefNode()
     {
@@ -235,16 +243,30 @@ public:
         return Ret;
     }
 
-    static Node* getLabelNode(llvm::StringRef StrRef, std::vector<Node *> Kids)
+    static Node* getArgsNode(std::vector<Node *> Kids)
     {
-        Node* Ret = new Node(Kind::LabelNode, /*Label*/69, Kids);
+        Node* Ret = new Node(Kind::ArgsNode, /*Args*/70, Kids);
+        return Ret;
+    }
+
+    static Node* getFunctionLabelNode(llvm::StringRef StrRef, std::vector<Node *> Kids)
+    {
+        Node* Ret = new Node(Kind::FunctionLabelNode, /*Label*/69, Kids);
         Ret->setLabelString(StrRef);
         return Ret;
     }
 
-    static Node* getArgsNode(std::vector<Node *> Kids)
+    static Node* getBasicBlockLabelNode(llvm::StringRef StrRef, std::vector<Node *> Kids)
     {
-        Node* Ret = new Node(Kind::ArgsNode, /*Args*/70, Kids);
+        Node* Ret = new Node(Kind::BasicBlockLabelNode, /*Label*/69, Kids);
+        Ret->setLabelString(StrRef);
+        return Ret;
+    }
+
+    static Node* getConstantStringLabelNode(llvm::StringRef StrRef, std::vector<Node *> Kids)
+    {
+        Node* Ret = new Node(Kind::ConstantStringLabelNode, /*Label*/69, Kids);
+        Ret->setLabelString(StrRef);
         return Ret;
     }
 
@@ -289,36 +311,41 @@ public:
 
     void setInstruction(llvm::Instruction *I) { Inst = I; }
 
-    /** ================= InstNode Functions =================== **/
+    /** ================= LabelNode Functions =================== **/
 
     void setLabelString(llvm::StringRef StrRef)
     {
         StringPtr = StrRef.data();
         StringSize = StrRef.size();
+        if (NodeKind == Kind::BasicBlockLabelNode)
+            UniqueCounter = LastUnique++;
     }
 
-    std::string getLabelString()
+    std::string getLabelStringAsLabel()
     {
-        return std::string(".L.") + std::string(StringPtr, StringSize) + std::string("_") +
-                std::to_string(reinterpret_cast<uint64_t>(this));
+        assert((NodeKind == Kind::BasicBlockLabelNode ||
+                NodeKind == Kind::FunctionLabelNode) &&
+               "NodeKind must be BasicBlockLabelNode or FunctionLabelNode");
+        if (NodeKind == Kind::BasicBlockLabelNode)
+        {
+            return ".BB." + std::string(StringPtr, StringSize) +
+                   '.'  + std::to_string(UniqueCounter);
+        } else {
+            return std::string(StringPtr, StringSize);
+        }
     }
 
-    std::string getLabelString2()
+    std::string getLabelStringAsConstant()
     {
-        return std::string(StringPtr, StringSize);
-    }
-
-    std::string getLabelString3()
-    {
-        return std::string("$") + std::string(StringPtr, StringSize);
-    }
-
-    std::string getLabelString4()
-    {
-        return std::string("$.L.") + std::string(StringPtr, StringSize);
+        assert((NodeKind == Kind::ConstantStringLabelNode ||
+                NodeKind == Kind::FunctionLabelNode) &&
+               "NodeKind must be ConstantStringLabelNode or FunctionLabelNode");
+        return "$" + std::string(StringPtr, StringSize);
     }
 
 };
+
+uint32_t Node::LastUnique = 0;
 
 typedef Node *NODEPTR;
 
@@ -334,7 +361,7 @@ typedef Node *NODEPTR;
 
 class COST {
 public:
-  int cost;
+    int cost;
 public:
 	COST(int Cost) { cost = Cost; }
 	int getCost() { return cost; }
@@ -350,21 +377,19 @@ static int shouldCover = 0;
 
 static void burm_trace(NODEPTR, int, COST);
 
-class AsmFunction {
-public:
+struct AsmFunction {
     AsmFunction(int64_t TotalAllocaSizeInBytes, llvm::SmallVector<Node *> ExprTrees,
                 std::string FuncName):
         TotalAllocaSizeInBytes(TotalAllocaSizeInBytes),
         ExprTrees(ExprTrees),
         FuncName(FuncName) {}
-    void EmitAssembly(llvm::raw_ostream &Out);
-private:
+
     int64_t TotalAllocaSizeInBytes;
     llvm::SmallVector<Node *> ExprTrees;
     std::string FuncName;
 };
 
-class CodeGenerator
+class AsmCodeGenerator
 {
 private:
     llvm::raw_ostream &Out;
@@ -373,7 +398,7 @@ private:
     llvm::DenseMap<llvm::GlobalVariable*, llvm::StringRef> GlobalVariables;
 
 public:
-    CodeGenerator(llvm::SmallVector<AsmFunction> Functions,
+    AsmCodeGenerator(llvm::SmallVector<AsmFunction> Functions,
                   llvm::DenseMap<llvm::GlobalVariable*, llvm::StringRef> GlobalVariables)
                   : Out(llvm::outs()),
                     Functions(std::move(Functions)),
@@ -384,23 +409,95 @@ public:
     {
         for(auto& F: Functions)
         {
-            F.EmitAssembly(Out);
+            EmitFunction(F);
         }
         EmitGlobalVariables();
+    }
+
+    void EmitFunction(AsmFunction &F);
+
+    void EmitFunctionDeclaration(AsmFunction &F)
+    {
+        // FIXME
+        Out << ".text\n"
+            << ".globl " << F.FuncName << "\n"
+            << ".type " << F.FuncName << ", @function\n"
+            << F.FuncName << ":\n";
+    }
+
+    void EmitFunctionPrologue(AsmFunction &F)
+    {
+        Out << "\tpushq\t" << "%rbp\n";
+        Out << "\tmovq\t" << "%rsp, %rbp\n";
+        Out << "\tsubq\t" << "$" << F.TotalAllocaSizeInBytes << ", %rsp\n";
+    }
+
+    void EmitFunctionEpilogue(AsmFunction &F)
+    {
+        Out << "\tmovq\t" << "%rbp, %rsp\n";
+        Out << "\tpopq\t" << "%rbp\n";
+        Out << "\tretq\n\n";
     }
 
     void EmitGlobalVariables()
     {
         for (auto p: GlobalVariables)
         {
-            Out << ".L." << p.first->getName().str() << ":\n";
+            Out << p.first->getName().str() << ":\n";
             Out << ".asciz ";
             Out << "\"";
             llvm::printEscapedString(p.second, Out);
             Out << "\"\n";
         }
     }
+
+    void EmitMov(std::string Src, std::string Dst) {
+        Out << "\tmovq\t" << Src << ", " << Dst << "\n";
+    }
+
+    void EmitLea(std::string Src, std::string Dst) {
+        Out << "\tleaq\t" << Src << ", " << Dst << "\n";
+    }
+
+    void EmitCmp(std::string Src, std::string Dst) {
+        Out << "\tcmpq\t" << Src << ", " << Dst << "\n";
+    }
+
+    void EmitJmp(std::string Jmp, std::string Dst) {
+        Out << '\t' << Jmp << '\t' << Dst << "\n";
+    }
+
+    void EmitAdd(std::string Src, std::string Dst) {
+        Out << "\taddq\t" << Src << ", " << Dst << "\n";
+    }
+
+    void EmitSub(std::string Src, std::string Dst) {
+        Out << "\tsubq\t" << Src << ", " << Dst << "\n";
+    }
+
+    void EmitImul(std::string Src, std::string Dst) {
+        Out << "\timulq\t" << Src << ", " << Dst << "\n";
+    }
+
+    void EmitIdiv(std::string Src) {
+        Out << "\tidivq\t" << Src << "\n";
+    }
+
+    // Convert quadword in %rax to octoword in %rdx:%rax
+    void EmitCqto() {
+        Out << "\tcqto\n";
+    }
+
+    void EmitCall(std::string label) {
+        Out << "\tcallq\t" << label << "\n";
+    }
+
+    void EmitXor(std::string Src, std::string Dst) {
+        Out << "\txorq\t" << Src << ", " << Dst << "\n";
+    }
 };
+
+typedef AsmCodeGenerator* AsmCodeGeneratorPtr;
 
 class ExprTreeBuilder : public llvm::InstVisitor<ExprTreeBuilder, Node*> {
 public:
@@ -434,7 +531,7 @@ public:
             {
                 if (CDA->isCString())
                 {
-                    LabelMap[&GV] = Node::getLabelNode(
+                    LabelMap[&GV] = Node::getConstantStringLabelNode(
                         GV.getName(), {});
                     ConstantStrings[&GV] = CDA->getAsCString();
                 }
@@ -518,7 +615,7 @@ public:
             auto it = LabelMap.find(V);
             if (it == LabelMap.end())
             {
-                LabelMap[V] = Node::getLabelNode(F->getName(), {});
+                LabelMap[V] = Node::getFunctionLabelNode(F->getName(), {});
                 return LabelMap[V];
             }
             return it->second;
@@ -528,7 +625,7 @@ public:
             auto it = LabelMap.find(V);
             if (it == LabelMap.end())
             {
-                LabelMap[V] = Node::getLabelNode(BB->getName(), {});
+                LabelMap[V] = Node::getBasicBlockLabelNode(BB->getName(), {});
                 return LabelMap[V];
             }
             return it->second;
@@ -557,6 +654,8 @@ public:
             Node::getMemNode(offset,
                 { Node::getImmNode(AllocaSizeInBytes, {}) });
         InstMap[&AI] = AllocaNode;
+        ExprTrees.push_back(AllocaNode);
+        return AllocaNode;
     }
 
     Node* visitBranchInst(llvm::BranchInst &BI)
@@ -599,8 +698,8 @@ public:
 
         }
         InstMap[&BI] = InstNode;
-        if (BI.use_empty())
-            ExprTrees.push_back(InstNode);
+        ExprTrees.push_back(InstNode);
+        return InstNode;
     }
 
     Node* visitCallInst(llvm::CallInst &CI)
@@ -633,8 +732,7 @@ public:
                                           Args});
         }
         InstMap[&CI] = Ret;
-        if (CI.use_empty())
-            ExprTrees.push_back(Ret);
+        ExprTrees.push_back(Ret);
         return Ret;
     }
 
@@ -656,8 +754,7 @@ public:
         }
         Node *T = Node::getInstNode(&I, Kids);
         InstMap[&I] = T;
-        if (I.use_empty())
-            ExprTrees.push_back(T);
+        ExprTrees.push_back(T);
         return T;
     }
 };

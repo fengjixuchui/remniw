@@ -28,5 +28,8 @@ while.body:                                       ; preds = %while.cond
 
 while.end:                                        ; preds = %while.cond
   %i5 = load i64, i64* %i, align 8
-  ret i64 %i5
+  %printf = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([6 x i8], [6 x i8]* @fmtstr.1, i32 0, i32 0), i64 %i5)
+  ret i64 0
 }
+
+declare i32 @printf(i8*, ...)

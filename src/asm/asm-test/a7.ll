@@ -15,18 +15,15 @@ entry:
   br i1 %0, label %if.then, label %if.else
 
 if.then:                                          ; preds = %entry
-  %x2 = load i64, i64* %x, align 8
-  %add = add i64 %x2, 12
-  store i64 %add, i64* %y, align 8
+  %printf = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([6 x i8], [6 x i8]* @fmtstr.1, i32 0, i32 0), i64 0)
   br label %if.end
 
 if.else:                                          ; preds = %entry
-  %x3 = load i64, i64* %x, align 8
-  %mul = mul i64 %x3, 34
-  store i64 %mul, i64* %y, align 8
+  %printf2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([6 x i8], [6 x i8]* @fmtstr.1, i32 0, i32 0), i64 1)
   br label %if.end
 
 if.end:                                           ; preds = %if.else, %if.then
-  %y4 = load i64, i64* %y, align 8
-  ret i64 %y4
+  ret i64 0
 }
+
+declare i32 @printf(i8*, ...)

@@ -30,5 +30,9 @@ entry:
   %call = call i64 @f(i64 %x1, i64 %y2)
   store i64 %call, i64* %z, align 8
   %z3 = load i64, i64* %z, align 8
-  ret i64 %z3
+  %printf = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([6 x i8], [6 x i8]* @fmtstr.1, i32 0, i32 0), i64 %z3)
+  %z4 = load i64, i64* %z, align 8
+  ret i64 %z4
 }
+
+declare i32 @printf(i8*, ...)

@@ -7,6 +7,18 @@ func main() int {
     a = 17;
     b = 17 + (a / 3); // b = 22
     a = 13;
-    b = a/3; // b = 4
-    return b;
+
+    if( a > 17 ){
+        a = 77*b;
+    } else {
+        b = a/3; // b = 5
+    }
+    output b;
+    b=117;
+    output b;
+
+    return 0;
 }
+
+// CHECK: 4
+// CHECK-NEXT: 117

@@ -94,532 +94,530 @@
 %term Args             = 70
 %term Reg              = 71
 
-%declare<void> stmt<llvm::raw_ostream &Out>;
-%declare<void> reg<llvm::raw_ostream &Out>;
-%declare<void> imm<llvm::raw_ostream &Out>;
-%declare<void> mem<llvm::raw_ostream &Out>;
-%declare<void> label<llvm::raw_ostream &Out>;
-%declare<void> cond<llvm::raw_ostream &Out>;
-%declare<void> arg<llvm::raw_ostream &Out, unsigned argNo>;
-%declare<void> args<llvm::raw_ostream &Out, unsigned argNo>;
+%declare<void> stmt<AsmCodeGeneratorPtr AsmGen>;
+%declare<void> reg<AsmCodeGeneratorPtr AsmGen>;
+%declare<void> imm<AsmCodeGeneratorPtr AsmGen>;
+%declare<void> mem<AsmCodeGeneratorPtr AsmGen>;
+%declare<void> label<AsmCodeGeneratorPtr AsmGen>;
+%declare<void> cond<AsmCodeGeneratorPtr AsmGen>;
+%declare<void> arg<AsmCodeGeneratorPtr AsmGen, unsigned argNo>;
+%declare<void> args<AsmCodeGeneratorPtr AsmGen, unsigned argNo>;
 
 %%
 
-imm:    Const
-    { $cost[0].cost = 0; }
-    = {
-        std::cerr << "[DEBUG] " << "imm:    Const\n";
-        std::cerr << "[DEBUG] " << "\t" << $1->getImmVal() << "\n";
-    };
+label: Label { $cost[0].cost = 0; } = { };
 
-reg:    Reg
-    { $cost[0].cost = 0; }
-    = {
-        std::cerr << "[DEBUG] " << "reg:    Reg\n";
-    };
+imm: Const { $cost[0].cost = 0; } = { };
 
-stmt:   Ret(reg)
-    { $cost[0].cost = $cost[2].cost + 1; }
-    = {
-        $action[2](Out);
-        // x64 assembly Ret takes no argument, return value is passed by %rax
-        std::cerr << "[DEBUG] " << "stmt:    Ret(reg)\n";
-        Out << "movq " << $2->getRegLocString() << ", %rax\n";
-    };
+reg: Reg { $cost[0].cost = 0; } = { };
 
-stmt:   Ret(imm)
-    { $cost[0].cost = $cost[2].cost + 1; }
-    = {
-        $action[2](Out);
-        // x64 assembly Ret takes no argument, return value is passed by %rax
-        std::cerr << "[DEBUG] " << "stmt:    Ret(imm)\n";
-        Out << "movq " << $2->getImmVal() << ", %rax\n";
-    };
+mem: Alloca(imm) { $cost[0].cost = 0; } = { };
 
-mem:   Alloca(imm)
-    { $cost[0].cost = 1; }
-    = {
-        $action[2](Out);
-        std::cerr << "[DEBUG] " << "mem:    Alloca(imm)\n";
-    };
+reg: Load(mem) { $cost[0].cost = $cost[2].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "reg:   Load(mem)\n";
+    if ($0->isActionExecuted())
+        return;
+    $0->setActionExecuted();
+    $action[2](AsmGen);
+    $0->setRegLoc(true);
+    AsmGen->EmitMov($2->getMemLoc(), $0->getRegLocString());
+};
 
-reg:   Load(mem)
-    { $cost[0].cost = $cost[2].cost + 1; }
-    = {
-        $action[2](Out);
-        $0->setRegLoc(true);
-        std::cerr << "[DEBUG] " << "reg:   Load(mem)\n";
-        Out << "movq " << $2->getMemLoc() << ", "
-                  << $0->getRegLocString() << "\n";
-    };
+reg: Load(reg) { $cost[0].cost = $cost[2].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "reg:   Load(reg)\n";
+    if ($0->isActionExecuted())
+        return;
+    $0->setActionExecuted();
+    $action[2](AsmGen);
+    $0->setRegLoc(true);
+    AsmGen->EmitMov('(' + $2->getRegLocString() + ')',
+                       $0->getRegLocString());
+};
 
-reg:   Load(reg)
-    { $cost[0].cost = $cost[2].cost + 1; }
-    = {
-        $action[2](Out);
-        $0->setRegLoc(true);
-        std::cerr << "[DEBUG] " << "reg:   Load(reg)\n";
-        Out << "movq (" << $2->getRegLocString() << "), "
-                  << $0->getRegLocString() << "\n";
-    };
+stmt: reg { $cost[0].cost = $cost[1].cost; }
+= {
+    std::cerr << "[DEBUG] " << "stmt:    reg\n";
+    // if ($0->isActionExecuted())
+    //     return;
+    // $0->setActionExecuted();
+    $action[1](AsmGen);
+};
 
-stmt:   Store(reg, mem)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost; }
-    = {
-        $action[2](Out);
-        $action[3](Out);
-        std::cerr << "[DEBUG] " << "stmt:   Store(reg, mem)\n";
-        Out << "movq " << $2->getRegLocString() << ", "
-                  << $3->getMemLoc() << "\n";
-    };
+stmt: Ret(reg) { $cost[0].cost = $cost[2].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "stmt:    Ret(reg)\n";
+    $action[2](AsmGen);
+    AsmGen->EmitMov($2->getRegLocString(), "%rax");
+};
 
-stmt:   Store(reg, reg)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost; }
-    = {
-        $action[2](Out);
-        $action[3](Out);
-        std::cerr << "[DEBUG] " << "stmt:   Store(reg, reg)\n";
-        Out << "movq " << $2->getRegLocString() << ", "
-                  << "(" << $3->getRegLocString() << ")\n";
-    };
+stmt: Ret(imm) { $cost[0].cost = $cost[2].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "stmt:    Ret(imm)\n";
+    $action[2](AsmGen);
+    AsmGen->EmitMov($2->getImmVal(), "%rax");
+};
 
-stmt:   Store(imm, mem)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost; }
-    = {
-        $action[2](Out);
-        $action[3](Out);
-        std::cerr << "[DEBUG] " << "stmt:   Store(imm, mem)\n";
-        Out << "movq " << $2->getImmVal() << ","
-                  << $3->getMemLoc() << "\n";
-    };
+stmt: Store(reg, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "stmt:   Store(reg, mem)\n";
+    $action[2](AsmGen);
+    $action[3](AsmGen);
+    AsmGen->EmitMov($2->getRegLocString(), $3->getMemLoc());
+};
 
-stmt:   Store(mem, mem)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost; }
-    = {
-        $action[2](Out);
-        $action[3](Out);
-        std::cerr << "[DEBUG] " << "stmt:   Store(mem, mem)\n";
-        auto AvailableRegister = RA->getAvailableRegister();
-        Out << "leaq " << $2->getMemLoc() << ", "
-                  << convertRegisterToString(AvailableRegister) << "\n";
-        Out << "movq " << convertRegisterToString(AvailableRegister) << ", " << $3->getMemLoc() << "\n";
-    };
+stmt: Store(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "stmt:   Store(reg, reg)\n";
+    $action[2](AsmGen);
+    $action[3](AsmGen);
+    AsmGen->EmitMov($2->getRegLocString(),
+                    '(' + $3->getRegLocString() + ')');
+};
 
-stmt:   Store(label, mem)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost; }
-    = {
-        $action[2](Out);
-        $action[3](Out);
-        std::cerr << "[DEBUG] " << "stmt:   Store(label, mem)\n";
-        Out << "movq " << $2->getLabelString3() << ","
-                  << $3->getMemLoc() << "\n";
-    };
+stmt: Store(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "stmt:   Store(imm, reg)\n";
+    $action[2](AsmGen);
+    $action[3](AsmGen);
+    AsmGen->EmitMov($2->getImmVal(),
+                    '(' + $3->getRegLocString() + ')');
+};
 
-label: Label
-    { $cost[0].cost = 0; }
-    = {
-        std::cerr << "[DEBUG] " << "label: Label\n";
-    };
+stmt: Store(imm, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "stmt:   Store(imm, mem)\n";
+    $action[2](AsmGen);
+    $action[3](AsmGen);
+    AsmGen->EmitMov($2->getImmVal(), $3->getMemLoc());
+};
 
-cond: ICmp(reg, reg)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 0; }
-    = {
-        $action[2](Out);
-        $action[3](Out);
-        std::cerr << "[DEBUG] " << "cond: ICmp(reg, reg)\n";
-        Out << "cmpq " << $3->getRegLocString() << ", " << $2->getRegLocString() << "\n";
-    };
+stmt: Store(mem, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "stmt:   Store(mem, mem)\n";
+    $action[2](AsmGen);
+    $action[3](AsmGen);
+    auto AvailReg = RA->getAvailableRegister();
+    const char* AvailRegStr = convertRegisterToString(AvailReg);
+    AsmGen->EmitLea($2->getMemLoc(), AvailRegStr);
+    AsmGen->EmitMov(AvailRegStr, $3->getMemLoc());
+};
 
-cond: ICmp(reg, imm)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 0; }
-    = {
-        $action[2](Out);
-        $action[3](Out);
-        std::cerr << "[DEBUG] " << "cond: ICmp(reg, imm)\n";
-        Out << "cmpq " << $3->getImmVal() << ", " << $2->getRegLocString() << "\n";
-    };
+stmt: Store(label, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "stmt:   Store(label, mem)\n";
+    $action[2](AsmGen);
+    $action[3](AsmGen);
+    AsmGen->EmitMov($2->getLabelStringAsConstant(), $3->getMemLoc());
+};
 
-cond: ICmp(imm, reg)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 0; }
-    = {
-        $action[2](Out);
-        $action[3](Out);
-        std::cerr << "[DEBUG] " << "cond: ICmp(imm, reg)\n";
-        auto AvailableRegister = RA->getAvailableRegister();
-        Out << "movq " << $2->getImmVal() << ", "
-                  << convertRegisterToString(AvailableRegister) << "\n";
-        Out << "cmpq " << $3->getRegLocString() << ", " << convertRegisterToString(AvailableRegister) << "\n";
-    };
+cond: ICmp(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "cond: ICmp(reg, reg)\n";
+    if ($0->isActionExecuted())
+        return;
+    $0->setActionExecuted();
+    $action[2](AsmGen);
+    $action[3](AsmGen);
+    AsmGen->EmitCmp($3->getRegLocString(), $2->getRegLocString());
+};
 
-# conditional jump
+cond: ICmp(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "cond: ICmp(reg, imm)\n";
+    if ($0->isActionExecuted())
+        return;
+    $0->setActionExecuted();
+    $action[2](AsmGen);
+    $action[3](AsmGen);
+    AsmGen->EmitCmp($3->getImmVal(), $2->getRegLocString());
+};
+
+cond: ICmp(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "cond: ICmp(imm, reg)\n";
+    if ($0->isActionExecuted())
+        return;
+    $0->setActionExecuted();
+    $action[2](AsmGen);
+    $action[3](AsmGen);
+    auto AvailReg = RA->getAvailableRegister();
+    const char* AvailRegStr = convertRegisterToString(AvailReg);
+    AsmGen->EmitMov($2->getImmVal(), AvailRegStr);
+    AsmGen->EmitCmp($3->getRegLocString(), AvailRegStr);
+};
+
+# Conditional Branch
 stmt: Br(cond, label, label)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost + $cost[4].cost + 1; }
-    = {
-        $action[2](Out);
-        std::string JmpTrue, JmpFalse;
-        auto *CI = llvm::cast<llvm::CmpInst>($2->getInstruction());
-        switch (CI->getPredicate()) {
-            case llvm::CmpInst::Predicate::ICMP_EQ:
-                JmpTrue = "je ";
-                JmpFalse = "jne ";
-                break;
-            case llvm::CmpInst::Predicate::ICMP_NE:
-                JmpTrue = "jne ";
-                JmpFalse = "je ";
-                break;
-            case llvm::CmpInst::Predicate::ICMP_SGT:
-                JmpTrue = "jg ";
-                JmpFalse = "jle ";
-                break;
-            default:
-                llvm_unreachable("unexpected CmpInst!\n");
-        }
-        std::cerr << "[DEBUG] " << "stmt: Br(cond, label, label)\n";
-        llvm::BasicBlock* NextBB = CI->getParent()->getNextNode();
-        auto *BI = llvm::cast<llvm::BranchInst>($1->getInstruction());
-        if (NextBB == BI->getSuccessor(0))
-        {
-            Out << JmpFalse << $4->getLabelString() << "\n";
-        }
-        else if (NextBB == BI->getSuccessor(1))
-        {
-            Out << JmpTrue << $3->getLabelString() << "\n";
-        }
-        else
-        {
-            Out << JmpTrue << $3->getLabelString() << "\n";
-            Out << JmpFalse << $4->getLabelString() << "\n";
-        }
-    };
+{ $cost[0].cost = $cost[2].cost + $cost[3].cost + $cost[4].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "stmt: Br(cond, label, label)\n";
+    $action[2](AsmGen);
+    std::string JmpTrue, JmpFalse;
+    auto *CI = llvm::cast<llvm::CmpInst>($2->getInstruction());
+    switch (CI->getPredicate()) {
+    case llvm::CmpInst::Predicate::ICMP_EQ:
+        JmpTrue = "je";
+        JmpFalse = "jne";
+        break;
+    case llvm::CmpInst::Predicate::ICMP_NE:
+        JmpTrue = "jne";
+        JmpFalse = "je";
+        break;
+    case llvm::CmpInst::Predicate::ICMP_SGT:
+        JmpTrue = "jg";
+        JmpFalse = "jle";
+        break;
+    default:
+        llvm_unreachable("unexpected CmpInst!\n");
+    }
+    auto *BI = llvm::cast<llvm::BranchInst>($1->getInstruction());
+    llvm::BasicBlock* NextBB = BI->getParent()->getNextNode();
+    if (NextBB == BI->getSuccessor(0)) {
+        AsmGen->EmitJmp(JmpFalse, $4->getLabelStringAsLabel());
+    }
+    else if (NextBB == BI->getSuccessor(1)) {
+        AsmGen->EmitJmp(JmpTrue, $3->getLabelStringAsLabel());
+    }
+    else {
+        AsmGen->EmitJmp(JmpTrue, $3->getLabelStringAsLabel());
+        AsmGen->EmitJmp(JmpFalse, $4->getLabelStringAsLabel());
+    }
+};
 
-# unconditional jump
-stmt: Br(label, Undef, Undef)
-    { $cost[0].cost = $cost[2].cost + 1; }
-    = {
-        std::cerr << "[DEBUG] " << "stmt: Br(label)\n";
-        Out << "jmp " << $2->getLabelString() << "\n";
-    };
+# Unconditional Branch
+stmt: Br(label, Undef, Undef) { $cost[0].cost = $cost[2].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "stmt: Br(label)\n";
+    auto *BI = llvm::cast<llvm::BranchInst>($1->getInstruction());
+    llvm::BasicBlock* NextBB = BI->getParent()->getNextNode();
+    if (NextBB != BI->getSuccessor(0)) {
+        AsmGen->EmitJmp("jmp", $2->getLabelStringAsLabel());
+    }
+};
 
-reg:   Add(reg, reg)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
-    = {
-        $action[2](Out);
-        $action[3](Out);
-        std::cerr << "[DEBUG] " << "reg:   Add(reg, reg)\n";
-        Out << "addq " << $2->getRegLocString() << ", " << $3->getRegLocString() << "\n";
-        $0->setRegLoc(false, $3->getRegLoc());
-    };
+reg: Add(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "reg:   Add(reg, reg)\n";
+    if ($0->isActionExecuted())
+        return;
+    $0->setActionExecuted();
+    $action[2](AsmGen);
+    $action[3](AsmGen);
+    AsmGen->EmitAdd($2->getRegLocString(), $3->getRegLocString());
+    $0->setRegLoc(false, $3->getRegLoc());
+};
 
-reg:   Add(reg, imm)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
-    = {
-        $action[2](Out);
-        $action[3](Out);
-        std::cerr << "[DEBUG] " << "reg:   Add(reg, imm)\n";
-        Out << "addq " << $3->getImmVal() << ", "
-                  << $2->getRegLocString() << "\n";
-        $0->setRegLoc(false, $2->getRegLoc());
-    };
+reg: Add(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "reg:   Add(reg, imm)\n";
+    if ($0->isActionExecuted())
+        return;
+    $0->setActionExecuted();
+    $action[2](AsmGen);
+    $action[3](AsmGen);
+    AsmGen->EmitAdd($3->getImmVal(), $2->getRegLocString());
+    $0->setRegLoc(false, $2->getRegLoc());
+};
 
-reg:   Add(imm, reg)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
-    = {
-        $action[2](Out);
-        $action[3](Out);
-        std::cerr << "[DEBUG] " << "reg:   Add(imm, reg)\n";
-        Out << "addq " << $2->getImmVal() << ", "
-                  << $3->getRegLocString() << "\n";
-        $0->setRegLoc(false, $3->getRegLoc());
-    };
+reg: Add(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "reg:   Add(imm, reg)\n";
+    if ($0->isActionExecuted())
+        return;
+    $0->setActionExecuted();
+    $action[2](AsmGen);
+    $action[3](AsmGen);
+    AsmGen->EmitAdd($2->getImmVal(), $3->getRegLocString());
+    $0->setRegLoc(false, $3->getRegLoc());
+};
 
-reg:   Add(imm, imm)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
-    = {
-        $action[2](Out);
-        $action[3](Out);
-        std::cerr << "[DEBUG] " << "reg:   Add(imm, imm)\n";
-        Out << "FIXME: addq " << $2->getImmVal() << ", " << $2->getImmVal() << "\n";
-    };
+reg: Add(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "reg:   Add(imm, imm)\n";
+    if ($0->isActionExecuted())
+        return;
+    $0->setActionExecuted();
+    $action[2](AsmGen);
+    $action[3](AsmGen);
+    llvm_unreachable("unexpected `reg: Add(imm, imm)!`\n");
+};
 
-reg:   Sub(reg, reg)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
-    = {
-        $action[2](Out);
-        $action[3](Out);
-        std::cerr << "[DEBUG] " << "reg:   Sub(reg, reg)\n";
-        Out << "subq " << $3->getRegLocString() << ", "
-                  << $2->getRegLocString() << "\n";
-        $0->setRegLoc(false, $3->getRegLoc());
-    };
+reg: Sub(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "reg:   Sub(reg, reg)\n";
+    if ($0->isActionExecuted())
+        return;
+    $0->setActionExecuted();
+    $action[2](AsmGen);
+    $action[3](AsmGen);
+    AsmGen->EmitSub($3->getRegLocString(), $2->getRegLocString());
+    $0->setRegLoc(false, $3->getRegLoc());
+};
 
-reg:   Sub(reg, imm)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
-    = {
-        $action[2](Out);
-        $action[3](Out);
-        std::cerr << "[DEBUG] " << "reg:   Sub(reg, imm)\n";
-        Out << "subq " << $3->getImmVal() << ", "
-                  << $2->getRegLocString() << "\n";
-        $0->setRegLoc(false, $2->getRegLoc());
-    };
+reg: Sub(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "reg:   Sub(reg, imm)\n";
+    if ($0->isActionExecuted())
+        return;
+    $0->setActionExecuted();
+    $action[2](AsmGen);
+    $action[3](AsmGen);
+    AsmGen->EmitSub($3->getImmVal(), $2->getRegLocString());
+    $0->setRegLoc(false, $2->getRegLoc());
+};
 
-reg:   Sub(imm, reg)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
-    = {
-        $action[2](Out);
-        $action[3](Out);
-        std::cerr << "[DEBUG] " << "reg:   Sub(imm, reg)\n";
-        $0->setRegLoc(true);
-        Out << "movq " << $2->getImmVal() << ", "
-                  << $0->getRegLocString() << "\n";
-        Out << "subq " << $3->getRegLocString() << ", "
-                  << $0->getRegLocString() << "\n";
-    };
+reg: Sub(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
+= {
+    std::cerr << "[DEBUG] " << "reg:   Sub(imm, reg)\n";
+    if ($0->isActionExecuted())
+        return;
+    $0->setActionExecuted();
+    $action[2](AsmGen);
+    $action[3](AsmGen);
+    $0->setRegLoc(true);
+    AsmGen->EmitMov($2->getImmVal(), $0->getRegLocString());
+    AsmGen->EmitSub($3->getRegLocString(), $0->getRegLocString());
+};
 
-reg:   Sub(imm, imm)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
-    = {
-        $action[2](Out);
-        $action[3](Out);
-        std::cerr << "[DEBUG] " << "reg:   Sub(imm, imm)\n";
-        Out << "FIXME: subq " << $2->getImmVal() << ", " << $2->getImmVal() << "\n";
-    };
+reg: Sub(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "reg:   Sub(imm, imm)\n";
+    if ($0->isActionExecuted())
+        return;
+    $0->setActionExecuted();
+    $action[2](AsmGen);
+    $action[3](AsmGen);
+    llvm_unreachable("unexpected `reg: Sub(imm, imm)!`\n");
+};
 
-reg:   Mul(reg, reg)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
-    = {
-        $action[2](Out);
-        $action[3](Out);
-        std::cerr << "[DEBUG] " << "reg:   Mul(reg, reg)\n";
-        Out << "imulq " << $2->getRegLocString() << ", "
-                  << $3->getRegLocString() << "\n";
-        $0->setRegLoc(false, $3->getRegLoc());
-    };
+reg: Mul(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "reg:   Mul(reg, reg)\n";
+    if ($0->isActionExecuted())
+        return;
+    $0->setActionExecuted();
+    $action[2](AsmGen);
+    $action[3](AsmGen);
+    AsmGen->EmitImul($2->getRegLocString(), $3->getRegLocString());
+    $0->setRegLoc(false, $3->getRegLoc());
+};
 
-reg:   Mul(reg, imm)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
-    = {
-        $action[2](Out);
-        $action[3](Out);
-        std::cerr << "[DEBUG] " << "reg:   Mul(reg, imm)\n";
-        Out << "imulq " << $3->getImmVal() << ", "
-                  << $2->getRegLocString() << "\n";
-        $0->setRegLoc(false, $2->getRegLoc());
-    };
+reg: Mul(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "reg:   Mul(reg, imm)\n";
+    if ($0->isActionExecuted())
+        return;
+    $0->setActionExecuted();
+    $action[2](AsmGen);
+    $action[3](AsmGen);
+    AsmGen->EmitImul($3->getImmVal(), $2->getRegLocString());
+    $0->setRegLoc(false, $2->getRegLoc());
+};
 
-reg:   Mul(imm, reg)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
-    = {
-        $action[2](Out);
-        $action[3](Out);
-        std::cerr << "[DEBUG] " << "reg:   Mul(imm, reg)\n";
-        Out << "imulq " << $2->getImmVal() << ", "
-                  << $3->getRegLocString() << "\n";
-        $0->setRegLoc(false, $3->getRegLoc());
-    };
+reg: Mul(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "reg:   Mul(imm, reg)\n";
+    if ($0->isActionExecuted())
+        return;
+    $0->setActionExecuted();
+    $action[2](AsmGen);
+    $action[3](AsmGen);
+    AsmGen->EmitImul($2->getImmVal(), $3->getRegLocString());
+    $0->setRegLoc(false, $3->getRegLoc());
+};
 
-reg:   Mul(imm, imm)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
-    = {
-        $action[2](Out);
-        $action[3](Out);
-        std::cerr << "[DEBUG] " << "reg:   Mul(imm, imm)\n";
-        Out << "FIXME: imulq " << $2->getImmVal() << ", " << $2->getImmVal() << "\n";
-    };
+reg: Mul(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "reg:   Mul(imm, imm)\n";
+    if ($0->isActionExecuted())
+        return;
+    $0->setActionExecuted();
+    $action[2](AsmGen);
+    $action[3](AsmGen);
+    llvm_unreachable("unexpected `reg: Mul(imm, imm)!`\n");
+};
 
-reg:   SDiv(reg, reg)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
-    = {
-        $action[2](Out);
-        $action[3](Out);
-        std::cerr << "[DEBUG] " << "reg:   SDiv(reg, reg)\n";
-        Out << "movq " << $2->getRegLocString() << ", %rax\n";
-        Out << "cqto\n";
-        Out << "idivq " << $3->getRegLocString() << "\n";
-        $0->setRegLoc(false, Register::RAX);
-    };
+reg: SDiv(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
+= {
+    std::cerr << "[DEBUG] " << "reg:   SDiv(reg, reg)\n";
+    if ($0->isActionExecuted())
+        return;
+    $0->setActionExecuted();
+    $action[2](AsmGen);
+    $action[3](AsmGen);
+    AsmGen->EmitMov($2->getRegLocString(), "%rax");
+    AsmGen->EmitCqto();
+    AsmGen->EmitIdiv($3->getRegLocString());
+    $0->setRegLoc(false, Register::RAX);
+};
 
-reg:   SDiv(reg, imm)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
-    = {
-        $action[2](Out);
-        $action[3](Out);
-        std::cerr << "[DEBUG] " << "reg:   SDiv(reg, imm)\n";
-        Out << "movq " << $2->getRegLocString() << ", %rax\n";
-        Out << "cqto\n";
-        $0->setRegLoc(true);
-        Out << "movq " << $3->getImmVal() << ", "
-                  << $0->getRegLocString() << "\n";
-        Out << "idivq " << $0->getRegLocString() << "\n";
-        Out << "movq %rax, " << $0->getRegLocString() << "\n";
-    };
+reg: SDiv(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 3; }
+= {
+    std::cerr << "[DEBUG] " << "reg:   SDiv(reg, imm)\n";
+    if ($0->isActionExecuted())
+        return;
+    $0->setActionExecuted();
+    $action[2](AsmGen);
+    $action[3](AsmGen);
+    $0->setRegLoc(true);
+    AsmGen->EmitMov($2->getRegLocString(), "%rax");
+    AsmGen->EmitCqto();
+    AsmGen->EmitMov($3->getImmVal(), $0->getRegLocString());
+    AsmGen->EmitIdiv($0->getRegLocString());
+    AsmGen->EmitMov("%rax", $0->getRegLocString());
+};
 
-reg:   SDiv(imm, reg)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
-    = {
-        $action[2](Out);
-        $action[3](Out);
-        std::cerr << "[DEBUG] " << "reg:   SDiv(imm, reg)\n";
-        Out << "movq " << $2->getImmVal() << ", %rax\n";
-        Out << "cqto\n";
-        Out << "idivq " << $3->getRegLocString() << "\n";
-        $0->setRegLoc(false, Register::RAX);
-    };
+reg: SDiv(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
+= {
+    std::cerr << "[DEBUG] " << "reg:   SDiv(imm, reg)\n";
+    if ($0->isActionExecuted())
+        return;
+    $0->setActionExecuted();
+    $action[2](AsmGen);
+    $action[3](AsmGen);
+    AsmGen->EmitMov($2->getImmVal(), "%rax");
+    AsmGen->EmitCqto();
+    AsmGen->EmitIdiv($3->getRegLocString());
+    $0->setRegLoc(false, Register::RAX);
+};
 
-reg:   SDiv(imm, imm)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
-    = {
-        $action[2](Out);
-        $action[3](Out);
-        std::cerr << "[DEBUG] " << "reg:   SDiv(imm, imm)\n";
-        Out << "movq " << $3->getImmVal() << ", %rax\n";
-        Out << "cqto\n";
-        $0->setRegLoc(true);
-        Out << "movq " << $2->getImmVal() << ", "
-                  << $0->getRegLocString() << "\n";
-        Out << "idivq " << $0->getRegLocString() << "\n";
-        Out << "movq %rax, " << $0->getRegLocString() << "\n";
-    };
+reg: SDiv(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 3; }
+= {
+    std::cerr << "[DEBUG] " << "reg:   SDiv(imm, imm)\n";
+    if ($0->isActionExecuted())
+        return;
+    $0->setActionExecuted();
+    $action[2](AsmGen);
+    $action[3](AsmGen);
+    llvm_unreachable("unexpected `reg: SDiv(imm, imm)!`\n");
+    $0->setRegLoc(true);
+    AsmGen->EmitMov($3->getImmVal(), "%rax");
+    AsmGen->EmitCqto();
+    AsmGen->EmitMov($2->getImmVal(), $0->getRegLocString());
+    AsmGen->EmitIdiv($0->getRegLocString());
+    AsmGen->EmitMov("%rax", $0->getRegLocString());
+};
 
-arg:  reg
-    { $cost[0].cost = $cost[1].cost; }
-    = {
-        $action[1](Out);
-        std::cerr << "[DEBUG] " << "arg:  reg\n";
-        if (argNo < 6)
-        {
-            Out << "movq " << $1->getRegLocString() << ", "
-                << convertRegisterToString(ArgRegs[argNo]) << "\n";
-        }
-        else
-        {
-            Out << "movq " << $1->getRegLocString() << ", "
-                << (8 * (argNo - 6)) << "(%rsp)" << "\n";
-        }
-    };
+arg: reg { $cost[0].cost = $cost[1].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "arg:  reg\n";
+    $action[1](AsmGen);
+    if (argNo < 6) {
+        AsmGen->EmitMov($1->getRegLocString(),
+                           convertRegisterToString(ArgRegs[argNo]));
+    } else {
+        AsmGen->EmitMov($1->getRegLocString(),
+                           std::to_string(8 * (argNo - 6)) + "(%rsp)");
+    }
+};
 
-arg:  imm
-    { $cost[0].cost = $cost[1].cost; }
-    = {
-        std::cerr << "[DEBUG] " << "arg:  imm\n";
-        if (argNo < 6)
-        {
-            Out << "movq " << $1->getImmVal() << ", "
-                      << convertRegisterToString(ArgRegs[argNo]) << "\n";
-        }
-        else
-        {
-            Out << "movq " << $1->getImmVal() << ", "
-                << (8 * (argNo - 6)) << "(%rsp)" << "\n";
-        }
-    };
+arg: imm { $cost[0].cost = $cost[1].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "arg:  imm\n";
+    $action[1](AsmGen);
+    if (argNo < 6) {
+        AsmGen->EmitMov($1->getImmVal(),
+                           convertRegisterToString(ArgRegs[argNo]));
+    } else {
+        AsmGen->EmitMov($1->getImmVal(),
+                           std::to_string(8 * (argNo - 6)) + "(%rsp)");
+    }
+};
 
-arg:  mem
-    { $cost[0].cost = $cost[1].cost; }
-    = {
-        std::cerr << "[DEBUG] " << "arg:  mem\n";
-        if (argNo < 6)
-        {
-            Out << "leaq " << $1->getMemLoc() << ", "
-                      << convertRegisterToString(ArgRegs[argNo]) << "\n";
-        }
-        else
-        {
-            Out << "movq " << $1->getMemLoc() << ", "
-                << (8 * (argNo - 6)) << "(%rsp)" << "\n";
-        }
-    };
+arg: mem { $cost[0].cost = $cost[1].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "arg:  mem\n";
+    $action[1](AsmGen);
+    if (argNo < 6) {
+        AsmGen->EmitLea($1->getMemLoc(),
+                           convertRegisterToString(ArgRegs[argNo]));
+    } else {
+        AsmGen->EmitMov($1->getMemLoc(),
+                           std::to_string(8 * (argNo - 6)) + "(%rsp)");
+    }
+};
 
-arg: label
-    { $cost[0].cost = $cost[1].cost; }
-    = {
-        std::cerr << "[DEBUG] " << "arg:  mem\n";
-        if (argNo < 6)
-        {
-            Out << "movq " << $1->getLabelString4() << ", "
-                      << convertRegisterToString(ArgRegs[argNo]) << "\n";
-        }
-        else
-        {
-            Out << "movq " << $1->getLabelString4() << ", "
-                << (8 * (argNo - 6)) << "(%rsp)" << "\n";
-        }
-    };
+arg: label { $cost[0].cost = $cost[1].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "arg:  mem\n";
+    $action[1](AsmGen);
+    if (argNo < 6) {
+        AsmGen->EmitMov($1->getLabelStringAsConstant(),
+                           convertRegisterToString(ArgRegs[argNo]));
+    } else {
+        AsmGen->EmitMov($1->getLabelStringAsConstant(),
+                           std::to_string(8 * (argNo - 6)) + "(%rsp)");
+    }
+};
 
-args:   Args(Undef, Undef)
-    { $cost[0].cost = 0; }
-    = {
-        std::cerr << "[DEBUG] " << "args:   ARGS(Undef, Undef)\n";
-    };
+args: Args(Undef, Undef) { $cost[0].cost = 0; }
+= {
+    std::cerr << "[DEBUG] " << "args:   ARGS(Undef, Undef)\n";
+};
 
-args:   Args(arg, args)
-    { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
-    = {
-        $action[2](Out, argNo);
-        $action[3](Out, argNo+1);
-        std::cerr << "[DEBUG] " << "args:   ARGS(value, args)\n";
-    };
+args: Args(arg, args)  { $cost[0].cost = $cost[2].cost + $cost[3].cost; }
+= {
+    std::cerr << "[DEBUG] " << "args:   ARGS(value, args)\n";
+    $action[2](AsmGen, argNo);
+    $action[3](AsmGen, argNo+1);
+};
 
-# direct call
-reg:    Call(label, args)
-    { $cost[0].cost = $cost[2].cost + 1; }
-    = {
-        std::cerr << "[DEBUG] " << "reg:    Call(label, args)\n";
-        $action[2](Out);
-        $action[3](Out, 0);
-        auto* CB = llvm::cast<llvm::CallBase>($1->getInstruction());
-        std::string Callee = $2->getLabelString2();
-        if (Callee == "printf" || Callee == "scanf")
-            Out << "xorl %eax, %eax\n";
-        Out << "callq " << $2->getLabelString2() << "\n";
-        $0->setRegLoc(false, Register::RAX);
-    };
+# Direct Call
+reg: Call(label, args) { $cost[0].cost = $cost[2].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "reg:    Call(label, args)\n";
+    if ($0->isActionExecuted())
+        return;
+    $0->setActionExecuted();
+    $action[2](AsmGen);
+    $action[3](AsmGen, 0);
+    auto* CB = llvm::cast<llvm::CallBase>($1->getInstruction());
+    std::string Callee = $2->getLabelStringAsLabel();
+    if (Callee == "printf" || Callee == "scanf") {
+        AsmGen->EmitXor("%rax", "%rax");
+    }
+    AsmGen->EmitCall($2->getLabelStringAsLabel());
+    $0->setRegLoc(false, Register::RAX);
+};
 
-# indirect call
-reg:    Call(reg, args)
-    { $cost[0].cost = $cost[2].cost + 1; }
-    = {
-        std::cerr << "[DEBUG] " << "reg:    Call(reg, args)\n";
-        $action[2](Out);
-        $action[3](Out, 0);
-        Out << "callq " << "*" << $2->getRegLocString() << "\n";
-        $0->setRegLoc(false, Register::RAX);
-    };
+# Indirect Call
+reg: Call(reg, args) { $cost[0].cost = $cost[2].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "reg:    Call(reg, args)\n";
+    if ($0->isActionExecuted())
+        return;
+    $0->setActionExecuted();
+    $action[2](AsmGen);
+    $action[3](AsmGen, 0);
+    AsmGen->EmitCall("*" + $2->getRegLocString());
+    $0->setRegLoc(false, Register::RAX);
+};
 
-# indirect call
-reg:    Call(mem, args)
-    { $cost[0].cost = $cost[2].cost + 1; }
-    = {
-        std::cerr << "[DEBUG] " << "reg:    Call(mem, args)\n";
-        $action[2](Out);
-        $action[3](Out, 0);
-        Out << "callq " << "*" << $2->getMemLoc() << "\n";
-        $0->setRegLoc(false, Register::RAX);
-    };
-
-# FIXME, stmt: Call?
-stmt:    reg
-    { $cost[0].cost = 0; }
-    = {
-        std::cerr << "[DEBUG] " << "stmt:    reg\n";
-        $action[1](Out);
-    };
+# Indirect call
+reg: Call(mem, args) { $cost[0].cost = $cost[2].cost + 1; }
+= {
+    std::cerr << "[DEBUG] " << "reg:    Call(mem, args)\n";
+    if ($0->isActionExecuted())
+        return;
+    $0->setActionExecuted();
+    $action[2](AsmGen);
+    $action[3](AsmGen, 0);
+    AsmGen->EmitCall("*" + $2->getMemLoc());
+    $0->setRegLoc(false, Register::RAX);
+};
 
 %%
 
 /* burm_trace - print trace message for matching p */
-static void burm_trace(NODEPTR p, int eruleno, COST cost) {
-	if (shouldTrace)
-		std::cerr << "[DEBUG] " << "0x" << p << " matched " << burm_string[eruleno] << " = " << eruleno << " with cost " << cost.getCost() << "\n";
-}
+static void burm_trace(NODEPTR p, int eruleno, COST cost) { }
 
-static void gen(NODEPTR p, llvm::raw_ostream &Out) {
+static void gen(NODEPTR p, AsmCodeGenerator *AsmGen) {
     if (burm_label(p) == 0)
         std::cerr << "[DEBUG] " << "no cover\n";
     else {
-        stmt_action(p->getState(), Out);
-        if (shouldCover != 0)
-            dumpCover(p, 1, 0);
+        stmt_action(p->getState(), AsmGen);
     }
 }
 
@@ -647,55 +645,28 @@ void printDebugTree(Node *p, int indent=0) {
     }
 }
 
-void AsmFunction::EmitAssembly(llvm::raw_ostream &Out)
+void AsmCodeGenerator::EmitFunction(AsmFunction &F)
 {
-    // FIXME
-    Out << ".text\n"
-              << ".globl " << FuncName << "\n"
-              << ".type " << FuncName << ", @function\n"
-              << FuncName << ":\n";
+    EmitFunctionDeclaration(F);
 
-    // prologue
-    Out << "pushq %rbp\n";
-    Out << "movq %rsp, %rbp\n";
-    Out << "subq $" << TotalAllocaSizeInBytes << ", %rsp\n";
+    EmitFunctionPrologue(F);
 
     // body
-    for(auto* T: ExprTrees)
+    for (auto* T: F.ExprTrees)
     {
-        {
         printDebugTree(T);
-        // continue;
-        }
         if (T->getOp() == /*Label*/69)
-            Out << T->getLabelString() << ":\n";
-        gen(T, Out);
+            Out << T->getLabelStringAsLabel() << ":\n";
+        gen(T, this);
     }
 
-    // epilogue
-    Out << "movq %rbp, %rsp\n";
-    Out << "popq %rbp\n";
-    Out << "retq\n\n";
+    EmitFunctionEpilogue(F);
 }
 
-//static cl::opt<std::string>
-//InputFilename(cl::Positional, cl::desc("<input bitcode>"), cl::init("-"));
+// static cl::opt<std::string>
+// InputFilename(cl::Positional, cl::desc("<input bitcode>"), cl::init("-"));
 
 int main(int argc, char *argv[]) {
-/*
-    Tree t;
-    int i;
-
-    for (i = 1; i < argc ; ++i) {
-        if (strcmp(argv[i], "--cover") == 0){
-            shouldCover = 1;
-        }
-        if (strcmp(argv[i], "--trace") == 0){
-            shouldTrace = 1;
-        }
-    }
-*/
-
     // parse arguments from command line
     // cl::ParseCommandLineOptions(argc, argv, "llc-olive\n");
 
@@ -707,8 +678,8 @@ int main(int argc, char *argv[]) {
     ExprTreeBuilder Builder(M->getDataLayout());
     Builder.visit(*M);
 
-    CodeGenerator CG(Builder.Functions, Builder.ConstantStrings);
-    CG.EmitAssembly();
+    AsmCodeGenerator AsmGen(Builder.Functions, Builder.ConstantStrings);
+    AsmGen.EmitAssembly();
 
     return 0;
 }

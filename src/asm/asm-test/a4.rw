@@ -5,10 +5,16 @@ func main() int {
     var p, q int;
     var x int;
     var y *int;
-    q = 6;
+    q = 0;
     y = &q;
     x = *y;
-    p = x;
+    output *y;
+    p = 1;
     y = &p;
-    return *y; // 6
+    output *y;
+    return 0;
 }
+
+
+// CHECK: 0
+// CHECK-NEXT: 1

@@ -6,9 +6,11 @@ func main () int {
     x = 42;
     y = 43;
     if (x) {
-        y = x + 12;
+        output 0;
     } else {
-        y = x * 34;
+        output 1;
     }
-    return y; // 54
+    return 0;
 }
+
+// CHECK: 0

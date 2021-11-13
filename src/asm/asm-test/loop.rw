@@ -10,7 +10,8 @@ func main() int {
     // ...
     i = i + 1;
   }
-  return i;
+  output i;
+  return 0;
 }
 
 // CHECK: 42
