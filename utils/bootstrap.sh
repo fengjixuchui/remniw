@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -ex
 
-declare -r LLVM_VERSION=12
+LLVM_VERSION=13
+if [ "$#" -eq 1 ]; then
+    LLVM_VERSION=$1
+fi
 
 bootstrap_ubuntu_dependencies() {
     wget https://apt.kitware.com/kitware-archive.sh

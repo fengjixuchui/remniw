@@ -13,12 +13,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os:
-          - ubuntu-20.04
-          - ubuntu-18.04
+        os: [ubuntu-18.04, ubuntu-20.04]
+        llvm-version: [12, 13]
     steps:
       - uses: actions/checkout@v2
-      - run: ./utils/bootstrap.sh
+      - run: ./utils/bootstrap.sh ${{ matrix.llvm-version }}
       - run: |
           mkdir build
           pushd build
