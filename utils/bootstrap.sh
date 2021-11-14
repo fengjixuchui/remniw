@@ -16,6 +16,7 @@ bootstrap_ubuntu_dependencies() {
         cmake \
         default-jdk \
         git \
+        libutfcpp-dev \
         pkg-config \
         python3 \
         python3-pip \
@@ -48,6 +49,10 @@ bootstrap_ubuntu_dependencies() {
     sudo apt -y install \
         libc++-$LLVM_VERSION-dev \
         libc++abi-$LLVM_VERSION-dev
+
+    if [ $LLVM_VERSION -ge 13 ]; then
+        sudo apt -y install libmlir-$LLVM_VERSION-dev mlir-$LLVM_VERSION-tools
+    fi
 
     pip3 install --user lit
 }
