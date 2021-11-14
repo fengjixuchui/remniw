@@ -116,8 +116,8 @@ int main(int argc, char *argv[]) {
         cp = strchr(in_file_name, '/');
         if (cp == 0)
             cp = in_file_name;
-        else
-            cp += 1;
+        // else
+        //     cp += 1;
         i = strlen(cp) + 1;
         in_file_base = (char *)malloc(i);
         out_file_name = (char *)malloc(i + 4);
