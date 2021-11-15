@@ -114,10 +114,10 @@ int main(int argc, char *argv[]) {
         if (in_file_name == 0)
             in_file_name = "no_name.twg";
         cp = strchr(in_file_name, '/');
-        if (cp == 0)
+        if (cp == 0 || cp == in_file_name)
             cp = in_file_name;
-        // else
-        //     cp += 1;
+        else
+            cp += 1;
         i = strlen(cp) + 1;
         in_file_base = (char *)malloc(i);
         out_file_name = (char *)malloc(i + 4);
@@ -729,7 +729,7 @@ static void emitkids(Rule rules, int nrules) {
           "%1%Passert(p, PANIC(\"NULL tree in %Pkids\\n\"));\n"
           "%1%Passert(kids, PANIC(\"NULL kids in %Pkids\\n\"));\n"
           "%1switch (eruleno) {\n");
-    for (i = 0; r = rc[i]; i++) {
+    for (i = 0; (r = rc[i]); i++) {
         for (; r; r = r->kids)
             print("%1case %d: /* %R */\n", r->ern, r);
         print("%s%2break;\n", str[i]);
