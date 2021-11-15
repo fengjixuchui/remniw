@@ -3,13 +3,12 @@ add_subdirectory(frontend)
 add_subdirectory(semantic)
 add_subdirectory(codegen)
 add_subdirectory(optimizer)
-add_subdirectory(asm)
 
 # compiler binary target
 add_executable(remniw ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
 target_link_libraries(remniw PRIVATE frontend
                                      semantic
-                                     codegen
+                                     ircodegen
                                     #  optimizer
                                      antlr4_static
                                      ${llvm_libs}

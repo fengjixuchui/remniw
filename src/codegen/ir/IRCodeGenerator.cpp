@@ -1,4 +1,4 @@
-#include "CodeGenerator.h"
+#include "IRCodeGenerator.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ToolOutputFile.h"
@@ -8,7 +8,7 @@ using namespace llvm;
 
 namespace remniw {
 
-std::unique_ptr<Module> CodeGenerator::emit(ProgramAST *AST) {
+std::unique_ptr<Module> IRCodeGenerator::emit(ProgramAST *AST) {
     return pImpl->codegen(AST);
 }
 

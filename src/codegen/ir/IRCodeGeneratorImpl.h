@@ -9,7 +9,7 @@
 
 namespace remniw {
 
-class CodeGeneratorImpl {
+class IRCodeGeneratorImpl {
 private:
     llvm::LLVMContext *TheLLVMContext;
     std::unique_ptr<llvm::Module> TheModule;
@@ -19,7 +19,7 @@ private:
     llvm::GlobalVariable *OutputFmtStr;
 
 public:
-    CodeGeneratorImpl(llvm::LLVMContext *);
+    IRCodeGeneratorImpl(llvm::LLVMContext *);
     std::unique_ptr<llvm::Module> codegen(ProgramAST *);
     llvm::Value *codegenFunction(FunctionAST *);
     llvm::Value *codegenNumberExpr(NumberExprAST *);

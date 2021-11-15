@@ -1,119 +1,119 @@
 %{
-#include "helper.h"
+#include "ASMCodeGeneratorHelper.h"
 %}
 
 # TODO: autogen from llvm/include/llvm/IR/Instruction.def
 
-%term Undef         =  0
+%term RWIR_UNDEF         =  0
 
 # Terminator Instructions
-%term Ret           =  1
-%term Br            =  2
-%term Switch        =  3
-%term IndirectBr    =  4
-%term Invoke        =  5
-%term Resume        =  6
-%term Unreachable   =  7
-%term CleanupRet    =  8
-%term CatchRet      =  9
-%term CatchSwitch   = 10
-%term CallBr        = 11
+%term RWIR_RET           =  1
+%term RWIR_BR            =  2
+%term RWIR_SWITCH        =  3
+%term RWIR_INDIRECTBR    =  4
+%term RWIR_INVOKE        =  5
+%term RWIR_RESUME        =  6
+%term RWIR_UNREACHABLE   =  7
+%term RWIR_CLEANUPRET    =  8
+%term RWIR_CATCHRET      =  9
+%term RWIR_CATCHSWITCH   = 10
+%term RWIR_CALLBR        = 11
 
 # Standard unary operators
-%term FNeg          = 12
+%term RWIR_FNEG          = 12
 
 # Standard binary operators
-%term Add  = 13
-%term FAdd = 14
-%term Sub  = 15
-%term FSub = 16
-%term Mul  = 17
-%term FMul = 18
-%term UDiv = 19
-%term SDiv = 20
-%term FDiv = 21
-%term URem = 22
-%term SRem = 23
-%term FRem = 24
+%term RWIR_ADD  = 13
+%term RWIR_FADD = 14
+%term RWIR_SUB  = 15
+%term RWIR_FSUB = 16
+%term RWIR_MUL  = 17
+%term RWIR_FMUL = 18
+%term RWIR_UDIV = 19
+%term RWIR_SDIV = 20
+%term RWIR_FDIV = 21
+%term RWIR_UREM = 22
+%term RWIR_SREM = 23
+%term RWIR_FREM = 24
 
 # Logical operators (integer operands)
-%term Shl  = 25
-%term LShr = 26
-%term AShr = 27
-%term And  = 28
-%term Or   = 29
-%term Xor  = 30
+%term RWIR_SHL  = 25
+%term RWIR_LSHR = 26
+%term RWIR_ASHR = 27
+%term RWIR_AND  = 28
+%term RWIR_OR   = 29
+%term RWIR_XOR  = 30
 
 # Memory operators
-%term Alloca        = 31
-%term Load          = 32
-%term Store         = 33
-%term GetElementPtr = 34
-%term Fence         = 35
-%term AtomicCmpXchg = 36
-%term AtomicRMW     = 37
+%term RWIR_ALLOCA        = 31
+%term RWIR_LOAD          = 32
+%term RWIR_STORE         = 33
+%term RWIR_GETELEMENTPTR = 34
+%term RWIR_FENCE         = 35
+%term RWIR_ATOMICCMPXCHG = 36
+%term RWIR_ATOMICRMW     = 37
 
 # Cast operators
-%term Trunc         = 38
-%term ZExt          = 39
-%term SExt          = 40
-%term FPToUI        = 41
-%term FPToSI        = 42
-%term UIToFP        = 43
-%term SIToFP        = 44
-%term FPTrunc       = 45
-%term FPExt         = 46
-%term PtrToInt      = 47
-%term IntToPtr      = 48
-%term BitCast       = 49
-%term AddrSpaceCast = 50
+%term RWIR_TRUNC         = 38
+%term RWIR_ZEXT          = 39
+%term RWIR_SEXT          = 40
+%term RWIR_FPTOUI        = 41
+%term RWIR_FPTOSI        = 42
+%term RWIR_UITOFP        = 43
+%term RWIR_SITOFP        = 44
+%term RWIR_FPTRUNC       = 45
+%term RWIR_FPEXT         = 46
+%term RWIR_PTRTOINT      = 47
+%term RWIR_INTTOPTR      = 48
+%term RWIR_BITCAST       = 49
+%term RWIR_ADDRSPACECAST = 50
 
 # FUNCLETPAD
-%term CleanupPad    = 51
-%term CatchPad      = 52
+%term RWIR_CLEANUPPAD    = 51
+%term RWIR_CATCHPAD      = 52
 
 # Other operators
-%term ICmp              = 53
-%term FCmp              = 54
-%term PHI               = 55
-%term Call              = 56
-%term Select            = 57
-%term UserOp1           = 58
-%term UserOp2           = 59
-%term VAArg             = 60
-%term ExtractElement    = 61
-%term InsertElement     = 62
-%term ShuffleVector     = 63
-%term ExtractValue      = 64
-%term InsertValue       = 65
-%term LandingPad        = 66
-%term Freeze            = 67
+%term RWIR_ICMP              = 53
+%term RWIR_FCMP              = 54
+%term RWIR_PHI               = 55
+%term RWIR_CALL              = 56
+%term RWIR_SELECT            = 57
+%term RWIR_USEROP1           = 58
+%term RWIR_USEROP2           = 59
+%term RWIR_VAARG             = 60
+%term RWIR_EXTRACTELEMENT    = 61
+%term RWIR_INSERTELEMENT     = 62
+%term RWIR_SHUFFLEVECTOR     = 63
+%term RWIR_EXTRACTVALUE      = 64
+%term RWIR_INSERTVALUE       = 65
+%term RWIR_LANDINGPAD        = 66
+%term RWIR_FREEZE            = 67
 
-%term Const            = 68
-%term Label            = 69
-%term Args             = 70
-%term Reg              = 71
+%term RWIR_CONST            = 68
+%term RWIR_LABEL            = 69
+%term RWIR_ARGS             = 70
+%term RWIR_REG              = 71
 
-%declare<void> stmt<AsmCodeGeneratorPtr AsmGen>;
-%declare<void> reg<AsmCodeGeneratorPtr AsmGen>;
-%declare<void> imm<AsmCodeGeneratorPtr AsmGen>;
-%declare<void> mem<AsmCodeGeneratorPtr AsmGen>;
-%declare<void> label<AsmCodeGeneratorPtr AsmGen>;
-%declare<void> cond<AsmCodeGeneratorPtr AsmGen>;
-%declare<void> arg<AsmCodeGeneratorPtr AsmGen, unsigned argNo>;
-%declare<void> args<AsmCodeGeneratorPtr AsmGen, unsigned argNo>;
+%declare<void> stmt<remniw::AsmCodeGeneratorPtr AsmGen>;
+%declare<void> reg<remniw::AsmCodeGeneratorPtr AsmGen>;
+%declare<void> imm<remniw::AsmCodeGeneratorPtr AsmGen>;
+%declare<void> mem<remniw::AsmCodeGeneratorPtr AsmGen>;
+%declare<void> label<remniw::AsmCodeGeneratorPtr AsmGen>;
+%declare<void> cond<remniw::AsmCodeGeneratorPtr AsmGen>;
+%declare<void> arg<remniw::AsmCodeGeneratorPtr AsmGen, unsigned argNo>;
+%declare<void> args<remniw::AsmCodeGeneratorPtr AsmGen, unsigned argNo>;
 
 %%
 
-label: Label { $cost[0].cost = 0; } = { };
+label: RWIR_LABEL { $cost[0].cost = 0; } = { };
 
-imm: Const { $cost[0].cost = 0; } = { };
+imm: RWIR_CONST { $cost[0].cost = 0; } = { };
 
-reg: Reg { $cost[0].cost = 0; } = { };
+reg: RWIR_REG { $cost[0].cost = 0; } = { };
 
-mem: Alloca(imm) { $cost[0].cost = 0; } = { };
+mem: RWIR_ALLOCA(imm) { $cost[0].cost = 0; } = { };
 
-reg: Load(mem) { $cost[0].cost = $cost[2].cost + 1; }
+reg: RWIR_LOAD(mem) { $cost[0].cost = $cost[2].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "reg:   Load(mem)\n";
     if ($0->isActionExecuted())
@@ -124,7 +124,7 @@ reg: Load(mem) { $cost[0].cost = $cost[2].cost + 1; }
     AsmGen->EmitMov($2->getMemLoc(), $0->getRegLocString());
 };
 
-reg: Load(reg) { $cost[0].cost = $cost[2].cost + 1; }
+reg: RWIR_LOAD(reg) { $cost[0].cost = $cost[2].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "reg:   Load(reg)\n";
     if ($0->isActionExecuted())
@@ -145,21 +145,21 @@ stmt: reg { $cost[0].cost = $cost[1].cost; }
     $action[1](AsmGen);
 };
 
-stmt: Ret(reg) { $cost[0].cost = $cost[2].cost + 1; }
+stmt: RWIR_RET(reg) { $cost[0].cost = $cost[2].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "stmt:    Ret(reg)\n";
     $action[2](AsmGen);
     AsmGen->EmitMov($2->getRegLocString(), "%rax");
 };
 
-stmt: Ret(imm) { $cost[0].cost = $cost[2].cost + 1; }
+stmt: RWIR_RET(imm) { $cost[0].cost = $cost[2].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "stmt:    Ret(imm)\n";
     $action[2](AsmGen);
     AsmGen->EmitMov($2->getImmVal(), "%rax");
 };
 
-stmt: Store(reg, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+stmt: RWIR_STORE(reg, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "stmt:   Store(reg, mem)\n";
     $action[2](AsmGen);
@@ -167,7 +167,7 @@ stmt: Store(reg, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     AsmGen->EmitMov($2->getRegLocString(), $3->getMemLoc());
 };
 
-stmt: Store(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+stmt: RWIR_STORE(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "stmt:   Store(reg, reg)\n";
     $action[2](AsmGen);
@@ -176,7 +176,7 @@ stmt: Store(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
                     '(' + $3->getRegLocString() + ')');
 };
 
-stmt: Store(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+stmt: RWIR_STORE(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "stmt:   Store(imm, reg)\n";
     $action[2](AsmGen);
@@ -185,7 +185,7 @@ stmt: Store(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
                     '(' + $3->getRegLocString() + ')');
 };
 
-stmt: Store(imm, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+stmt: RWIR_STORE(imm, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "stmt:   Store(imm, mem)\n";
     $action[2](AsmGen);
@@ -193,7 +193,7 @@ stmt: Store(imm, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     AsmGen->EmitMov($2->getImmVal(), $3->getMemLoc());
 };
 
-stmt: Store(mem, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+stmt: RWIR_STORE(mem, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "stmt:   Store(mem, mem)\n";
     $action[2](AsmGen);
@@ -204,7 +204,7 @@ stmt: Store(mem, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     AsmGen->EmitMov(AvailRegStr, $3->getMemLoc());
 };
 
-stmt: Store(label, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+stmt: RWIR_STORE(label, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "stmt:   Store(label, mem)\n";
     $action[2](AsmGen);
@@ -212,7 +212,7 @@ stmt: Store(label, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     AsmGen->EmitMov($2->getLabelStringAsConstant(), $3->getMemLoc());
 };
 
-cond: ICmp(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+cond: RWIR_ICMP(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "cond: ICmp(reg, reg)\n";
     if ($0->isActionExecuted())
@@ -223,7 +223,7 @@ cond: ICmp(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     AsmGen->EmitCmp($3->getRegLocString(), $2->getRegLocString());
 };
 
-cond: ICmp(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+cond: RWIR_ICMP(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "cond: ICmp(reg, imm)\n";
     if ($0->isActionExecuted())
@@ -234,7 +234,7 @@ cond: ICmp(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     AsmGen->EmitCmp($3->getImmVal(), $2->getRegLocString());
 };
 
-cond: ICmp(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+cond: RWIR_ICMP(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "cond: ICmp(imm, reg)\n";
     if ($0->isActionExecuted())
@@ -249,7 +249,7 @@ cond: ICmp(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 };
 
 # Conditional Branch
-stmt: Br(cond, label, label)
+stmt: RWIR_BR(cond, label, label)
 { $cost[0].cost = $cost[2].cost + $cost[3].cost + $cost[4].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "stmt: Br(cond, label, label)\n";
@@ -287,7 +287,7 @@ stmt: Br(cond, label, label)
 };
 
 # Unconditional Branch
-stmt: Br(label, Undef, Undef) { $cost[0].cost = $cost[2].cost + 1; }
+stmt: RWIR_BR(label, RWIR_UNDEF, RWIR_UNDEF) { $cost[0].cost = $cost[2].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "stmt: Br(label)\n";
     auto *BI = llvm::cast<llvm::BranchInst>($1->getInstruction());
@@ -297,7 +297,7 @@ stmt: Br(label, Undef, Undef) { $cost[0].cost = $cost[2].cost + 1; }
     }
 };
 
-reg: Add(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+reg: RWIR_ADD(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "reg:   Add(reg, reg)\n";
     if ($0->isActionExecuted())
@@ -309,7 +309,7 @@ reg: Add(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setRegLoc(false, $3->getRegLoc());
 };
 
-reg: Add(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+reg: RWIR_ADD(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "reg:   Add(reg, imm)\n";
     if ($0->isActionExecuted())
@@ -321,7 +321,7 @@ reg: Add(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setRegLoc(false, $2->getRegLoc());
 };
 
-reg: Add(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+reg: RWIR_ADD(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "reg:   Add(imm, reg)\n";
     if ($0->isActionExecuted())
@@ -333,7 +333,7 @@ reg: Add(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setRegLoc(false, $3->getRegLoc());
 };
 
-reg: Add(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+reg: RWIR_ADD(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "reg:   Add(imm, imm)\n";
     if ($0->isActionExecuted())
@@ -344,7 +344,7 @@ reg: Add(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     llvm_unreachable("unexpected `reg: Add(imm, imm)!`\n");
 };
 
-reg: Sub(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+reg: RWIR_SUB(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "reg:   Sub(reg, reg)\n";
     if ($0->isActionExecuted())
@@ -356,7 +356,7 @@ reg: Sub(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setRegLoc(false, $3->getRegLoc());
 };
 
-reg: Sub(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+reg: RWIR_SUB(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "reg:   Sub(reg, imm)\n";
     if ($0->isActionExecuted())
@@ -368,7 +368,7 @@ reg: Sub(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setRegLoc(false, $2->getRegLoc());
 };
 
-reg: Sub(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
+reg: RWIR_SUB(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
 = {
     std::cerr << "[DEBUG] " << "reg:   Sub(imm, reg)\n";
     if ($0->isActionExecuted())
@@ -381,7 +381,7 @@ reg: Sub(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
     AsmGen->EmitSub($3->getRegLocString(), $0->getRegLocString());
 };
 
-reg: Sub(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+reg: RWIR_SUB(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "reg:   Sub(imm, imm)\n";
     if ($0->isActionExecuted())
@@ -392,7 +392,7 @@ reg: Sub(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     llvm_unreachable("unexpected `reg: Sub(imm, imm)!`\n");
 };
 
-reg: Mul(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+reg: RWIR_MUL(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "reg:   Mul(reg, reg)\n";
     if ($0->isActionExecuted())
@@ -404,7 +404,7 @@ reg: Mul(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setRegLoc(false, $3->getRegLoc());
 };
 
-reg: Mul(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+reg: RWIR_MUL(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "reg:   Mul(reg, imm)\n";
     if ($0->isActionExecuted())
@@ -416,7 +416,7 @@ reg: Mul(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setRegLoc(false, $2->getRegLoc());
 };
 
-reg: Mul(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+reg: RWIR_MUL(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "reg:   Mul(imm, reg)\n";
     if ($0->isActionExecuted())
@@ -428,7 +428,7 @@ reg: Mul(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setRegLoc(false, $3->getRegLoc());
 };
 
-reg: Mul(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+reg: RWIR_MUL(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "reg:   Mul(imm, imm)\n";
     if ($0->isActionExecuted())
@@ -439,7 +439,7 @@ reg: Mul(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     llvm_unreachable("unexpected `reg: Mul(imm, imm)!`\n");
 };
 
-reg: SDiv(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
+reg: RWIR_SDIV(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
 = {
     std::cerr << "[DEBUG] " << "reg:   SDiv(reg, reg)\n";
     if ($0->isActionExecuted())
@@ -453,7 +453,7 @@ reg: SDiv(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
     $0->setRegLoc(false, Register::RAX);
 };
 
-reg: SDiv(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 3; }
+reg: RWIR_SDIV(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 3; }
 = {
     std::cerr << "[DEBUG] " << "reg:   SDiv(reg, imm)\n";
     if ($0->isActionExecuted())
@@ -469,7 +469,7 @@ reg: SDiv(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 3; }
     AsmGen->EmitMov("%rax", $0->getRegLocString());
 };
 
-reg: SDiv(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
+reg: RWIR_SDIV(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
 = {
     std::cerr << "[DEBUG] " << "reg:   SDiv(imm, reg)\n";
     if ($0->isActionExecuted())
@@ -483,7 +483,7 @@ reg: SDiv(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
     $0->setRegLoc(false, Register::RAX);
 };
 
-reg: SDiv(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 3; }
+reg: RWIR_SDIV(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 3; }
 = {
     std::cerr << "[DEBUG] " << "reg:   SDiv(imm, imm)\n";
     if ($0->isActionExecuted())
@@ -552,12 +552,12 @@ arg: label { $cost[0].cost = $cost[1].cost + 1; }
     }
 };
 
-args: Args(Undef, Undef) { $cost[0].cost = 0; }
+args: RWIR_ARGS(RWIR_UNDEF, RWIR_UNDEF) { $cost[0].cost = 0; }
 = {
     std::cerr << "[DEBUG] " << "args:   ARGS(Undef, Undef)\n";
 };
 
-args: Args(arg, args)  { $cost[0].cost = $cost[2].cost + $cost[3].cost; }
+args: RWIR_ARGS(arg, args)  { $cost[0].cost = $cost[2].cost + $cost[3].cost; }
 = {
     std::cerr << "[DEBUG] " << "args:   ARGS(value, args)\n";
     $action[2](AsmGen, argNo);
@@ -565,7 +565,7 @@ args: Args(arg, args)  { $cost[0].cost = $cost[2].cost + $cost[3].cost; }
 };
 
 # Direct Call
-reg: Call(label, args) { $cost[0].cost = $cost[2].cost + 1; }
+reg: RWIR_CALL(label, args) { $cost[0].cost = $cost[2].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "reg:    Call(label, args)\n";
     if ($0->isActionExecuted())
@@ -583,7 +583,7 @@ reg: Call(label, args) { $cost[0].cost = $cost[2].cost + 1; }
 };
 
 # Indirect Call
-reg: Call(reg, args) { $cost[0].cost = $cost[2].cost + 1; }
+reg: RWIR_CALL(reg, args) { $cost[0].cost = $cost[2].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "reg:    Call(reg, args)\n";
     if ($0->isActionExecuted())
@@ -596,7 +596,7 @@ reg: Call(reg, args) { $cost[0].cost = $cost[2].cost + 1; }
 };
 
 # Indirect call
-reg: Call(mem, args) { $cost[0].cost = $cost[2].cost + 1; }
+reg: RWIR_CALL(mem, args) { $cost[0].cost = $cost[2].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "reg:    Call(mem, args)\n";
     if ($0->isActionExecuted())
@@ -613,7 +613,7 @@ reg: Call(mem, args) { $cost[0].cost = $cost[2].cost + 1; }
 /* burm_trace - print trace message for matching p */
 static void burm_trace(NODEPTR p, int eruleno, COST cost) { }
 
-static void gen(NODEPTR p, AsmCodeGenerator *AsmGen) {
+static void gen(NODEPTR p, remniw::AsmCodeGenerator *AsmGen) {
     if (burm_label(p) == 0)
         std::cerr << "[DEBUG] " << "no cover\n";
     else {
@@ -621,13 +621,6 @@ static void gen(NODEPTR p, AsmCodeGenerator *AsmGen) {
     }
 }
 
-#include "llvm/IR/Module.h"
-#include "llvm/IR/LLVMContext.h"
-// #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/SourceMgr.h"
-#include "llvm/IRReader/IRReader.h"
-
-using namespace llvm;
 
 void printDebugTree(Node *p, int indent=0) {
     if(p != nullptr) {
@@ -645,15 +638,15 @@ void printDebugTree(Node *p, int indent=0) {
     }
 }
 
-void AsmCodeGenerator::EmitFunction(AsmFunction &F)
-{
+namespace remniw {
+
+void AsmCodeGenerator::EmitFunction(AsmFunction &F) {
     EmitFunctionDeclaration(F);
 
     EmitFunctionPrologue(F);
 
     // body
-    for (auto* T: F.ExprTrees)
-    {
+    for (auto* T: F.ExprTrees) {
         printDebugTree(T);
         if (T->getOp() == /*Label*/69)
             Out << T->getLabelStringAsLabel() << ":\n";
@@ -663,23 +656,4 @@ void AsmCodeGenerator::EmitFunction(AsmFunction &F)
     EmitFunctionEpilogue(F);
 }
 
-static cl::opt<std::string>
-InputFilename(cl::Positional, cl::desc("<input bitcode>"), cl::init("-"));
-
-int main(int argc, char *argv[]) {
-    // parse arguments from command line
-    cl::ParseCommandLineOptions(argc, argv, "llc-olive\n");
-
-    // prepare llvm context to read bitcode file
-    LLVMContext Context;
-    SMDiagnostic Error;
-    std::unique_ptr<Module> M = parseIRFile(InputFilename, Error, Context);
-
-    ExprTreeBuilder Builder(M->getDataLayout());
-    Builder.visit(*M);
-
-    AsmCodeGenerator AsmGen(Builder.Functions, Builder.ConstantStrings);
-    AsmGen.EmitAssembly();
-
-    return 0;
-}
+}  // namespace remniw

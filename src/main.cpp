@@ -1,6 +1,6 @@
 #include "AST.h"
 #include "ASTPrinter.h"
-#include "CodeGenerator.h"
+#include "ir/IRCodeGenerator.h"
 #include "FrontEnd.h"
 #include "SymbolTable.h"
 #include "Type.h"
@@ -68,7 +68,7 @@ int main(int argc, char* argv[]) {
     });
 
     LLVM_DEBUG(llvm::outs() << "===== Code Generator ===== \n");
-    CodeGenerator CG(&TheLLVMContext);
+    IRCodeGenerator CG(&TheLLVMContext);
     std::unique_ptr<llvm::Module> M = CG.emit(AST.get());
 
     std::error_code EC;

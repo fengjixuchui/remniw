@@ -1,4 +1,4 @@
-#include "CodeGeneratorImpl.h"
+#include "IRCodeGeneratorImpl.h"
 #include "AST.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
@@ -19,7 +19,7 @@ using namespace llvm;
 namespace remniw {
 
 // Convert remniw::Type to corresponding llvm::Type
-llvm::Type *CodeGeneratorImpl::REMNIWTypeToLLVMType(remniw::Type *Ty) {
+llvm::Type *IRCodeGeneratorImpl::REMNIWTypeToLLVMType(remniw::Type *Ty) {
     if (llvm::isa<remniw::IntType>(Ty)) {
         return llvm::Type::getInt64Ty(*TheLLVMContext) /*->getScalarType()*/;
     } else if (auto *PointerTy = llvm::dyn_cast<remniw::PointerType>(Ty)) {
@@ -38,7 +38,7 @@ llvm::Type *CodeGeneratorImpl::REMNIWTypeToLLVMType(remniw::Type *Ty) {
 }
 
 // utility function for emit scanf, printf
-Value *CodeGeneratorImpl::emitLibCall(StringRef LibFuncName, llvm::Type *ReturnType,
+Value *IRCodeGeneratorImpl::emitLibCall(StringRef LibFuncName, llvm::Type *ReturnType,
                                       ArrayRef<llvm::Type *> ParamTypes,
                                       ArrayRef<Value *> Operands, bool IsVaArgs) {
     Module *M = IRB->GetInsertBlock()->getModule();
@@ -63,14 +63,14 @@ Value *CodeGeneratorImpl::emitLibCall(StringRef LibFuncName, llvm::Type *ReturnT
     return CI;
 }
 
-Value *CodeGeneratorImpl::emitPrintf(Value *Fmt, Value *VAList) {
+Value *IRCodeGeneratorImpl::emitPrintf(Value *Fmt, Value *VAList) {
     unsigned AS = Fmt->getType()->getPointerAddressSpace();
     return emitLibCall("printf", IRB->getInt32Ty(), {IRB->getInt8PtrTy()},
                        {IRB->CreateBitCast(Fmt, IRB->getInt8PtrTy(AS), "cstr"), VAList},
                        /*IsVaArgs=*/true);
 }
 
-Value *CodeGeneratorImpl::emitScanf(Value *Fmt, Value *VAList) {
+Value *IRCodeGeneratorImpl::emitScanf(Value *Fmt, Value *VAList) {
     unsigned AS = Fmt->getType()->getPointerAddressSpace();
     return emitLibCall("scanf", IRB->getInt32Ty(), {IRB->getInt8PtrTy()},
                        {IRB->CreateBitCast(Fmt, IRB->getInt8PtrTy(AS), "cstr"), VAList},
@@ -85,7 +85,7 @@ static AllocaInst *createEntryBlockAlloca(Function *TheFunction, Twine VarName,
     return Tmp.CreateAlloca(Ty, nullptr, VarName);
 }
 
-CodeGeneratorImpl::CodeGeneratorImpl(llvm::LLVMContext *LLVMContext) {
+IRCodeGeneratorImpl::IRCodeGeneratorImpl(llvm::LLVMContext *LLVMContext) {
     TheLLVMContext = LLVMContext;
     TheModule = std::make_unique<Module>("", *TheLLVMContext);
     InitializeNativeTarget();
@@ -97,7 +97,7 @@ CodeGeneratorImpl::CodeGeneratorImpl(llvm::LLVMContext *LLVMContext) {
     OutputFmtStr = IRB->CreateGlobalString("%lli\n", "fmtstr", 0, TheModule.get());
 }
 
-Value *CodeGeneratorImpl::codegenExpr(ExprAST *Expr) {
+Value *IRCodeGeneratorImpl::codegenExpr(ExprAST *Expr) {
     Value *Ret = nullptr;
     switch (Expr->getKind()) {
     case ASTNode::NumberExpr:
@@ -133,7 +133,7 @@ Value *CodeGeneratorImpl::codegenExpr(ExprAST *Expr) {
     return Ret;
 }
 
-Value *CodeGeneratorImpl::codegenStmt(StmtAST *Stmt) {
+Value *IRCodeGeneratorImpl::codegenStmt(StmtAST *Stmt) {
     Value *Ret = nullptr;
     switch (Stmt->getKind()) {
     case ASTNode::LocalVarDeclStmt:
@@ -169,11 +169,11 @@ Value *CodeGeneratorImpl::codegenStmt(StmtAST *Stmt) {
     return Ret;
 }
 
-Value *CodeGeneratorImpl::codegenNumberExpr(NumberExprAST *NumberExpr) {
+Value *IRCodeGeneratorImpl::codegenNumberExpr(NumberExprAST *NumberExpr) {
     return ConstantInt::get(IRB->getInt64Ty(), NumberExpr->getValue(), /*IsSigned=*/true);
 }
 
-Value *CodeGeneratorImpl::codegenVariableExpr(VariableExprAST *VariableExpr) {
+Value *IRCodeGeneratorImpl::codegenVariableExpr(VariableExprAST *VariableExpr) {
     std::string Name = VariableExpr->getName().str();
     if (NamedValues.count(Name)) {
         Value *V = NamedValues[Name];
@@ -190,12 +190,12 @@ Value *CodeGeneratorImpl::codegenVariableExpr(VariableExprAST *VariableExpr) {
     llvm_unreachable("unknown VariableExprAST!");
 }
 
-Value *CodeGeneratorImpl::codegenVarDeclNode(VarDeclNodeAST *VarDeclNode) {
+Value *IRCodeGeneratorImpl::codegenVarDeclNode(VarDeclNodeAST *VarDeclNode) {
     // We handle VarDeclNode in Function()
     return nullptr;
 }
 
-Value *CodeGeneratorImpl::codegenFunctionCallExpr(FunctionCallExprAST *FunctionCallExpr) {
+Value *IRCodeGeneratorImpl::codegenFunctionCallExpr(FunctionCallExprAST *FunctionCallExpr) {
     Value *CalledValue = codegenExpr(FunctionCallExpr->getCallee());
     SmallVector<Value *, 4> CallArgs;
     for (auto *Arg : FunctionCallExpr->getArgs()) {
@@ -217,34 +217,34 @@ Value *CodeGeneratorImpl::codegenFunctionCallExpr(FunctionCallExprAST *FunctionC
 }
 
 // TODO
-Value *CodeGeneratorImpl::codegenNullExpr(NullExprAST *NullExpr) {
+Value *IRCodeGeneratorImpl::codegenNullExpr(NullExprAST *NullExpr) {
     return nullptr;
 }
 
 // TODO
-Value *CodeGeneratorImpl::codegenAllocExpr(AllocExprAST *AllocExpr) {
+Value *IRCodeGeneratorImpl::codegenAllocExpr(AllocExprAST *AllocExpr) {
     return nullptr;
 }
 
-Value *CodeGeneratorImpl::codegenRefExpr(RefExprAST *RefExpr) {
+Value *IRCodeGeneratorImpl::codegenRefExpr(RefExprAST *RefExpr) {
     Value *Val = codegenVariableExpr(RefExpr->getVar());
     return Val;
 }
 
-Value *CodeGeneratorImpl::codegenDerefExpr(DerefExprAST *DerefExpr) {
+Value *IRCodeGeneratorImpl::codegenDerefExpr(DerefExprAST *DerefExpr) {
     Value *V = codegenExpr(DerefExpr->getPtr());
     assert(V && "invalid operand of DerefExpr!");
     return IRB->CreateLoad(V->getType()->getPointerElementType(), V);
 }
 
-Value *CodeGeneratorImpl::codegenInputExpr(InputExprAST *InputExpr) {
+Value *IRCodeGeneratorImpl::codegenInputExpr(InputExprAST *InputExpr) {
     llvm::Function *F = IRB->GetInsertBlock()->getParent();
     Value *Ptr = createEntryBlockAlloca(F, "input", IRB->getInt64Ty());
     Value *Call = emitScanf(InputFmtStr, Ptr);
     return IRB->CreateLoad(Ptr->getType()->getPointerElementType(), Ptr);
 }
 
-Value *CodeGeneratorImpl::codegenBinaryExpr(BinaryExprAST *BinaryExpr) {
+Value *IRCodeGeneratorImpl::codegenBinaryExpr(BinaryExprAST *BinaryExpr) {
     Value *V1 = codegenExpr(BinaryExpr->getLHS());
     Value *V2 = codegenExpr(BinaryExpr->getRHS());
     Value *V = nullptr;
@@ -261,34 +261,34 @@ Value *CodeGeneratorImpl::codegenBinaryExpr(BinaryExprAST *BinaryExpr) {
     return V;
 }
 
-Value *CodeGeneratorImpl::codegenLocalVarDeclStmt(LocalVarDeclStmtAST *LocalVarDeclStmt) {
+Value *IRCodeGeneratorImpl::codegenLocalVarDeclStmt(LocalVarDeclStmtAST *LocalVarDeclStmt) {
     // We handle LocalVarDeclStmt in Function()
     return nullptr;
 }
 
-Value *CodeGeneratorImpl::codegenEmptyStmt(EmptyStmtAST *EmptyStmt) {
+Value *IRCodeGeneratorImpl::codegenEmptyStmt(EmptyStmtAST *EmptyStmt) {
     // do nothing
     return nullptr;
 }
 
-Value *CodeGeneratorImpl::codegenOutputStmt(OutputStmtAST *OutputStmt) {
+Value *IRCodeGeneratorImpl::codegenOutputStmt(OutputStmtAST *OutputStmt) {
     Value *V = codegenExpr(OutputStmt->getExpr());
     assert(V && "invalid operand of OutputStmt!");
     return emitPrintf(OutputFmtStr, V);
 }
 
-Value *CodeGeneratorImpl::codegenBlockStmt(BlockStmtAST *BlockStmt) {
+Value *IRCodeGeneratorImpl::codegenBlockStmt(BlockStmtAST *BlockStmt) {
     for (auto *Stmt : BlockStmt->getStmts())
         codegenStmt(Stmt);
     return nullptr;
 }
 
-Value *CodeGeneratorImpl::codegenReturnStmt(ReturnStmtAST *ReturnStmt) {
+Value *IRCodeGeneratorImpl::codegenReturnStmt(ReturnStmtAST *ReturnStmt) {
     // We handle ReturnStmt in Function()
     return nullptr;
 }
 
-Value *CodeGeneratorImpl::codegenIfStmt(IfStmtAST *IfStmt) {
+Value *IRCodeGeneratorImpl::codegenIfStmt(IfStmtAST *IfStmt) {
     Value *CondV = codegenExpr(IfStmt->getCond());
     assert(CondV && "invalid condtion operand of IfStmt!");
     // Convert condition to a bool by comparing non-equal to 0.
@@ -325,7 +325,7 @@ Value *CodeGeneratorImpl::codegenIfStmt(IfStmtAST *IfStmt) {
     return nullptr;
 }
 
-Value *CodeGeneratorImpl::codegenWhileStmt(WhileStmtAST *WhileStmt) {
+Value *IRCodeGeneratorImpl::codegenWhileStmt(WhileStmtAST *WhileStmt) {
     llvm::Function *F = IRB->GetInsertBlock()->getParent();
     // Make the new basic block for the loop header, inserting after current
     // block.
@@ -360,7 +360,7 @@ Value *CodeGeneratorImpl::codegenWhileStmt(WhileStmtAST *WhileStmt) {
     return nullptr;
 }
 
-Value *CodeGeneratorImpl::codegenBasicAssignmentStmt(
+Value *IRCodeGeneratorImpl::codegenBasicAssignmentStmt(
     BasicAssignmentStmtAST *BasicAssignmentStmt) {
     Value *Ptr = codegenExpr(BasicAssignmentStmt->getLHS());
     Value *Val = codegenExpr(BasicAssignmentStmt->getRHS());
@@ -368,7 +368,7 @@ Value *CodeGeneratorImpl::codegenBasicAssignmentStmt(
     return IRB->CreateStore(Val, Ptr);
 }
 
-Value *CodeGeneratorImpl::codegenDerefAssignmentStmt(
+Value *IRCodeGeneratorImpl::codegenDerefAssignmentStmt(
     DerefAssignmentStmtAST *DerefAssignmentStmt) {
     Value *Ptr = codegenExpr(DerefAssignmentStmt->getLHS());
     Value *Val = codegenExpr(DerefAssignmentStmt->getRHS());
@@ -377,7 +377,7 @@ Value *CodeGeneratorImpl::codegenDerefAssignmentStmt(
     return IRB->CreateStore(Val, Ptr);
 }
 
-Value *CodeGeneratorImpl::codegenFunction(FunctionAST *Function) {
+Value *IRCodeGeneratorImpl::codegenFunction(FunctionAST *Function) {
     // Get the function from the module symbol table.
     llvm::Function *F = TheModule->getFunction(Function->getFuncName());
     assert(F && "function is not in the module symbol table");
@@ -423,7 +423,7 @@ Value *CodeGeneratorImpl::codegenFunction(FunctionAST *Function) {
     return F;
 }
 
-std::unique_ptr<Module> CodeGeneratorImpl::codegen(ProgramAST *AST) {
+std::unique_ptr<Module> IRCodeGeneratorImpl::codegen(ProgramAST *AST) {
     // Add prototype for each function
     // This make emit FunctionCallExprAST easy
     for (auto *FuncAST : AST->getFunctions()) {
