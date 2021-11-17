@@ -198,8 +198,8 @@ stmt: RWIR_STORE(mem, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; 
     std::cerr << "[DEBUG] " << "stmt:   Store(mem, mem)\n";
     $action[2](AsmGen);
     $action[3](AsmGen);
-    auto AvailReg = RA->getAvailableRegister();
-    const char* AvailRegStr = convertRegisterToString(AvailReg);
+    auto AvailReg = $0->RA.getAvailableRegister();
+    const char* AvailRegStr = remniw::convertRegisterToString(AvailReg);
     AsmGen->EmitLea($2->getMemLoc(), AvailRegStr);
     AsmGen->EmitMov(AvailRegStr, $3->getMemLoc());
 };
@@ -242,8 +242,8 @@ cond: RWIR_ICMP(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](AsmGen);
     $action[3](AsmGen);
-    auto AvailReg = RA->getAvailableRegister();
-    const char* AvailRegStr = convertRegisterToString(AvailReg);
+    auto AvailReg = $0->RA.getAvailableRegister();
+    const char* AvailRegStr = remniw::convertRegisterToString(AvailReg);
     AsmGen->EmitMov($2->getImmVal(), AvailRegStr);
     AsmGen->EmitCmp($3->getRegLocString(), AvailRegStr);
 };
@@ -450,7 +450,7 @@ reg: RWIR_SDIV(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
     AsmGen->EmitMov($2->getRegLocString(), "%rax");
     AsmGen->EmitCqto();
     AsmGen->EmitIdiv($3->getRegLocString());
-    $0->setRegLoc(false, Register::RAX);
+    $0->setRegLoc(false, remniw::Register::RAX);
 };
 
 reg: RWIR_SDIV(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 3; }
@@ -480,7 +480,7 @@ reg: RWIR_SDIV(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
     AsmGen->EmitMov($2->getImmVal(), "%rax");
     AsmGen->EmitCqto();
     AsmGen->EmitIdiv($3->getRegLocString());
-    $0->setRegLoc(false, Register::RAX);
+    $0->setRegLoc(false, remniw::Register::RAX);
 };
 
 reg: RWIR_SDIV(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 3; }
@@ -506,7 +506,7 @@ arg: reg { $cost[0].cost = $cost[1].cost + 1; }
     $action[1](AsmGen);
     if (argNo < 6) {
         AsmGen->EmitMov($1->getRegLocString(),
-                           convertRegisterToString(ArgRegs[argNo]));
+                           remniw::convertRegisterToString(remniw::ArgRegs[argNo]));
     } else {
         AsmGen->EmitMov($1->getRegLocString(),
                            std::to_string(8 * (argNo - 6)) + "(%rsp)");
@@ -519,7 +519,7 @@ arg: imm { $cost[0].cost = $cost[1].cost + 1; }
     $action[1](AsmGen);
     if (argNo < 6) {
         AsmGen->EmitMov($1->getImmVal(),
-                           convertRegisterToString(ArgRegs[argNo]));
+                           remniw::convertRegisterToString(remniw::ArgRegs[argNo]));
     } else {
         AsmGen->EmitMov($1->getImmVal(),
                            std::to_string(8 * (argNo - 6)) + "(%rsp)");
@@ -532,7 +532,7 @@ arg: mem { $cost[0].cost = $cost[1].cost + 1; }
     $action[1](AsmGen);
     if (argNo < 6) {
         AsmGen->EmitLea($1->getMemLoc(),
-                           convertRegisterToString(ArgRegs[argNo]));
+                           remniw::convertRegisterToString(remniw::ArgRegs[argNo]));
     } else {
         AsmGen->EmitMov($1->getMemLoc(),
                            std::to_string(8 * (argNo - 6)) + "(%rsp)");
@@ -545,7 +545,7 @@ arg: label { $cost[0].cost = $cost[1].cost + 1; }
     $action[1](AsmGen);
     if (argNo < 6) {
         AsmGen->EmitMov($1->getLabelStringAsConstant(),
-                           convertRegisterToString(ArgRegs[argNo]));
+                           remniw::convertRegisterToString(remniw::ArgRegs[argNo]));
     } else {
         AsmGen->EmitMov($1->getLabelStringAsConstant(),
                            std::to_string(8 * (argNo - 6)) + "(%rsp)");
@@ -579,7 +579,7 @@ reg: RWIR_CALL(label, args) { $cost[0].cost = $cost[2].cost + 1; }
         AsmGen->EmitXor("%rax", "%rax");
     }
     AsmGen->EmitCall($2->getLabelStringAsLabel());
-    $0->setRegLoc(false, Register::RAX);
+    $0->setRegLoc(false, remniw::Register::RAX);
 };
 
 # Indirect Call
@@ -592,7 +592,7 @@ reg: RWIR_CALL(reg, args) { $cost[0].cost = $cost[2].cost + 1; }
     $action[2](AsmGen);
     $action[3](AsmGen, 0);
     AsmGen->EmitCall("*" + $2->getRegLocString());
-    $0->setRegLoc(false, Register::RAX);
+    $0->setRegLoc(false, remniw::Register::RAX);
 };
 
 # Indirect call
@@ -605,7 +605,7 @@ reg: RWIR_CALL(mem, args) { $cost[0].cost = $cost[2].cost + 1; }
     $action[2](AsmGen);
     $action[3](AsmGen, 0);
     AsmGen->EmitCall("*" + $2->getMemLoc());
-    $0->setRegLoc(false, Register::RAX);
+    $0->setRegLoc(false, remniw::Register::RAX);
 };
 
 %%

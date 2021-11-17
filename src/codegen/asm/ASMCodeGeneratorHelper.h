@@ -55,6 +55,9 @@ Register Usage function calls
 - %r15: callee-saved register; optionally used as GOT base pointer
         preserved across function calls
 */
+
+namespace remniw {
+
 enum Register
 {
     RAX,
@@ -113,8 +116,7 @@ private:
     bool Flip;
 };
 
-// FIXME
-static RegisterAllocator *RA = new RegisterAllocator();
+}  // namespace remniw
 
 /** ================= Node =================== **/
 
@@ -148,7 +150,7 @@ public:
         // MemNode members
         int64_t Offset;
         // RegNode members
-        Register RegLoc;
+        remniw::Register RegLoc;
         // InstNode members
         llvm::Instruction *Inst;
         // LabelNode members
@@ -159,6 +161,7 @@ public:
         };
     };
     static uint32_t LastUnique;
+    static remniw::RegisterAllocator RA;
 
 public:
     /** ================= Common Functions =================== **/
@@ -214,7 +217,7 @@ public:
         return Ret;
     }
 
-    static Node *getRegNode(Register Reg, std::vector<Node *> Kids) {
+    static Node *getRegNode(remniw::Register Reg, std::vector<Node *> Kids) {
         Node *Ret = new Node(Kind::RegNode, /*Reg*/ 71, Kids);
         Ret->setRegLoc(false, Reg);
         return Ret;
@@ -264,11 +267,11 @@ public:
     /** ================= RegNode Functions =================== **/
     std::string getRegLocString() { return convertRegisterToString(RegLoc); }
 
-    Register getRegLoc() { return RegLoc; }
+    remniw::Register getRegLoc() { return RegLoc; }
 
-    void setRegLoc(bool UseRegisterAllocator, Register Reg = Register::RAX) {
+    void setRegLoc(bool UseRegisterAllocator, remniw::Register Reg = remniw::Register::RAX) {
         if (UseRegisterAllocator) {
-            RegLoc = RA->getAvailableRegister();
+            RegLoc = RA.getAvailableRegister();
         } else {
             RegLoc = Reg;
         }
@@ -321,7 +324,7 @@ typedef Node *NODEPTR;
 /** ================= Cost =================== **/
 
 struct COST {
-    COST(int cost):cost(cost) { }
+    COST(int cost): cost(cost) {}
     int cost;
 };
 
@@ -333,7 +336,6 @@ static int shouldTrace = 0;
 static int shouldCover = 0;
 
 static void burm_trace(NODEPTR, int, COST);
-
 
 namespace remniw {
 
@@ -354,13 +356,15 @@ private:
     llvm::SmallVector<AsmFunction> Functions;
     // llvm::SmallVector<llvm::GlobalVariable*> GlobalVariables;
     llvm::DenseMap<llvm::GlobalVariable *, llvm::StringRef> GlobalVariables;
+    RegisterAllocator *RA;
 
 public:
     AsmCodeGenerator(
-        llvm::SmallVector<AsmFunction> Functions,
+        llvm::raw_ostream &Out, llvm::SmallVector<AsmFunction> Functions,
         llvm::DenseMap<llvm::GlobalVariable *, llvm::StringRef> GlobalVariables):
-        Out(llvm::outs()),
-        Functions(std::move(Functions)), GlobalVariables(std::move(GlobalVariables)) {}
+        Out(Out),
+        Functions(std::move(Functions)), GlobalVariables(std::move(GlobalVariables)),
+        RA(&Node::RA) {}
 
     void EmitAssembly() {
         for (auto &F : Functions) {
@@ -458,13 +462,11 @@ public:
     llvm::SmallVector<Node *> ExprTrees;
     const llvm::DataLayout &DL;
     int64_t offset;  // clear per function
-    RegisterAllocator *RA;
 
 public:
-    ExprTreeBuilder(const llvm::DataLayout &DL):
-        DL(DL), offset(0), RA(new RegisterAllocator()) {}
+    ExprTreeBuilder(const llvm::DataLayout &DL): DL(DL), offset(0) {}
 
-    ~ExprTreeBuilder() { delete RA; }
+    ~ExprTreeBuilder() {}
 
     template<class Iterator>
     void visit(Iterator Start, Iterator End) {

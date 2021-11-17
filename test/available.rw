@@ -1,5 +1,6 @@
 // RUN: %remniw %s -o %t ; lli %t | FileCheck %s
 // RUN: %remniw %s -o %t -debug ; lli %t | FileCheck %s
+// remniw-llc todo
 
 func main() int {
     var x,y,z,a,b int;

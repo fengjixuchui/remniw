@@ -37,3 +37,7 @@ config.test_exec_root = os.path.join(config.obj_root, 'test')
 # replaced %remniw by the path to the tool executable.
 config.substitutions.append(('%remniw',
     os.path.join(config.obj_root, 'bin/remniw')))
+
+# replaced %remniw-llc by the path to the tool executable.
+config.substitutions.append(('%remniw-llc',
+    os.path.join(config.obj_root, 'bin/remniw-llc')))

@@ -4,12 +4,17 @@
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/ToolOutputFile.h"
 
 using namespace llvm;
 
 static llvm::cl::opt<std::string> InputFilename(llvm::cl::Positional,
                                                 llvm::cl::desc("<input bitcode>"),
                                                 llvm::cl::init("-"));
+static llvm::cl::opt<std::string>
+    OutputFilename("o", llvm::cl::desc("Override output filename"),
+                   llvm::cl::init("a.out"), llvm::cl::value_desc("filename"));
 
 int main(int argc, char *argv[]) {
     // parse arguments from command line
@@ -23,8 +28,11 @@ int main(int argc, char *argv[]) {
     remniw::ExprTreeBuilder Builder(M->getDataLayout());
     Builder.visit(*M);
 
-    remniw::AsmCodeGenerator AsmGen(Builder.Functions, Builder.ConstantStrings);
+    std::error_code EC;
+    llvm::ToolOutputFile Out(OutputFilename, EC, llvm::sys::fs::OF_Text);
+    remniw::AsmCodeGenerator AsmGen(Out.os(), Builder.Functions, Builder.ConstantStrings);
     AsmGen.EmitAssembly();
+    Out.keep();
 
     return 0;
 }

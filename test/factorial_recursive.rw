@@ -1,5 +1,6 @@
 // RUN: %remniw %s -o %t ; echo 10 | lli %t | FileCheck %s
 // RUN: %remniw %s -o %t -debug ; echo 10 | lli %t | FileCheck %s
+// remniw-llc todo
 
 func rec(n int) int {
     var f int;
