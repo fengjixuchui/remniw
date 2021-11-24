@@ -9,6 +9,6 @@ add_custom_command(
 
 add_executable(remniw-llc ${CMAKE_CURRENT_SOURCE_DIR}/remniw-llc.cpp
                           ${CMAKE_CURRENT_SOURCE_DIR}/ASMCodeGenerator.cpp
-                          ${CMAKE_CURRENT_SOURCE_DIR}/ASMCodeGeneratorHelper.cpp)
+                          ${CMAKE_CURRENT_SOURCE_DIR}/AsmInstruction.cpp)
 add_dependencies(remniw-llc brg)
 target_link_libraries(remniw-llc PRIVATE ${llvm_libs})

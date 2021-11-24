@@ -1,8 +1,15 @@
+#pragma once
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "AsmInstruction.h"
+#include "AsmOperand.h"
+#include "LiveInterval.h"
+#include "Register.h"
+// #include "RegisterAllocator.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Constants.h"
@@ -11,120 +18,13 @@
 #include "llvm/IR/InstVisitor.h"
 #include "llvm/IR/Instructions.h"
 
-/*
-Register Usage function calls
-- %rax:
-    temporary register; with variable arguments passes information about the
-        number of vector registers used; 1st return register
-    not preserved across function calls
-
-- %rbx: callee-saved register. preserved across function calls
-
-- %rcx: used to pass 4th integer argument to functions.
-        not preserved across function calls
-
-- %rdx: used to pass 3rd argument to functions; 2nd return register.
-        not preserved across function calls
-
-- %rsp: stack pointer, preserved across function calls
-
-- %rbp: callee-saved register; optionally used as frame pointer
-        preserved across function calls
-
-- %rsi: used to pass 2nd argument to functions
-        not preserved across function calls
-
-- %rdi: used to pass 1st argument to functions
-        not preserved across function calls
-
-- %r8: used to pass 5th argument to functions
-       not preserved across function calls
-
-- %r9: used to pass 6th argument to functions
-       not preserved across function calls
-
-- %r10: temporary register, used for passing a function’s static chain pointer
-        not preserved across function calls
-
-- %r11: temporary register
-        not preserved across function calls
-
-- %r12-r14: callee-saved registers
-            preserved across function calls
-
-- %r15: callee-saved register; optionally used as GOT base pointer
-        preserved across function calls
-*/
-
-namespace remniw {
-
-enum Register
-{
-    RAX,
-    RBX,
-    RCX,
-    RDX,
-    RSP,
-    RBP,
-    RDI,
-    RSI,
-    R8,
-    R9,
-    R10,
-    R11,
-    R12,
-    R13,
-    R14,
-    R15,
-};
-
-static Register ArgRegs[] = {RDI, RSI, RDX, RCX, R8, R9};
-
-static inline const char *convertRegisterToString(Register Reg) {
-    switch (Reg) {
-    case RAX: return "%rax";
-    case RBX: return "%rbx";
-    case RCX: return "%rcx";
-    case RDX: return "%rdx";
-    case RSP: return "%rsp";
-    case RBP: return "%rbp";
-    case RDI: return "%rdi";
-    case RSI: return "%rsi";
-    case R8: return "%r8";
-    case R9: return "%r9";
-    case R10: return "%r10";
-    case R11: return "%r11";
-    case R12: return "%r12";
-    case R13: return "%r13";
-    case R14: return "%r14";
-    case R15: return "%r15";
-    };
-    llvm_unreachable("unexpected Register\n");
-}
-
-class RegisterAllocator {
-public:
-    RegisterAllocator(): Flip(false) {}
-    Register getAvailableRegister() {
-        // FIXME
-        Register Ret = Flip ? Register::R14 : Register::R15;
-        Flip = !Flip;
-        return Ret;
-    }
-
-private:
-    bool Flip;
-};
-
-}  // namespace remniw
-
 /** ================= Node =================== **/
 
 struct burm_state;
 
 class Node {
 public:
-    enum Kind
+    enum KindTy
     {
         UndefNode,
         ImmNode,
@@ -137,40 +37,27 @@ public:
         ConstantStringLabelNode,
     };
 
-    //  private:
-public:
+private:
     burm_state *State;
-    Kind NodeKind;
+    KindTy Kind;
     int Op;
     std::vector<Node *> Kids;
     bool ActionExecuted;
     union {
-        // ImmNode members
-        int64_t ImmVal;
-        // MemNode members
-        int64_t Offset;
-        // RegNode members
-        remniw::Register RegLoc;
+        // ImmNode, MemNode, RegNode, LabelNode
+        remniw::AsmOperand *AsmOp;
         // InstNode members
         llvm::Instruction *Inst;
-        // LabelNode members
-        struct {
-            const char *StringPtr;
-            size_t StringSize;
-            uint32_t UniqueCounter;  // Counter for tracking unique names
-        };
     };
-    static uint32_t LastUnique;
-    static remniw::RegisterAllocator RA;
 
 public:
     /** ================= Common Functions =================== **/
 
-    Node(Kind NodeKind, int Op, std::vector<Node *> Kids):
-        NodeKind(NodeKind), Op(Op), Kids(Kids), ActionExecuted(false) {}
+    Node(KindTy Kind, int Op, std::vector<Node *> Kids):
+        Kind(Kind), Op(Op), Kids(Kids), ActionExecuted(false) {}
 
     const char *getNodeKind() {
-        switch (NodeKind) {
+        switch (Kind) {
         case UndefNode: return "UndefNode";
         case ImmNode: return "ImmNode";
         case MemNode: return "MemNode";
@@ -194,88 +81,101 @@ public:
     // can be accessed using offsets to regular pointers to elements
     Node **getKids() { return &Kids[0]; }
 
+    std::vector<Node *> getKidsVector() { return Kids; }
+
     void setKids(const std::vector<Node *> &Ks) { Kids = Ks; }
 
     bool isActionExecuted() { return ActionExecuted; }
 
     void setActionExecuted() { ActionExecuted = true; }
 
-    static Node *getUndefNode() {
-        Node *Ret = new Node(Kind::UndefNode, /*Undef*/ 0, {});
+    static Node *createUndefNode() {
+        Node *Ret = new Node(KindTy::UndefNode, /*Undef*/ 0, {});
         return Ret;
     }
 
-    static Node *getImmNode(int64_t Val, std::vector<Node *> Kids) {
-        Node *Ret = new Node(Kind::ImmNode, /*Const*/ 68, Kids);
-        Ret->setImmVal(Val);
+    static Node *createImmNode(int64_t Val, std::vector<Node *> Kids) {
+        Node *Ret = new Node(KindTy::ImmNode, /*Const*/ 68, Kids);
+        Ret->AsmOp = remniw::AsmOperand::createImm(Val);
         return Ret;
     }
 
-    static Node *getMemNode(int64_t Offset, std::vector<Node *> Kids) {
-        Node *Ret = new Node(Kind::MemNode, /*Alloca*/ 31, Kids);
-        Ret->setMemOffset(Offset);
+    static Node *createMemNode(int64_t Offset, std::vector<Node *> Kids) {
+        Node *Ret = new Node(KindTy::MemNode, /*Alloca*/ 31, Kids);
+        Ret->AsmOp = remniw::AsmOperand::createMem(Offset);
         return Ret;
     }
 
-    static Node *getRegNode(remniw::Register Reg, std::vector<Node *> Kids) {
-        Node *Ret = new Node(Kind::RegNode, /*Reg*/ 71, Kids);
-        Ret->setRegLoc(false, Reg);
+    static Node *createRegNode(remniw::Register Reg) {
+        Node *Ret = new Node(KindTy::RegNode, /*Reg*/ 71, {});
+        Ret->AsmOp = remniw::AsmOperand::createReg(Reg);
         return Ret;
     }
 
-    static Node *getInstNode(llvm::Instruction *I, std::vector<Node *> Kids) {
-        Node *Ret = new Node(Kind::InstNode, I->getOpcode(), Kids);
+    static Node *createInstNode(llvm::Instruction *I, std::vector<Node *> Kids) {
+        Node *Ret = new Node(KindTy::InstNode, I->getOpcode(), Kids);
         Ret->setInstruction(I);
         return Ret;
     }
 
-    static Node *getArgsNode(std::vector<Node *> Kids) {
-        Node *Ret = new Node(Kind::ArgsNode, /*Args*/ 70, Kids);
+    static Node *createArgsNode(std::vector<Node *> Kids) {
+        Node *Ret = new Node(KindTy::ArgsNode, /*Args*/ 70, Kids);
         return Ret;
     }
 
-    static Node *getFunctionLabelNode(llvm::StringRef StrRef, std::vector<Node *> Kids) {
-        Node *Ret = new Node(Kind::FunctionLabelNode, /*Label*/ 69, Kids);
-        Ret->setLabelString(StrRef);
+    static Node *createFunctionLabelNode(llvm::StringRef StrRef,
+                                         std::vector<Node *> Kids) {
+        Node *Ret = new Node(KindTy::FunctionLabelNode, /*Label*/ 69, Kids);
+        Ret->AsmOp = remniw::AsmOperand::createLabel(StrRef.data(), StrRef.size());
         return Ret;
     }
 
-    static Node *getBasicBlockLabelNode(llvm::StringRef StrRef,
-                                        std::vector<Node *> Kids) {
-        Node *Ret = new Node(Kind::BasicBlockLabelNode, /*Label*/ 69, Kids);
-        Ret->setLabelString(StrRef);
+    static Node *createBasicBlockLabelNode(llvm::StringRef StrRef,
+                                           std::vector<Node *> Kids) {
+        static uint32_t LastUnique = 0;
+        LastUnique++;
+        Node *Ret = new Node(KindTy::BasicBlockLabelNode, /*Label*/ 69, Kids);
+        Ret->AsmOp =
+            remniw::AsmOperand::createLabel(StrRef.data(), StrRef.size(), LastUnique);
         return Ret;
     }
 
-    static Node *getConstantStringLabelNode(llvm::StringRef StrRef,
-                                            std::vector<Node *> Kids) {
-        Node *Ret = new Node(Kind::ConstantStringLabelNode, /*Label*/ 69, Kids);
-        Ret->setLabelString(StrRef);
+    static Node *createConstantStringLabelNode(llvm::StringRef StrRef,
+                                               std::vector<Node *> Kids) {
+        Node *Ret = new Node(KindTy::ConstantStringLabelNode, /*Label*/ 69, Kids);
+        Ret->AsmOp = remniw::AsmOperand::createLabel(StrRef.data(), StrRef.size());
         return Ret;
     }
 
     /** ================= ImmNode Functions =================== **/
-    std::string getImmVal() { return std::string("$") + std::to_string(ImmVal); }
-
-    void setImmVal(int64_t Val) { ImmVal = Val; }
+    remniw::AsmOperand *getAsmOperandImm() {
+        assert(Kind == KindTy::ImmNode && "Not a ImmNode");
+        return AsmOp;
+    }
+    // std::string getImmVal() { return std::string("$") + std::to_string(ImmVal); }
+    // void setImmVal(int64_t Val) { ImmVal = Val; }
 
     /** ================= MemNode Functions =================== **/
-    std::string getMemLoc() { return std::to_string(Offset) + std::string("(%rbp)"); }
-
-    void setMemOffset(int64_t O) { Offset = O; }
+    remniw::AsmOperand *getAsmOperandMem() {
+        assert(Kind == KindTy::MemNode && "Not a MemNode");
+        return AsmOp;
+    }
+    // std::string getMemLoc() { return std::to_string(Offset) + std::string("(%rbp)"); }
+    // int64_t getMemOffset() { return Offset; }
+    // void setMemOffset(int64_t O) { Offset = O; }
 
     /** ================= RegNode Functions =================== **/
-    std::string getRegLocString() { return convertRegisterToString(RegLoc); }
-
-    remniw::Register getRegLoc() { return RegLoc; }
-
-    void setRegLoc(bool UseRegisterAllocator, remniw::Register Reg = remniw::Register::RAX) {
-        if (UseRegisterAllocator) {
-            RegLoc = RA.getAvailableRegister();
-        } else {
-            RegLoc = Reg;
-        }
+    remniw::AsmOperand *getAsmOperandReg() {
+        assert(Kind == KindTy::RegNode && "Not a RegNode");
+        return AsmOp;
     }
+
+    void setAsmOperandReg(remniw::AsmOperand *Op) {
+        Kind = KindTy::RegNode;
+        AsmOp = Op;
+    }
+
+    // void setReg(remniw::Register R) { Reg = R; }
 
     /** ================= InstNode Functions =================== **/
     llvm::Instruction *getInstruction() { return Inst; }
@@ -283,31 +183,31 @@ public:
     void setInstruction(llvm::Instruction *I) { Inst = I; }
 
     /** ================= LabelNode Functions =================== **/
-
-    void setLabelString(llvm::StringRef StrRef) {
-        StringPtr = StrRef.data();
-        StringSize = StrRef.size();
-        if (NodeKind == Kind::BasicBlockLabelNode)
-            UniqueCounter = LastUnique++;
+    remniw::AsmOperand *getAsmOperandLabel() {
+        assert((Kind == KindTy::FunctionLabelNode ||
+                Kind == KindTy::BasicBlockLabelNode ||
+                Kind == KindTy::ConstantStringLabelNode) &&
+               "Not a LabelNode");
+        return AsmOp;
     }
 
     std::string getLabelStringAsLabel() {
-        assert((NodeKind == Kind::BasicBlockLabelNode ||
-                NodeKind == Kind::FunctionLabelNode) &&
-               "NodeKind must be BasicBlockLabelNode or FunctionLabelNode");
-        if (NodeKind == Kind::BasicBlockLabelNode) {
-            return ".BB." + std::string(StringPtr, StringSize) + '.' +
-                   std::to_string(UniqueCounter);
+        assert(
+            (Kind == KindTy::BasicBlockLabelNode || Kind == KindTy::FunctionLabelNode) &&
+            "Kind must be BasicBlockLabelNode or FunctionLabelNode");
+        if (Kind == KindTy::BasicBlockLabelNode) {
+            return ".BB." + std::string(AsmOp->Label.StringPtr, AsmOp->Label.StringSize) +
+                   '.' + std::to_string(AsmOp->Label.UniqueCounter);
         } else {
-            return std::string(StringPtr, StringSize);
+            return std::string(AsmOp->Label.StringPtr, AsmOp->Label.StringSize);
         }
     }
 
     std::string getLabelStringAsConstant() {
-        assert((NodeKind == Kind::ConstantStringLabelNode ||
-                NodeKind == Kind::FunctionLabelNode) &&
-               "NodeKind must be ConstantStringLabelNode or FunctionLabelNode");
-        return "$" + std::string(StringPtr, StringSize);
+        assert((Kind == KindTy::ConstantStringLabelNode ||
+                Kind == KindTy::FunctionLabelNode) &&
+               "Kind must be ConstantStringLabelNode or FunctionLabelNode");
+        return "$" + std::string(AsmOp->Label.StringPtr, AsmOp->Label.StringSize);
     }
 };
 
@@ -356,15 +256,14 @@ private:
     llvm::SmallVector<AsmFunction> Functions;
     // llvm::SmallVector<llvm::GlobalVariable*> GlobalVariables;
     llvm::DenseMap<llvm::GlobalVariable *, llvm::StringRef> GlobalVariables;
-    RegisterAllocator *RA;
+    // RegisterAllocator *RA;
 
 public:
     AsmCodeGenerator(
         llvm::raw_ostream &Out, llvm::SmallVector<AsmFunction> Functions,
         llvm::DenseMap<llvm::GlobalVariable *, llvm::StringRef> GlobalVariables):
         Out(Out),
-        Functions(std::move(Functions)), GlobalVariables(std::move(GlobalVariables)),
-        RA(&Node::RA) {}
+        Functions(std::move(Functions)), GlobalVariables(std::move(GlobalVariables)) {}
 
     void EmitAssembly() {
         for (auto &F : Functions) {
@@ -448,6 +347,162 @@ public:
     void EmitXor(std::string Src, std::string Dst) {
         Out << "\txorq\t" << Src << ", " << Dst << "\n";
     }
+
+public:
+    std::vector<AsmInstruction *> AsmInstructions;
+    std::unordered_map<uint32_t, remniw::LiveIntervalTy> RegLiveIntervalMap;
+
+public:
+    void updateRegLiveInterval(uint32_t Reg) {
+        uint32_t StartPoint = static_cast<uint32_t>(AsmInstructions.size());
+        uint32_t EndPoint = StartPoint + 1;
+        if (Register::isVirtualRegister(Reg)) {
+            if (RegLiveIntervalMap.count(Reg)) {
+                RegLiveIntervalMap[Reg].Ranges[0].EndPoint = EndPoint;
+            } else {
+                RegLiveIntervalMap[Reg].Ranges.push_back({StartPoint, EndPoint});
+            }
+
+            for (const auto &Range : RegLiveIntervalMap[Reg].Ranges) {
+                llvm::outs() << "VirtualRegister " << Reg << " LiveInternal: ";
+                Range.print(llvm::outs());
+                llvm::outs() << "\n";
+            }
+        } else if (Register::isPhysicalRegister(Reg)) {
+            if (!RegLiveIntervalMap[Reg].Ranges.empty()) {
+                auto &LastActiveRange = RegLiveIntervalMap[Reg].Ranges.back();
+                if (LastActiveRange.StartPoint == StartPoint &&
+                    LastActiveRange.EndPoint == EndPoint) {
+                    // Do nothing
+                } else if (LastActiveRange.EndPoint == StartPoint) {
+                    LastActiveRange.EndPoint = EndPoint;
+                } else {
+                    RegLiveIntervalMap[Reg].Ranges.push_back({StartPoint, EndPoint});
+                }
+            } else {
+                RegLiveIntervalMap[Reg].Ranges.push_back({StartPoint, EndPoint});
+            }
+
+            for (const auto &Range : RegLiveIntervalMap[Reg].Ranges) {
+                llvm::outs() << "PhysicalRegiste " << Reg << " LiveInternal: ";
+                Range.print(llvm::outs());
+                llvm::outs() << "\n";
+            }
+        }
+    }
+
+    void updateAsmOperandLiveInterval(AsmOperand *Op) {
+        llvm::outs() << "updateAsmOperandLiveInterval " << Op << "\n";
+        uint32_t Reg;
+        if (Op->isReg()) {
+            updateRegLiveInterval(Op->getReg());
+        }
+        if (Op->isMem()) {
+            uint32_t MemBaseReg = Op->getMemBaseReg();
+            if (MemBaseReg != Register::RBP) {
+                updateRegLiveInterval(MemBaseReg);
+            }
+            uint32_t MemIndexReg = Op->getMemIndexReg();
+            if (MemIndexReg != Register::NoRegister) {
+                updateRegLiveInterval(MemIndexReg);
+            }
+        }
+        llvm::outs() << "\n";
+    }
+
+    void createMov(AsmOperand *Src, AsmOperand *Dst) {
+        AsmInstructions.push_back(
+            /*std::make_unique<AsmInstruction>*/ (new AsmMovInst(Src, Dst)));
+        llvm::outs() << AsmInstructions.size();
+        AsmInstructions.back()->print(llvm::outs());
+        updateAsmOperandLiveInterval(Src);
+        updateAsmOperandLiveInterval(Dst);
+    }
+
+    void createLea(AsmOperand *Src, AsmOperand *Dst) {
+        AsmInstructions.push_back(
+            /*std::make_unique<AsmInstruction>*/ (new AsmLeaInst(Src, Dst)));
+        llvm::outs() << AsmInstructions.size();
+        AsmInstructions.back()->print(llvm::outs());
+        updateAsmOperandLiveInterval(Src);
+        updateAsmOperandLiveInterval(Dst);
+    }
+
+    void createCmp(AsmOperand *Src, AsmOperand *Dst) {
+        AsmInstructions.push_back(
+            /*std::make_unique<AsmInstruction>*/ (new AsmCmpInst(Src, Dst)));
+        llvm::outs() << AsmInstructions.size();
+        AsmInstructions.back()->print(llvm::outs());
+        updateAsmOperandLiveInterval(Src);
+        updateAsmOperandLiveInterval(Dst);
+    }
+
+    void createJmp(AsmJmpInst::JmpKindTy JmpKind, AsmOperand *Op) {
+        AsmInstructions.push_back(
+            /*std::make_unique<AsmInstruction>*/ (new AsmJmpInst(JmpKind, Op)));
+        llvm::outs() << AsmInstructions.size();
+        AsmInstructions.back()->print(llvm::outs());
+        updateAsmOperandLiveInterval(Op);
+    }
+
+    void createAdd(AsmOperand *Src, AsmOperand *Dst) {
+        AsmInstructions.push_back(
+            /*std::make_unique<AsmInstruction>*/ (new AsmAddInst(Src, Dst)));
+        llvm::outs() << AsmInstructions.size();
+        AsmInstructions.back()->print(llvm::outs());
+        updateAsmOperandLiveInterval(Src);
+        updateAsmOperandLiveInterval(Dst);
+    }
+
+    void createSub(AsmOperand *Src, AsmOperand *Dst) {
+        AsmInstructions.push_back(
+            /*std::make_unique<AsmInstruction>*/ (new AsmSubInst(Src, Dst)));
+        llvm::outs() << AsmInstructions.size();
+        AsmInstructions.back()->print(llvm::outs());
+        updateAsmOperandLiveInterval(Src);
+        updateAsmOperandLiveInterval(Dst);
+    }
+
+    void createImul(AsmOperand *Src, AsmOperand *Dst) {
+        AsmInstructions.push_back(
+            /*std::make_unique<AsmInstruction>*/ (new AsmImulInst(Src, Dst)));
+        llvm::outs() << AsmInstructions.size();
+        AsmInstructions.back()->print(llvm::outs());
+        updateAsmOperandLiveInterval(Src);
+        updateAsmOperandLiveInterval(Dst);
+    }
+
+    void createIdiv(AsmOperand *Op) {
+        AsmInstructions.push_back(
+            /*std::make_unique<AsmInstruction>*/ (new AsmIdivInst(Op)));
+        llvm::outs() << AsmInstructions.size();
+        AsmInstructions.back()->print(llvm::outs());
+        updateAsmOperandLiveInterval(Op);
+    }
+
+    void createCqto() {
+        AsmInstructions.push_back(
+            /*std::make_unique<AsmInstruction>*/ (new AsmCqtoInst()));
+        llvm::outs() << AsmInstructions.size();
+        AsmInstructions.back()->print(llvm::outs());
+    }
+
+    void createCall(AsmOperand *Callee, bool DirectCall) {
+        AsmInstructions.push_back(
+            /*std::make_unique<AsmInstruction>*/ (new AsmCallInst(Callee, DirectCall)));
+        llvm::outs() << AsmInstructions.size();
+        AsmInstructions.back()->print(llvm::outs());
+        updateAsmOperandLiveInterval(Callee);
+    }
+
+    void createXor(AsmOperand *Src, AsmOperand *Dst) {
+        AsmInstructions.push_back(
+            /*std::make_unique<AsmInstruction>*/ (new AsmXorInst(Src, Dst)));
+        llvm::outs() << AsmInstructions.size();
+        AsmInstructions.back()->print(llvm::outs());
+        updateAsmOperandLiveInterval(Src);
+        updateAsmOperandLiveInterval(Dst);
+    }
 };
 
 typedef AsmCodeGenerator *AsmCodeGeneratorPtr;
@@ -479,7 +534,7 @@ public:
             if (llvm::ConstantDataArray *CDA =
                     llvm::dyn_cast<llvm::ConstantDataArray>(GV.getInitializer())) {
                 if (CDA->isCString()) {
-                    LabelMap[&GV] = Node::getConstantStringLabelNode(GV.getName(), {});
+                    LabelMap[&GV] = Node::createConstantStringLabelNode(GV.getName(), {});
                     ConstantStrings[&GV] = CDA->getAsCString();
                 }
             }
@@ -498,13 +553,13 @@ public:
             llvm::Argument *Arg = F.getArg(i);
             Node *ArgNode;
             if (i < 6) {
-                ArgNode = Node::getRegNode(ArgRegs[i], {});
+                ArgNode = Node::createRegNode(ArgRegs[i]);
             } else {
                 llvm::Type *Ty = F.getArg(i)->getType();
                 uint64_t SizeInBytes =
                     F.getParent()->getDataLayout().getTypeAllocSize(Ty);
-                ArgNode = Node::getMemNode(8 * (i - 6 + 2),
-                                           {Node::getImmNode(SizeInBytes, {})});
+                ArgNode = Node::createMemNode(8 * (i - 6 + 2),
+                                              {Node::createImmNode(SizeInBytes, {})});
             }
             ArgMap[Arg] = ArgNode;
         }
@@ -531,7 +586,7 @@ public:
             assert(it != LabelMap.end() && "operands must be previously defined");
             return it->second;
         } else if (auto *CI = llvm::dyn_cast<llvm::ConstantInt>(V)) {
-            Node *T = Node::getImmNode(CI->getSExtValue(), {});
+            Node *T = Node::createImmNode(CI->getSExtValue(), {});
             return T;
         } else if (auto *I = llvm::dyn_cast<llvm::Instruction>(V)) {
             auto it = InstMap.find(I);
@@ -544,14 +599,14 @@ public:
         } else if (auto *F = llvm::dyn_cast<llvm::Function>(V)) {
             auto it = LabelMap.find(V);
             if (it == LabelMap.end()) {
-                LabelMap[V] = Node::getFunctionLabelNode(F->getName(), {});
+                LabelMap[V] = Node::createFunctionLabelNode(F->getName(), {});
                 return LabelMap[V];
             }
             return it->second;
         } else if (auto *BB = llvm::dyn_cast<llvm::BasicBlock>(V)) {
             auto it = LabelMap.find(V);
             if (it == LabelMap.end()) {
-                LabelMap[V] = Node::getBasicBlockLabelNode(BB->getName(), {});
+                LabelMap[V] = Node::createBasicBlockLabelNode(BB->getName(), {});
                 return LabelMap[V];
             }
             return it->second;
@@ -577,7 +632,7 @@ public:
         uint64_t AllocaSizeInBytes = getAllocaSizeInBytes(AI);
         offset -= AllocaSizeInBytes;
         auto *AllocaNode =
-            Node::getMemNode(offset, {Node::getImmNode(AllocaSizeInBytes, {})});
+            Node::createMemNode(offset, {Node::createImmNode(AllocaSizeInBytes, {})});
         InstMap[&AI] = AllocaNode;
         ExprTrees.push_back(AllocaNode);
         return AllocaNode;
@@ -586,26 +641,26 @@ public:
     Node *visitBranchInst(llvm::BranchInst &BI) {
         Node *InstNode;
         if (BI.isUnconditional()) {
-            InstNode =
-                Node::getInstNode(&BI, {visitOperand(BI.getSuccessor(0)),
-                                        Node::getUndefNode(), Node::getUndefNode()});
+            InstNode = Node::createInstNode(&BI, {visitOperand(BI.getSuccessor(0)),
+                                                  Node::createUndefNode(),
+                                                  Node::createUndefNode()});
         } else {
             if (BI.getCondition() ==
                 llvm::ConstantInt::getTrue(llvm::Type::getInt1Ty(BI.getContext()))) {
-                InstNode =
-                    Node::getInstNode(&BI, {visitOperand(BI.getSuccessor(0)),
-                                            Node::getUndefNode(), Node::getUndefNode()});
+                InstNode = Node::createInstNode(&BI, {visitOperand(BI.getSuccessor(0)),
+                                                      Node::createUndefNode(),
+                                                      Node::createUndefNode()});
             } else if (BI.getCondition() == llvm::ConstantInt::getFalse(
                                                 llvm::Type::getInt1Ty(BI.getContext()))) {
-                InstNode =
-                    Node::getInstNode(&BI, {visitOperand(BI.getSuccessor(1)),
-                                            Node::getUndefNode(), Node::getUndefNode()});
+                InstNode = Node::createInstNode(&BI, {visitOperand(BI.getSuccessor(1)),
+                                                      Node::createUndefNode(),
+                                                      Node::createUndefNode()});
             } else {
                 auto *ICI = llvm::cast<llvm::ICmpInst>(BI.getCondition());
                 assert(InstMap.count(ICI) && "BI.getCondition() not in InstMap");
-                InstNode = Node::getInstNode(&BI, {InstMap[ICI],
-                                                   visitOperand(BI.getSuccessor(0)),
-                                                   visitOperand(BI.getSuccessor(1))});
+                InstNode = Node::createInstNode(&BI, {InstMap[ICI],
+                                                      visitOperand(BI.getSuccessor(0)),
+                                                      visitOperand(BI.getSuccessor(1))});
             }
         }
         InstMap[&BI] = InstNode;
@@ -615,11 +670,12 @@ public:
 
     Node *visitCallInst(llvm::CallInst &CI) {
         std::vector<Node *> Kids;
-        Node *Args = Node::getArgsNode({Node::getUndefNode(), Node::getUndefNode()});
+        Node *Args =
+            Node::createArgsNode({Node::createUndefNode(), Node::createUndefNode()});
         Node *CurrentNode = Args;
         for (unsigned i = 0, e = CI.arg_size(); i != e; ++i) {
             Node *ArgsTmp =
-                Node::getArgsNode({Node::getUndefNode(), Node::getUndefNode()});
+                Node::createArgsNode({Node::createUndefNode(), Node::createUndefNode()});
             CurrentNode->setKids({visitOperand(CI.getArgOperand(i)), ArgsTmp});
             CurrentNode = ArgsTmp;
             if (i >= 6)  // push arg on stack
@@ -633,10 +689,10 @@ public:
         Node *Ret;
         if (auto *Callee = CI.getCalledFunction())  // direct call
         {
-            Ret = Node::getInstNode(&CI, {visitOperand(Callee), Args});
+            Ret = Node::createInstNode(&CI, {visitOperand(Callee), Args});
         } else  // indirect call
         {
-            Ret = Node::getInstNode(&CI, {visitOperand(CI.getCalledOperand()), Args});
+            Ret = Node::createInstNode(&CI, {visitOperand(CI.getCalledOperand()), Args});
         }
         InstMap[&CI] = Ret;
         ExprTrees.push_back(Ret);
@@ -658,7 +714,7 @@ public:
         for (unsigned i = 0, e = I.getNumOperands(); i != e; ++i) {
             Kids.push_back(visitOperand(I.getOperand(i)));
         }
-        Node *T = Node::getInstNode(&I, Kids);
+        Node *T = Node::createInstNode(&I, Kids);
         InstMap[&I] = T;
         ExprTrees.push_back(T);
         return T;

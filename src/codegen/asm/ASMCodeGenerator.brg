@@ -120,8 +120,12 @@ reg: RWIR_LOAD(mem) { $cost[0].cost = $cost[2].cost + 1; }
         return;
     $0->setActionExecuted();
     $action[2](AsmGen);
-    $0->setRegLoc(true);
-    AsmGen->EmitMov($2->getMemLoc(), $0->getRegLocString());
+    // $0->setRegLoc(true);
+    // AsmGen->EmitMov($2->getMemLoc(), $0->getRegLocString());
+    $0->setAsmOperandReg(remniw::AsmOperand::createReg(remniw::Register::createVirtReg()));
+    auto *Src = $2->getAsmOperandMem();
+    auto *Dst = $0->getAsmOperandReg();
+    AsmGen->createMov(Src, Dst);
 };
 
 reg: RWIR_LOAD(reg) { $cost[0].cost = $cost[2].cost + 1; }
@@ -131,9 +135,13 @@ reg: RWIR_LOAD(reg) { $cost[0].cost = $cost[2].cost + 1; }
         return;
     $0->setActionExecuted();
     $action[2](AsmGen);
-    $0->setRegLoc(true);
-    AsmGen->EmitMov('(' + $2->getRegLocString() + ')',
-                       $0->getRegLocString());
+    // $0->setRegLoc(true);
+    // AsmGen->EmitMov('(' + $2->getRegLocString() + ')',
+    //                    $0->getRegLocString());
+    $0->setAsmOperandReg(remniw::AsmOperand::createReg(remniw::Register::createVirtReg()));
+    auto *Src = remniw::AsmOperand::createMem(0, $2->getAsmOperandReg()->getReg());
+    auto *Dst = $0->getAsmOperandReg();
+    AsmGen->createMov(Src, Dst);
 };
 
 stmt: reg { $cost[0].cost = $cost[1].cost; }
@@ -149,14 +157,20 @@ stmt: RWIR_RET(reg) { $cost[0].cost = $cost[2].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "stmt:    Ret(reg)\n";
     $action[2](AsmGen);
-    AsmGen->EmitMov($2->getRegLocString(), "%rax");
+    // AsmGen->EmitMov($2->getRegLocString(), "%rax");
+    auto *Src = $2->getAsmOperandReg();
+    auto *Dst = remniw::AsmOperand::createReg(remniw::Register::RAX);
+    AsmGen->createMov(Src, Dst);
 };
 
 stmt: RWIR_RET(imm) { $cost[0].cost = $cost[2].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "stmt:    Ret(imm)\n";
     $action[2](AsmGen);
-    AsmGen->EmitMov($2->getImmVal(), "%rax");
+    // AsmGen->EmitMov($2->getImmVal(), "%rax");
+    auto *Src = $2->getAsmOperandImm();
+    auto *Dst = remniw::AsmOperand::createReg(remniw::Register::RAX);
+    AsmGen->createMov(Src, Dst);
 };
 
 stmt: RWIR_STORE(reg, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
@@ -164,7 +178,10 @@ stmt: RWIR_STORE(reg, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; 
     std::cerr << "[DEBUG] " << "stmt:   Store(reg, mem)\n";
     $action[2](AsmGen);
     $action[3](AsmGen);
-    AsmGen->EmitMov($2->getRegLocString(), $3->getMemLoc());
+    // AsmGen->EmitMov($2->getRegLocString(), $3->getMemLoc());
+    auto *Src = $2->getAsmOperandReg();
+    auto *Dst = $3->getAsmOperandMem();
+    AsmGen->createMov(Src, Dst);
 };
 
 stmt: RWIR_STORE(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
@@ -172,8 +189,11 @@ stmt: RWIR_STORE(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; 
     std::cerr << "[DEBUG] " << "stmt:   Store(reg, reg)\n";
     $action[2](AsmGen);
     $action[3](AsmGen);
-    AsmGen->EmitMov($2->getRegLocString(),
-                    '(' + $3->getRegLocString() + ')');
+    // AsmGen->EmitMov($2->getRegLocString(),
+    //                 '(' + $3->getRegLocString() + ')');
+    auto *Src = $2->getAsmOperandReg();
+    auto *Dst = remniw::AsmOperand::createMem(0, $3->getAsmOperandReg()->getReg());
+    AsmGen->createMov(Src, Dst);
 };
 
 stmt: RWIR_STORE(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
@@ -181,8 +201,11 @@ stmt: RWIR_STORE(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; 
     std::cerr << "[DEBUG] " << "stmt:   Store(imm, reg)\n";
     $action[2](AsmGen);
     $action[3](AsmGen);
-    AsmGen->EmitMov($2->getImmVal(),
-                    '(' + $3->getRegLocString() + ')');
+    // AsmGen->EmitMov($2->getImmVal(),
+    //                 '(' + $3->getRegLocString() + ')');
+    auto *Src = $2->getAsmOperandImm();
+    auto *Dst = remniw::AsmOperand::createMem(0, $3->getAsmOperandReg()->getReg());
+    AsmGen->createMov(Src, Dst);
 };
 
 stmt: RWIR_STORE(imm, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
@@ -190,7 +213,10 @@ stmt: RWIR_STORE(imm, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; 
     std::cerr << "[DEBUG] " << "stmt:   Store(imm, mem)\n";
     $action[2](AsmGen);
     $action[3](AsmGen);
-    AsmGen->EmitMov($2->getImmVal(), $3->getMemLoc());
+    // AsmGen->EmitMov($2->getImmVal(), $3->getMemLoc());
+    auto *Src = $2->getAsmOperandImm();
+    auto *Dst = $3->getAsmOperandMem();
+    AsmGen->createMov(Src, Dst);
 };
 
 stmt: RWIR_STORE(mem, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
@@ -198,10 +224,16 @@ stmt: RWIR_STORE(mem, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; 
     std::cerr << "[DEBUG] " << "stmt:   Store(mem, mem)\n";
     $action[2](AsmGen);
     $action[3](AsmGen);
-    auto AvailReg = $0->RA.getAvailableRegister();
-    const char* AvailRegStr = remniw::convertRegisterToString(AvailReg);
-    AsmGen->EmitLea($2->getMemLoc(), AvailRegStr);
-    AsmGen->EmitMov(AvailRegStr, $3->getMemLoc());
+    // auto AvailReg = $0->RA.getAvailableRegister();
+    // const char* AvailRegStr = remniw::convertRegisterToString(AvailReg);
+    // AsmGen->EmitLea($2->getMemLoc(), AvailRegStr);
+    // AsmGen->EmitMov(AvailRegStr, $3->getMemLoc());
+    $0->setAsmOperandReg(remniw::AsmOperand::createReg(remniw::Register::createVirtReg()));
+    auto *Src = $2->getAsmOperandMem();
+    auto *Tmp = $0->getAsmOperandReg();
+    AsmGen->createLea(Src, Tmp);
+    auto *Dst = $3->getAsmOperandMem();
+    AsmGen->createMov(Tmp, Dst);
 };
 
 stmt: RWIR_STORE(label, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
@@ -209,7 +241,10 @@ stmt: RWIR_STORE(label, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1
     std::cerr << "[DEBUG] " << "stmt:   Store(label, mem)\n";
     $action[2](AsmGen);
     $action[3](AsmGen);
-    AsmGen->EmitMov($2->getLabelStringAsConstant(), $3->getMemLoc());
+    // AsmGen->EmitMov($2->getLabelStringAsConstant(), $3->getMemLoc());
+    auto *Src = $2->getAsmOperandLabel();
+    auto *Dst = $3->getAsmOperandMem();
+    AsmGen->createMov(Src, Dst);
 };
 
 cond: RWIR_ICMP(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
@@ -220,7 +255,10 @@ cond: RWIR_ICMP(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](AsmGen);
     $action[3](AsmGen);
-    AsmGen->EmitCmp($3->getRegLocString(), $2->getRegLocString());
+    // AsmGen->EmitCmp($3->getRegLocString(), $2->getRegLocString());
+    auto *Src = $3->getAsmOperandReg();
+    auto *Dst = $2->getAsmOperandReg();
+    AsmGen->createCmp(Src, Dst);
 };
 
 cond: RWIR_ICMP(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
@@ -231,7 +269,10 @@ cond: RWIR_ICMP(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](AsmGen);
     $action[3](AsmGen);
-    AsmGen->EmitCmp($3->getImmVal(), $2->getRegLocString());
+    // AsmGen->EmitCmp($3->getImmVal(), $2->getRegLocString());
+    auto *Src = $3->getAsmOperandImm();
+    auto *Dst = $2->getAsmOperandReg();
+    AsmGen->createCmp(Src, Dst);
 };
 
 cond: RWIR_ICMP(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
@@ -242,10 +283,15 @@ cond: RWIR_ICMP(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](AsmGen);
     $action[3](AsmGen);
-    auto AvailReg = $0->RA.getAvailableRegister();
-    const char* AvailRegStr = remniw::convertRegisterToString(AvailReg);
-    AsmGen->EmitMov($2->getImmVal(), AvailRegStr);
-    AsmGen->EmitCmp($3->getRegLocString(), AvailRegStr);
+    // auto AvailReg = $0->RA.getAvailableRegister();
+    // const char* AvailRegStr = remniw::convertRegisterToString(AvailReg);
+    // AsmGen->EmitMov($2->getImmVal(), AvailRegStr);
+    // AsmGen->EmitCmp($3->getRegLocString(), AvailRegStr);
+    $0->setAsmOperandReg(remniw::AsmOperand::createReg(remniw::Register::createVirtReg()));
+    auto *Src = $2->getAsmOperandImm();
+    auto *Dst = $0->getAsmOperandReg();
+    AsmGen->createMov(Src, Dst);
+    AsmGen->createCmp($3->getAsmOperandReg(), Dst);
 };
 
 # Conditional Branch
@@ -254,20 +300,20 @@ stmt: RWIR_BR(cond, label, label)
 = {
     std::cerr << "[DEBUG] " << "stmt: Br(cond, label, label)\n";
     $action[2](AsmGen);
-    std::string JmpTrue, JmpFalse;
+    remniw::AsmJmpInst::JmpKindTy JmpTrue, JmpFalse;
     auto *CI = llvm::cast<llvm::CmpInst>($2->getInstruction());
     switch (CI->getPredicate()) {
     case llvm::CmpInst::Predicate::ICMP_EQ:
-        JmpTrue = "je";
-        JmpFalse = "jne";
+        JmpTrue = remniw::AsmJmpInst::JmpKindTy::Je;
+        JmpFalse = remniw::AsmJmpInst::JmpKindTy::Jne;
         break;
     case llvm::CmpInst::Predicate::ICMP_NE:
-        JmpTrue = "jne";
-        JmpFalse = "je";
+        JmpTrue = remniw::AsmJmpInst::JmpKindTy::Jne;
+        JmpFalse = remniw::AsmJmpInst::JmpKindTy::Je;
         break;
     case llvm::CmpInst::Predicate::ICMP_SGT:
-        JmpTrue = "jg";
-        JmpFalse = "jle";
+        JmpTrue = remniw::AsmJmpInst::JmpKindTy::Jg;
+        JmpFalse = remniw::AsmJmpInst::JmpKindTy::Jle;
         break;
     default:
         llvm_unreachable("unexpected CmpInst!\n");
@@ -275,14 +321,21 @@ stmt: RWIR_BR(cond, label, label)
     auto *BI = llvm::cast<llvm::BranchInst>($1->getInstruction());
     llvm::BasicBlock* NextBB = BI->getParent()->getNextNode();
     if (NextBB == BI->getSuccessor(0)) {
-        AsmGen->EmitJmp(JmpFalse, $4->getLabelStringAsLabel());
+        // AsmGen->EmitJmp(JmpFalse, $4->getLabelStringAsLabel());
+        // TODO
+        AsmGen->createJmp(JmpFalse, $4->getAsmOperandLabel());
     }
     else if (NextBB == BI->getSuccessor(1)) {
-        AsmGen->EmitJmp(JmpTrue, $3->getLabelStringAsLabel());
+        // AsmGen->EmitJmp(JmpTrue, $3->getLabelStringAsLabel());
+        // TODO
+        AsmGen->createJmp(JmpTrue, $3->getAsmOperandLabel());
     }
     else {
-        AsmGen->EmitJmp(JmpTrue, $3->getLabelStringAsLabel());
-        AsmGen->EmitJmp(JmpFalse, $4->getLabelStringAsLabel());
+        // AsmGen->EmitJmp(JmpTrue, $3->getLabelStringAsLabel());
+        // AsmGen->EmitJmp(JmpFalse, $4->getLabelStringAsLabel());
+        // TODO
+        AsmGen->createJmp(JmpTrue, $3->getAsmOperandLabel());
+        AsmGen->createJmp(JmpFalse, $4->getAsmOperandLabel());
     }
 };
 
@@ -293,7 +346,9 @@ stmt: RWIR_BR(label, RWIR_UNDEF, RWIR_UNDEF) { $cost[0].cost = $cost[2].cost + 1
     auto *BI = llvm::cast<llvm::BranchInst>($1->getInstruction());
     llvm::BasicBlock* NextBB = BI->getParent()->getNextNode();
     if (NextBB != BI->getSuccessor(0)) {
-        AsmGen->EmitJmp("jmp", $2->getLabelStringAsLabel());
+        // AsmGen->EmitJmp("jmp", $2->getLabelStringAsLabel());
+        // TODO
+        AsmGen->createJmp(remniw::AsmJmpInst::JmpKindTy::Jmp, $2->getAsmOperandLabel());
     }
 };
 
@@ -305,8 +360,10 @@ reg: RWIR_ADD(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](AsmGen);
     $action[3](AsmGen);
-    AsmGen->EmitAdd($2->getRegLocString(), $3->getRegLocString());
-    $0->setRegLoc(false, $3->getRegLoc());
+    // AsmGen->EmitAdd($2->getRegLocString(), $3->getRegLocString());
+    // $0->setRegLoc(false, $3->getRegLoc());
+    AsmGen->createAdd($2->getAsmOperandReg(), $3->getAsmOperandReg());
+    $0->setAsmOperandReg($3->getAsmOperandReg());
 };
 
 reg: RWIR_ADD(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
@@ -317,8 +374,10 @@ reg: RWIR_ADD(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](AsmGen);
     $action[3](AsmGen);
-    AsmGen->EmitAdd($3->getImmVal(), $2->getRegLocString());
-    $0->setRegLoc(false, $2->getRegLoc());
+    // AsmGen->EmitAdd($3->getImmVal(), $2->getRegLocString());
+    // $0->setRegLoc(false, $2->getRegLoc());
+    AsmGen->createAdd($3->getAsmOperandImm(), $2->getAsmOperandReg());
+    $0->setAsmOperandReg($2->getAsmOperandReg());
 };
 
 reg: RWIR_ADD(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
@@ -329,8 +388,10 @@ reg: RWIR_ADD(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](AsmGen);
     $action[3](AsmGen);
-    AsmGen->EmitAdd($2->getImmVal(), $3->getRegLocString());
-    $0->setRegLoc(false, $3->getRegLoc());
+    // AsmGen->EmitAdd($2->getImmVal(), $3->getRegLocString());
+    // $0->setRegLoc(false, $3->getRegLoc());
+    AsmGen->createAdd($2->getAsmOperandImm(), $3->getAsmOperandReg());
+    $0->setAsmOperandReg($3->getAsmOperandReg());
 };
 
 reg: RWIR_ADD(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
@@ -352,8 +413,10 @@ reg: RWIR_SUB(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](AsmGen);
     $action[3](AsmGen);
-    AsmGen->EmitSub($3->getRegLocString(), $2->getRegLocString());
-    $0->setRegLoc(false, $3->getRegLoc());
+    // AsmGen->EmitSub($3->getRegLocString(), $2->getRegLocString());
+    // $0->setRegLoc(false, $3->getRegLoc());
+    AsmGen->createSub($3->getAsmOperandReg(), $2->getAsmOperandReg());
+    $0->setAsmOperandReg($3->getAsmOperandReg());
 };
 
 reg: RWIR_SUB(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
@@ -364,8 +427,10 @@ reg: RWIR_SUB(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](AsmGen);
     $action[3](AsmGen);
-    AsmGen->EmitSub($3->getImmVal(), $2->getRegLocString());
-    $0->setRegLoc(false, $2->getRegLoc());
+    // AsmGen->EmitSub($3->getImmVal(), $2->getRegLocString());
+    // $0->setRegLoc(false, $2->getRegLoc());
+    AsmGen->createSub($3->getAsmOperandImm(), $2->getAsmOperandReg());
+    $0->setAsmOperandReg($2->getAsmOperandReg());
 };
 
 reg: RWIR_SUB(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
@@ -376,9 +441,12 @@ reg: RWIR_SUB(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
     $0->setActionExecuted();
     $action[2](AsmGen);
     $action[3](AsmGen);
-    $0->setRegLoc(true);
-    AsmGen->EmitMov($2->getImmVal(), $0->getRegLocString());
-    AsmGen->EmitSub($3->getRegLocString(), $0->getRegLocString());
+    // $0->setRegLoc(true);
+    // AsmGen->EmitMov($2->getImmVal(), $0->getRegLocString());
+    // AsmGen->EmitSub($3->getRegLocString(), $0->getRegLocString());
+    $0->setAsmOperandReg(remniw::AsmOperand::createReg(remniw::Register::createVirtReg()));
+    AsmGen->createMov($2->getAsmOperandImm(), $0->getAsmOperandReg());
+    AsmGen->createSub($3->getAsmOperandReg(), $0->getAsmOperandReg());
 };
 
 reg: RWIR_SUB(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
@@ -400,8 +468,10 @@ reg: RWIR_MUL(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](AsmGen);
     $action[3](AsmGen);
-    AsmGen->EmitImul($2->getRegLocString(), $3->getRegLocString());
-    $0->setRegLoc(false, $3->getRegLoc());
+    // AsmGen->EmitImul($2->getRegLocString(), $3->getRegLocString());
+    // $0->setRegLoc(false, $3->getRegLoc());
+    AsmGen->createImul($2->getAsmOperandReg(), $3->getAsmOperandReg());
+    $0->setAsmOperandReg($3->getAsmOperandReg());
 };
 
 reg: RWIR_MUL(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
@@ -412,8 +482,10 @@ reg: RWIR_MUL(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](AsmGen);
     $action[3](AsmGen);
-    AsmGen->EmitImul($3->getImmVal(), $2->getRegLocString());
-    $0->setRegLoc(false, $2->getRegLoc());
+    // AsmGen->EmitImul($3->getImmVal(), $2->getRegLocString());
+    // $0->setRegLoc(false, $2->getRegLoc());
+    AsmGen->createImul($3->getAsmOperandImm(), $2->getAsmOperandReg());
+    $0->setAsmOperandReg($2->getAsmOperandReg());
 };
 
 reg: RWIR_MUL(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
@@ -424,8 +496,10 @@ reg: RWIR_MUL(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](AsmGen);
     $action[3](AsmGen);
-    AsmGen->EmitImul($2->getImmVal(), $3->getRegLocString());
-    $0->setRegLoc(false, $3->getRegLoc());
+    // AsmGen->EmitImul($2->getImmVal(), $3->getRegLocString());
+    // $0->setRegLoc(false, $3->getRegLoc());
+    AsmGen->createImul($2->getAsmOperandImm(), $3->getAsmOperandReg());
+    $0->setAsmOperandReg($3->getAsmOperandReg());
 };
 
 reg: RWIR_MUL(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
@@ -447,10 +521,15 @@ reg: RWIR_SDIV(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
     $0->setActionExecuted();
     $action[2](AsmGen);
     $action[3](AsmGen);
-    AsmGen->EmitMov($2->getRegLocString(), "%rax");
-    AsmGen->EmitCqto();
-    AsmGen->EmitIdiv($3->getRegLocString());
-    $0->setRegLoc(false, remniw::Register::RAX);
+    // AsmGen->EmitMov($2->getRegLocString(), "%rax");
+    // AsmGen->EmitCqto();
+    // AsmGen->EmitIdiv($3->getRegLocString());
+    // $0->setRegLoc(false, remniw::Register::RAX);
+    auto *Tmp = remniw::AsmOperand::createReg(remniw::Register::RAX);
+    AsmGen->createMov($2->getAsmOperandReg(), Tmp);
+    AsmGen->createCqto();
+    AsmGen->createIdiv($3->getAsmOperandReg());
+    $0->setAsmOperandReg(Tmp);
 };
 
 reg: RWIR_SDIV(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 3; }
@@ -461,12 +540,18 @@ reg: RWIR_SDIV(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 3; }
     $0->setActionExecuted();
     $action[2](AsmGen);
     $action[3](AsmGen);
-    $0->setRegLoc(true);
-    AsmGen->EmitMov($2->getRegLocString(), "%rax");
-    AsmGen->EmitCqto();
-    AsmGen->EmitMov($3->getImmVal(), $0->getRegLocString());
-    AsmGen->EmitIdiv($0->getRegLocString());
-    AsmGen->EmitMov("%rax", $0->getRegLocString());
+    // $0->setRegLoc(true);
+    // AsmGen->EmitMov($2->getRegLocString(), "%rax");
+    // AsmGen->EmitCqto();
+    // AsmGen->EmitMov($3->getImmVal(), $0->getRegLocString());
+    // AsmGen->EmitIdiv($0->getRegLocString());
+    // AsmGen->EmitMov("%rax", $0->getRegLocString());
+    auto *Tmp = remniw::AsmOperand::createReg(remniw::Register::RAX);
+    AsmGen->createMov($2->getAsmOperandReg(), Tmp);
+    AsmGen->createCqto();
+    AsmGen->createMov($3->getAsmOperandImm(), $0->getAsmOperandReg());
+    AsmGen->createIdiv($0->getAsmOperandReg());
+    AsmGen->createMov(Tmp, $0->getAsmOperandReg());
 };
 
 reg: RWIR_SDIV(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
@@ -477,10 +562,15 @@ reg: RWIR_SDIV(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
     $0->setActionExecuted();
     $action[2](AsmGen);
     $action[3](AsmGen);
-    AsmGen->EmitMov($2->getImmVal(), "%rax");
-    AsmGen->EmitCqto();
-    AsmGen->EmitIdiv($3->getRegLocString());
-    $0->setRegLoc(false, remniw::Register::RAX);
+    // AsmGen->EmitMov($2->getImmVal(), "%rax");
+    // AsmGen->EmitCqto();
+    // AsmGen->EmitIdiv($3->getRegLocString());
+    // $0->setRegLoc(false, remniw::Register::RAX);
+    auto *Tmp = remniw::AsmOperand::createReg(remniw::Register::RAX);
+    AsmGen->createMov($2->getAsmOperandImm(), Tmp);
+    AsmGen->createCqto();
+    AsmGen->createIdiv($3->getAsmOperandReg());
+    $0->setAsmOperandReg(Tmp);
 };
 
 reg: RWIR_SDIV(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 3; }
@@ -492,12 +582,12 @@ reg: RWIR_SDIV(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 3; }
     $action[2](AsmGen);
     $action[3](AsmGen);
     llvm_unreachable("unexpected `reg: SDiv(imm, imm)!`\n");
-    $0->setRegLoc(true);
-    AsmGen->EmitMov($3->getImmVal(), "%rax");
-    AsmGen->EmitCqto();
-    AsmGen->EmitMov($2->getImmVal(), $0->getRegLocString());
-    AsmGen->EmitIdiv($0->getRegLocString());
-    AsmGen->EmitMov("%rax", $0->getRegLocString());
+    // $0->setRegLoc(true);
+    // AsmGen->EmitMov($3->getImmVal(), "%rax");
+    // AsmGen->EmitCqto();
+    // AsmGen->EmitMov($2->getImmVal(), $0->getRegLocString());
+    // AsmGen->EmitIdiv($0->getRegLocString());
+    // AsmGen->EmitMov("%rax", $0->getRegLocString());
 };
 
 arg: reg { $cost[0].cost = $cost[1].cost + 1; }
@@ -505,11 +595,11 @@ arg: reg { $cost[0].cost = $cost[1].cost + 1; }
     std::cerr << "[DEBUG] " << "arg:  reg\n";
     $action[1](AsmGen);
     if (argNo < 6) {
-        AsmGen->EmitMov($1->getRegLocString(),
-                           remniw::convertRegisterToString(remniw::ArgRegs[argNo]));
+        AsmGen->createMov($1->getAsmOperandReg(),
+            remniw::AsmOperand::createReg(remniw::ArgRegs[argNo]));
     } else {
-        AsmGen->EmitMov($1->getRegLocString(),
-                           std::to_string(8 * (argNo - 6)) + "(%rsp)");
+        AsmGen->createMov($1->getAsmOperandReg(),
+            remniw::AsmOperand::createMem(8 * (argNo - 6), remniw::Register::RSP));
     }
 };
 
@@ -518,11 +608,11 @@ arg: imm { $cost[0].cost = $cost[1].cost + 1; }
     std::cerr << "[DEBUG] " << "arg:  imm\n";
     $action[1](AsmGen);
     if (argNo < 6) {
-        AsmGen->EmitMov($1->getImmVal(),
-                           remniw::convertRegisterToString(remniw::ArgRegs[argNo]));
+        AsmGen->createMov($1->getAsmOperandImm(),
+            remniw::AsmOperand::createReg(remniw::ArgRegs[argNo]));
     } else {
-        AsmGen->EmitMov($1->getImmVal(),
-                           std::to_string(8 * (argNo - 6)) + "(%rsp)");
+        AsmGen->createMov($1->getAsmOperandImm(),
+            remniw::AsmOperand::createMem(8 * (argNo - 6), remniw::Register::RSP));
     }
 };
 
@@ -531,11 +621,11 @@ arg: mem { $cost[0].cost = $cost[1].cost + 1; }
     std::cerr << "[DEBUG] " << "arg:  mem\n";
     $action[1](AsmGen);
     if (argNo < 6) {
-        AsmGen->EmitLea($1->getMemLoc(),
-                           remniw::convertRegisterToString(remniw::ArgRegs[argNo]));
+        AsmGen->createLea($1->getAsmOperandMem(),
+            remniw::AsmOperand::createReg(remniw::ArgRegs[argNo]));
     } else {
-        AsmGen->EmitMov($1->getMemLoc(),
-                           std::to_string(8 * (argNo - 6)) + "(%rsp)");
+        AsmGen->createMov($1->getAsmOperandMem(),
+            remniw::AsmOperand::createMem(8 * (argNo - 6), remniw::Register::RSP));
     }
 };
 
@@ -544,11 +634,15 @@ arg: label { $cost[0].cost = $cost[1].cost + 1; }
     std::cerr << "[DEBUG] " << "arg:  mem\n";
     $action[1](AsmGen);
     if (argNo < 6) {
-        AsmGen->EmitMov($1->getLabelStringAsConstant(),
-                           remniw::convertRegisterToString(remniw::ArgRegs[argNo]));
+        // AsmGen->createMov($1->getLabelStringAsConstant(),
+        //                    remniw::convertRegisterToString(remniw::ArgRegs[argNo]));
+        AsmGen->createMov($1->getAsmOperandLabel(),
+            remniw::AsmOperand::createReg(remniw::ArgRegs[argNo]));
     } else {
-        AsmGen->EmitMov($1->getLabelStringAsConstant(),
-                           std::to_string(8 * (argNo - 6)) + "(%rsp)");
+        // AsmGen->createMov($1->getLabelStringAsConstant(),
+        //                    std::to_string(8 * (argNo - 6)) + "(%rsp)");
+        AsmGen->createMov($1->getAsmOperandLabel(),
+            remniw::AsmOperand::createMem(8 * (argNo - 6), remniw::Register::RSP));
     }
 };
 
@@ -575,11 +669,13 @@ reg: RWIR_CALL(label, args) { $cost[0].cost = $cost[2].cost + 1; }
     $action[3](AsmGen, 0);
     auto* CB = llvm::cast<llvm::CallBase>($1->getInstruction());
     std::string Callee = $2->getLabelStringAsLabel();
+    auto* Rax = remniw::AsmOperand::createReg(remniw::Register::RAX);
     if (Callee == "printf" || Callee == "scanf") {
-        AsmGen->EmitXor("%rax", "%rax");
+        AsmGen->createXor(Rax, Rax);
     }
-    AsmGen->EmitCall($2->getLabelStringAsLabel());
-    $0->setRegLoc(false, remniw::Register::RAX);
+    // AsmGen->createCall($2->getLabelStringAsLabel());
+    AsmGen->createCall($2->getAsmOperandLabel(), /*DirectCall*/true);
+    $0->setAsmOperandReg(Rax);
 };
 
 # Indirect Call
@@ -591,8 +687,10 @@ reg: RWIR_CALL(reg, args) { $cost[0].cost = $cost[2].cost + 1; }
     $0->setActionExecuted();
     $action[2](AsmGen);
     $action[3](AsmGen, 0);
-    AsmGen->EmitCall("*" + $2->getRegLocString());
-    $0->setRegLoc(false, remniw::Register::RAX);
+    // AsmGen->EmitCall("*" + $2->getRegLocString());
+    // $0->setRegLoc(false, remniw::Register::RAX);
+    AsmGen->createCall($2->getAsmOperandLabel(), /*DirectCall*/false);
+    $0->setAsmOperandReg(remniw::AsmOperand::createReg(remniw::Register::RAX));
 };
 
 # Indirect call
@@ -604,8 +702,8 @@ reg: RWIR_CALL(mem, args) { $cost[0].cost = $cost[2].cost + 1; }
     $0->setActionExecuted();
     $action[2](AsmGen);
     $action[3](AsmGen, 0);
-    AsmGen->EmitCall("*" + $2->getMemLoc());
-    $0->setRegLoc(false, remniw::Register::RAX);
+    AsmGen->createCall($2->getAsmOperandMem(), /*DirectCall*/false);
+    $0->setAsmOperandReg(remniw::AsmOperand::createReg(remniw::Register::RAX));
 };
 
 %%
@@ -631,7 +729,7 @@ void printDebugTree(Node *p, int indent=0) {
         for (; i < indent; ++i) std::cerr << "-";
         std::cerr << "+ op:" << p->getOp() << ", Kind:" << p->getNodeKind() << "\n";
 
-        for(auto *kid: p->Kids)
+        for(auto *kid: p->getKidsVector())
         {
             printDebugTree(kid, (indent+4));
         }
