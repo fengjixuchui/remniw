@@ -1,109 +1,169 @@
 #pragma once
 
+#include "LiveInterval.h"
 #include "Register.h"
+#include <algorithm>
+#include <iostream>
+#include <map>
 #include <queue>
 #include <set>
-#include <iostream>
+#include <unordered_map>
 
 namespace remniw {
 
-class RegisterAllocator {
-public:
-    RegisterAllocator(): Flip(false) {}
-    Register getAvailableRegister() {
-        // FIXME
-        Register Ret = Flip ? Register::R14 : Register::R15;
-        Flip = !Flip;
-        return Ret;
-    }
+// struct LiveInterval {
+//     enum Kind
+//     {
+//         VirtualRegister,
+//         PhysicalResigter,
+//         StackSlot,
+//     };
 
-private:
-    bool Flip;
+//     Kind Kind_;
+//     // [StartPoint, EndPoint)
+//     unsigned StartPoint;
+//     unsigned EndPoint;
+//     unsigned Reg;
+//     unsigned StackSlot_;
+
+//     LiveInterval(Kind Kind_, unsigned StartPoint, unsigned EndPoint):
+//         Kind_(Kind_), StartPoint(StartPoint), EndPoint(EndPoint), Reg(0),
+//         StackSlot_(0) {}
+
+//     bool isStackSlot() { return Kind_ == StackSlot && StackSlot_ != 0; }
+
+//     bool isPhysicalRegister() { return Kind_ == PhysicalResigter && Reg != 0; }
+
+//     void assignToPhysicalRegister(unsigned PhysReg) {
+//         Kind_ = PhysicalResigter;
+//         Reg = PhysReg;
+//     }
+
+//     void spillToStackSlot() {
+//         Kind_ = StackSlot;
+//         StackSlot_ = 1;
+//     }
+
+//     bool operator<(const LiveInterval &other) const {
+//         return StartPoint < other.StartPoint;
+//     }
+// };
+
+auto StartPointIncreasingOrder = [](const LiveInterval *LHS, const LiveInterval *RHS) {
+    if (LHS->StartPoint != RHS->StartPoint)
+        return LHS->StartPoint > RHS->StartPoint;
+    else
+        return LHS->EndPoint > RHS->EndPoint;
 };
 
-using PhysRegType = unsigned;
-
-struct LiveInterval {
-    unsigned StartPoint;
-    unsigned EndPoint;
-
-    mutable PhysRegType PhysReg; // FIXME
-    mutable unsigned StackSlot;
+auto EndPointIncreasingOrder = [](const LiveInterval *LHS, const LiveInterval *RHS) {
+    return LHS->EndPoint < RHS->EndPoint;
 };
 
 class LinearScanRegisterAllocator {
 private:
-    static auto StartPointIncreasingOrder = [](const LiveInterval &LHS, const LiveInterval &RHS) {
-        return LHS.StartPoint > RHS.StartPoint;
-    };
-    static auto EndPointIncreasingOrder = [](const LiveInterval &LHS, const LiveInterval &RHS) {
-        return LHS.EndPoint > RHS.EndPoint;
-    };
-    std::priority_queue<LiveInterval, std::vector<LiveInterval>, decltype(StartPointIncreasingOrder)> Unhandled;
-    std::vector<LiveInterval> Fixed;
-    std::set<LiveInterval, decltype(EndPointIncreasingOrder)> Active;
-    std::unordered_map<PhysRegType, bool> FreeRegisters;
-    std::vector<unsigned> RegUse;
+    std::unordered_map<uint32_t, remniw::LiveRanges> &RegLiveRangesMap;
+    std::vector<LiveInterval *> LiveIntervals;
+    std::priority_queue<LiveInterval *, std::vector<LiveInterval *>,
+                        decltype(StartPointIncreasingOrder)>
+        Unhandled;
+    std::vector<LiveInterval *> Fixed;
+    std::vector<LiveInterval *> Active;
+    std::vector<LiveInterval *> Spilled;
+    std::map<unsigned, bool> FreeRegisters;
+    std::unordered_map<uint32_t, uint32_t> VirtToPhysRegMap;
+
 public:
+    LinearScanRegisterAllocator(
+        std::unordered_map<uint32_t, remniw::LiveRanges> &RegLiveRangesMap):
+        RegLiveRangesMap(RegLiveRangesMap),
+        Unhandled(StartPointIncreasingOrder) {
+        FreeRegisters[Register::RAX] = true;
+        FreeRegisters[Register::RDX] = true;
+        FreeRegisters[Register::RCX] = true;
+        FreeRegisters[Register::RBX] = true;
+        FreeRegisters[Register::RSI] = true;
+        FreeRegisters[Register::RDI] = true;
+        FreeRegisters[Register::R8] = true;
+        FreeRegisters[Register::R9] = true;
+        FreeRegisters[Register::R10] = true;
+        FreeRegisters[Register::R11] = true;
+        FreeRegisters[Register::R12] = true;
+        FreeRegisters[Register::R13] = true;
+        FreeRegisters[Register::R14] = true;
+        FreeRegisters[Register::R15] = true;
+    }
+
     void LinearScan() {
         initIntervalSets();
 
-        Active.clear();
-        while(!Unhandled.empty()) {
-            LiveInterval LI = Unhandled.top();
-
+        while (!Unhandled.empty()) {
+            LiveInterval *LI = Unhandled.top();
+            Unhandled.pop();
+            std::sort(Active.begin(), Active.end(), EndPointIncreasingOrder);
             ExpireOldIntervals(LI);
             unsigned PhysReg = getAvailablePhysReg(LI);
-            if (PhysReg != -1) {
+            if (PhysReg != Register::NoRegister) {
                 FreeRegisters[PhysReg] = false;
-                LI.PhysReg = PhysReg;
-                Active.insert(LI);
+                VirtToPhysRegMap[LI->Reg] = PhysReg;
+                LI->Reg = PhysReg;
+                Active.push_back(LI);
             } else {
                 spillAtInterval(LI);
             }
             printActive();
+        }
 
-            Unhandled.pop();
+        std::cout << "===VirtToPhysRegMap===\n";
+        for (const auto &p : VirtToPhysRegMap) {
+            std::cout << p.first << " ==>> "
+                      << Register::convertRegisterToString(p.second) << "\n";
         }
     }
-private:
-    void initIntervalSets()
-    {
-        FreeRegisters[0] = true;
-        FreeRegisters[1] = true;
 
-        // A[1, 4]
-        // B[2, 5]
-        // C[3, 8]
-        // D[4, 7]
-        // E[5, 6]
-        Unhandled.push({1, 4, 0, 0});
-        Unhandled.push({2, 5, 0, 0});
-        Unhandled.push({3, 8, 0, 0});
-        Unhandled.push({4, 7, 0, 0});
-        Unhandled.push({5, 6, 0, 0});
+    void setFreeRegisters(std::map<unsigned, bool> FR) { FreeRegisters = FR; }
+
+    std::unordered_map<uint32_t, uint32_t> &getVirtToPhysRegMap() {
+        return VirtToPhysRegMap;
     }
 
-    void ExpireOldIntervals(const LiveInterval &LI) {
-        for(auto it = Active.begin(), e = Active.end(); it != e; ) {
-            if (it->EndPoint > LI.StartPoint) {
+private:
+    void initIntervalSets() {
+        Active.clear();
+        for (const auto &p : RegLiveRangesMap) {
+            if (Register::isVirtualRegister(p.first)) {
+                Unhandled.push(new LiveInterval({p.second.Ranges[0].StartPoint,
+                                                 p.second.Ranges[0].EndPoint, p.first}));
+            }
+            if (Register::isPhysicalRegister(p.first)) {
+                for (const auto &Range : p.second.Ranges) {
+                    Fixed.push_back(
+                        new LiveInterval({Range.StartPoint, Range.EndPoint, p.first}));
+                }
+            }
+        }
+    }
+
+    void ExpireOldIntervals(LiveInterval *LI) {
+        for (auto it = Active.begin(); it != Active.end();) {
+            if ((*it)->EndPoint > LI->StartPoint) {
                 return;
             }
-            FreeRegisters[it->PhysReg] = true;
+            FreeRegisters[(*it)->Reg] = true;
             it = Active.erase(it);
         }
     }
 
-    unsigned getAvailablePhysReg(const LiveInterval &LI) {
+    unsigned getAvailablePhysReg(LiveInterval *LI) {
         for (auto p : FreeRegisters) {
             if (p.second == false)
                 continue;
             bool ConflictWithFixed = false;
-            for (auto& FixReg: Fixed) {
-                if (FixReg.PhysReg != p.first)
+            for (auto FixReg : Fixed) {
+                if (FixReg->Reg != p.first)
                     continue;
-                if (FixReg.EndPoint > LI.StartPoint ||
-                    FixReg.StartPoint < LI.EndPoint) {
+                if (FixReg->EndPoint > LI->StartPoint ||
+                    FixReg->StartPoint < LI->EndPoint) {
                     ConflictWithFixed = true;
                     break;
                 }
@@ -116,27 +176,39 @@ private:
         }
 
         // non-avaliable PhysReg
-        return -1;
+        return Register::NoRegister;
     }
 
-    void spillAtInterval(LiveInterval& LI) {
-        auto it = std::prev(Active.end());
-        if (it->EndPoint > LI.EndPoint) {
-            LI.PhysReg = it->PhysReg;
-            it->StackSlot = 1;
-            Active.erase(it);
-            Active.insert(LI);
-        }
-        else {
-            LI.StackSlot = 1;
+    void spillAtInterval(LiveInterval *LI) {
+        static uint32_t StackSlotIndex = 0;
+        if (!Active.empty() && Active.back()->EndPoint > LI->EndPoint) {
+            LI->Reg = Active.back()->Reg;
+            Active.back()->Reg = Register::index2StackSlot(StackSlotIndex++);
+            Active.pop_back();
+            Active.push_back(LI);
+        } else {
+            LI->Reg = Register::index2StackSlot(StackSlotIndex++);
+            Spilled.push_back(LI);
         }
     }
 
     void printActive() {
-        for(auto &it : Active) {
-            std::cout << "[" << it.StartPoint << "," << it.EndPoint << "]"
-                      << "assigned " << it.PhysReg << ":" << it.StackSlot;
+        for (auto LI : Active) {
+            std::cout << "[" << LI->StartPoint << "," << LI->EndPoint << ")"
+                      << " assigned " << Register::convertRegisterToString(LI->Reg)
+                      << std::endl;
         }
+        for (auto LI : Spilled) {
+            std::cout << "[" << LI->StartPoint << "," << LI->EndPoint << ")"
+                      << " assigned " << Register::convertRegisterToString(LI->Reg)
+                      << std::endl;
+        }
+        for (auto LI : Fixed) {
+            std::cout << "[" << LI->StartPoint << "," << LI->EndPoint << ")"
+                      << " assigned " << Register::convertRegisterToString(LI->Reg)
+                      << std::endl;
+        }
+        std::cout << "======\n";
     }
 };
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cassert>
 #include "llvm/Support/ErrorHandling.h"
+#include <cassert>
 
 namespace remniw {
 
@@ -135,29 +135,31 @@ public:
         static uint32_t VirtRegIndex = 0;
         return index2VirtReg(VirtRegIndex++);
     }
-};
 
-static inline const char *convertRegisterToString(Register Reg) {
-    switch (Reg) {
-    case Register::RAX: return "%rax";
-    case Register::RBX: return "%rbx";
-    case Register::RCX: return "%rcx";
-    case Register::RDX: return "%rdx";
-    case Register::RSP: return "%rsp";
-    case Register::RBP: return "%rbp";
-    case Register::RDI: return "%rdi";
-    case Register::RSI: return "%rsi";
-    case Register::R8: return "%r8";
-    case Register::R9: return "%r9";
-    case Register::R10: return "%r10";
-    case Register::R11: return "%r11";
-    case Register::R12: return "%r12";
-    case Register::R13: return "%r13";
-    case Register::R14: return "%r14";
-    case Register::R15: return "%r15";
-    };
-    llvm_unreachable("unexpected Register\n");
-}
+    static const char *convertRegisterToString(uint32_t Reg) {
+        switch (Reg) {
+        case Register::RAX: return "%rax";
+        case Register::RBX: return "%rbx";
+        case Register::RCX: return "%rcx";
+        case Register::RDX: return "%rdx";
+        case Register::RSP: return "%rsp";
+        case Register::RBP: return "%rbp";
+        case Register::RDI: return "%rdi";
+        case Register::RSI: return "%rsi";
+        case Register::R8: return "%r8";
+        case Register::R9: return "%r9";
+        case Register::R10: return "%r10";
+        case Register::R11: return "%r11";
+        case Register::R12: return "%r12";
+        case Register::R13: return "%r13";
+        case Register::R14: return "%r14";
+        case Register::R15: return "%r15";
+        };
+        // TODO: remove this debug code
+        return "%virtreg";
+        llvm_unreachable("unexpected Register\n");
+    }
+};
 
 static Register CallerSavedRegs[] = {Register::RAX, Register::RDI, Register::RSI,
                                      Register::RDX, Register::RCX, Register::R8,

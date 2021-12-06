@@ -7,89 +7,111 @@ void AsmInstruction::print(llvm::raw_ostream &OS) const {
     switch (getInstKind()) {
     case AsmInstruction::Mov: {
         auto *Inst = llvm::cast<AsmMovInst>(this);
-        llvm::outs() << "Mov\n";
-        llvm::outs() << Inst->getSrcOp() << ", " << Inst->getDstOp() << "\n";
-        // OS << "movq "
-        //    << "\n";
+        OS << "\tmovq\t";
+        Inst->getSrcOp()->print(OS);
+        OS << ", ";
+        Inst->getDstOp()->print(OS);
+        OS << "\n";
         return;
     }
     case AsmInstruction::Lea: {
         auto *Inst = llvm::cast<AsmLeaInst>(this);
-        llvm::outs() << "Lea\n";
-        llvm::outs() << Inst->getSrcOp() << ", " << Inst->getDstOp() << "\n";
-        // OS << "leaq "
-        //    << "\n";
+        OS << "\tleaq\t";
+        Inst->getSrcOp()->print(OS);
+        OS << ", ";
+        Inst->getDstOp()->print(OS);
+        OS << "\n";
         return;
     }
     case AsmInstruction::Cmp: {
         auto *Inst = llvm::cast<AsmCmpInst>(this);
-        llvm::outs() << "Cmp\n";
-        llvm::outs() << Inst->getSrcOp() << ", " << Inst->getDstOp() << "\n";
-        // OS << "cmpq "
-        //    << "\n";
+        OS << "\tcmpq\t";
+        Inst->getSrcOp()->print(OS);
+        OS << ", ";
+        Inst->getDstOp()->print(OS);
+        OS << "\n";
         return;
     }
     case AsmInstruction::Jmp: {
         auto *Inst = llvm::cast<AsmJmpInst>(this);
-        llvm::outs() << "Jmp\n";
-        llvm::outs() << Inst->getJmpKind()  << ", " << Inst->getOp() << "\n";
-        // OS << "jmp "
-        //    << "\n";
+        switch (Inst->getJmpKind())
+        {
+        case AsmJmpInst::Jmp:
+            OS << "\tjmp\t";
+            break;
+        case AsmJmpInst::Je:
+            OS << "\tje\t";
+            break;
+        case AsmJmpInst::Jne:
+            OS << "\tjne\t";
+            break;
+        case AsmJmpInst::Jg:
+            OS << "\tjg\t";
+            break;
+        case AsmJmpInst::Jle:
+            OS << "\tjle\t";
+            break;
+        default:
+            llvm_unreachable("Invalid AsmJmpInst!");
+        }
+        Inst->getOp()->print(OS);
+        OS << "\n";
         return;
     }
     case AsmInstruction::Add: {
         auto *Inst = llvm::cast<AsmAddInst>(this);
-        llvm::outs() << "Add\n";
-        llvm::outs() << Inst->getSrcOp() << ", " << Inst->getDstOp() << "\n";
-        // OS << "addq "
-        //    << "\n";
+        OS << "\taddq\t";
+        Inst->getSrcOp()->print(OS);
+        OS << ", ";
+        Inst->getDstOp()->print(OS);
+        OS << "\n";
         return;
     }
     case AsmInstruction::Sub: {
         auto *Inst = llvm::cast<AsmSubInst>(this);
-        llvm::outs() << "Sub\n";
-        llvm::outs() << Inst->getSrcOp() << ", " << Inst->getDstOp() << "\n";
-        // OS << "subq "
-        //    << "\n";
+        OS << "\tsubq\t";
+        Inst->getSrcOp()->print(OS);
+        OS << ", ";
+        Inst->getDstOp()->print(OS);
+        OS << "\n";
         return;
     }
     case AsmInstruction::Imul: {
         auto *Inst = llvm::cast<AsmImulInst>(this);
-        llvm::outs() << "Imul\n";
-        llvm::outs() << Inst->getSrcOp() << ", " << Inst->getDstOp() << "\n";
-        // OS << "imulq "
-        //    << "\n";
+        OS << "\timulq\t";
+        Inst->getSrcOp()->print(OS);
+        OS << ", ";
+        Inst->getDstOp()->print(OS);
+        OS << "\n";
         return;
     }
     case AsmInstruction::Idiv: {
         auto *Inst = llvm::cast<AsmIdivInst>(this);
-        llvm::outs() << "Idiv\n";
-        llvm::outs() << Inst->getOp() << "\n";
-        // OS << "idivq "
-        //    << "\n";
+        OS << "\tidivq\t";
+        Inst->getOp()->print(OS);
+        OS << "\n";
         return;
     }
     case AsmInstruction::Cqto: {
-        llvm::outs() << "Cqto\n";
-        // OS << "cqto "
-        //    << "\n";
+        OS << "\tidivq\n";
         return;
     }
     case AsmInstruction::Call: {
         auto *Inst = llvm::cast<AsmCallInst>(this);
-        llvm::outs() << "Call\n";
-        llvm::outs() << Inst->getCalleeOp() << ", isDirectCall: " << Inst->isDirectCall()
-                     << "\n";
-        // OS << "callq "
-        //    << "\n";
+        OS << "\tcallq\t";
+        if (!Inst->isDirectCall())
+            OS << "*";
+        Inst->getCalleeOp()->print(OS);
+        OS << "\n";
         return;
     }
     case AsmInstruction::Xor: {
         auto *Inst = llvm::cast<AsmXorInst>(this);
-        llvm::outs() << "Xor\n";
-        llvm::outs() << Inst->getSrcOp() << ", " << Inst->getDstOp() << "\n";
-        // OS << "xorq "
-        //    << "\n";
+        OS << "\txorq\t";
+        Inst->getSrcOp()->print(OS);
+        OS << ", ";
+        Inst->getDstOp()->print(OS);
+        OS << "\n";
         return;
     }
     }

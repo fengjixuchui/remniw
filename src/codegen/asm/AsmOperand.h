@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Register.h"
+#include "llvm/Support/raw_ostream.h"
 #include <cassert>
 #include <cstdint>
 #include <memory>
@@ -79,6 +80,18 @@ struct AsmOperand {
 
     bool isReg() const { return Kind == Register; }
 
+    bool isVirtReg() const {
+        return Kind == Register && Register::isVirtualRegister(Reg.RegNo);
+    }
+
+    bool isPhysReg() const {
+        return Kind == Register && Register::isPhysicalRegister(Reg.RegNo);
+    }
+
+    bool isStackSlotReg() const {
+        return Kind == Register && Register::isStackSlot(Reg.RegNo);
+    }
+
     bool isMem() const { return Kind == Memory; }
 
     bool isImm() const { return Kind == Immediate; }
@@ -106,6 +119,26 @@ struct AsmOperand {
     uint32_t getMemScale() const {
         assert(Kind == Memory && "Invalid access!");
         return Mem.Scale;
+    }
+
+    void print(llvm::raw_ostream& OS) const {
+        switch (Kind) {
+        case Register: OS << Register::convertRegisterToString(Reg.RegNo); break;
+        case Immediate: OS << "$" << Imm.Val; break;
+        case Memory:
+            if (Mem.Disp != 0)
+                OS << Mem.Disp;
+            OS << "(";
+            if (Mem.BaseReg)
+                OS << Register::convertRegisterToString(Mem.BaseReg);
+            if (Mem.IndexReg) {
+                OS << ", " << Register::convertRegisterToString(Mem.IndexReg);
+                OS << ", " << Mem.Scale;
+            }
+            OS << ")";
+            break;
+        case LabelString: OS << "TODO LabelString"; break;
+        }
     }
 };
 

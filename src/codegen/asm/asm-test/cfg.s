@@ -45,4 +45,4 @@ main:
 fmtstr:
 .asciz "%lli"
 fmtstr.1:
-.asciz "%lli\0A"
+.asciz "%lli\n"

@@ -1,8 +1,8 @@
 #pragma once
 
+#include "llvm/Support/raw_ostream.h"
 #include <cstdint>
 #include <vector>
-#include "llvm/Support/raw_ostream.h"
 
 namespace remniw {
 
@@ -15,8 +15,16 @@ struct LiveRange {
     }
 };
 
-struct LiveIntervalTy {
+// Lifetime interval containing holes
+struct LiveRanges {
     std::vector<LiveRange> Ranges;
+};
+
+// Lifetime interval not containing holes
+struct LiveInterval {
+    uint32_t StartPoint;
+    uint32_t EndPoint;
+    uint32_t Reg;
 };
 
 }  // namespace remniw

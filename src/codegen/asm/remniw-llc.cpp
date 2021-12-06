@@ -1,10 +1,12 @@
-#include "ASMCodeGeneratorHelper.h"
+#include "AsmBuilder.h"
+#include "BrgTreeBuilder.h"
+#include "AsmRewriter.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/ToolOutputFile.h"
 
 using namespace llvm;
@@ -25,13 +27,15 @@ int main(int argc, char *argv[]) {
     llvm::SMDiagnostic Error;
     std::unique_ptr<llvm::Module> M = parseIRFile(InputFilename, Error, Context);
 
-    remniw::ExprTreeBuilder Builder(M->getDataLayout());
-    Builder.visit(*M);
-
     std::error_code EC;
     llvm::ToolOutputFile Out(OutputFilename, EC, llvm::sys::fs::OF_Text);
-    remniw::AsmCodeGenerator AsmGen(Out.os(), Builder.Functions, Builder.ConstantStrings);
-    AsmGen.EmitAssembly();
+
+    remniw::BrgTreeBuilder BrgExprTreeBuilder(M->getDataLayout());
+    BrgExprTreeBuilder.visit(*M);
+    remniw::AsmBuilder AsmCodeBuilder(BrgExprTreeBuilder.getFunctions(),
+                                      BrgExprTreeBuilder.getConstantStrings());
+    remniw::AsmRewriter Rewriter(AsmCodeBuilder.getAsmFunctions());
+    // remniw::AsmPrinter Printer;
     Out.keep();
 
     return 0;
