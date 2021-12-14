@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AsmSymbol.h"
 #include "Register.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cassert>
@@ -14,7 +15,7 @@ struct AsmOperand {
         Register,
         Memory,
         Immediate,
-        LabelString
+        Label
     } Kind;
 
     struct RegOp {
@@ -33,16 +34,14 @@ struct AsmOperand {
     };
 
     struct LabelOp {
-        const char* StringPtr;
-        size_t StringSize;
-        uint32_t UniqueCounter;  // Counter for tracking unique names
+        AsmSymbol* Symbol;
     };
 
     union {
         struct RegOp Reg;
         struct MemOp Mem;
         struct ImmOp Imm;
-        struct LabelOp Label;
+        struct LabelOp Lbl;
     };
 
     AsmOperand(KindTy Kind): Kind(Kind) {}
@@ -70,11 +69,9 @@ struct AsmOperand {
         return Res;
     }
 
-    static AsmOperand* createLabel(const char* Ptr, size_t Size, uint32_t Counter = 0) {
-        auto Res = new AsmOperand(KindTy::LabelString);
-        Res->Label.StringPtr = Ptr;
-        Res->Label.StringSize = Size;
-        Res->Label.UniqueCounter = Counter;
+    static AsmOperand* createLabel(AsmSymbol* Symbol) {
+        auto Res = new AsmOperand(KindTy::Label);
+        Res->Lbl.Symbol = Symbol;
         return Res;
     }
 
@@ -121,6 +118,11 @@ struct AsmOperand {
         return Mem.Scale;
     }
 
+    AsmSymbol* getLabel() const {
+        assert(Kind == Label && "Invalid access!");
+        return Lbl.Symbol;
+    }
+
     void print(llvm::raw_ostream& OS) const {
         switch (Kind) {
         case Register: OS << Register::convertRegisterToString(Reg.RegNo); break;
@@ -137,7 +139,11 @@ struct AsmOperand {
             }
             OS << ")";
             break;
-        case LabelString: OS << "TODO LabelString"; break;
+        case Label:
+            Lbl.Symbol->print(OS);
+            if (Lbl.Symbol->isFunction() || Lbl.Symbol->isGlobalVariable())
+                OS << "(%rip)";  // rip relative addressing
+            break;
         }
     }
 };

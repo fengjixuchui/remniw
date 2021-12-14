@@ -26,9 +26,7 @@ public:
         RegNode,
         InstNode,
         ArgsNode,
-        FunctionLabelNode,
-        BasicBlockLabelNode,
-        ConstantStringLabelNode,
+        LabelNode,
     };
 
 private:
@@ -59,9 +57,7 @@ public:
         case RegNode: return "RegNode";
         case InstNode: return "InstNode";
         case ArgsNode: return "ArgsNode";
-        case FunctionLabelNode: return "FunctionLabelNode";
-        case BasicBlockLabelNode: return "BasicBlockLabelNode";
-        case ConstantStringLabelNode: return "ConstantStringLabelNode";
+        case LabelNode: return "LabelNode";
         }
         llvm_unreachable("unexpected NodeKind");
     };
@@ -119,24 +115,9 @@ public:
         return Ret;
     }
 
-    static BrgTreeNode *createFunctionLabelNode(llvm::StringRef StrRef) {
-        auto *Ret = new BrgTreeNode(KindTy::FunctionLabelNode, /*Label*/ 69);
-        Ret->AsmOp = remniw::AsmOperand::createLabel(StrRef.data(), StrRef.size());
-        return Ret;
-    }
-
-    static BrgTreeNode *createBasicBlockLabelNode(llvm::StringRef StrRef) {
-        static uint32_t LastUnique = 0;
-        LastUnique++;
-        auto *Ret = new BrgTreeNode(KindTy::BasicBlockLabelNode, /*Label*/ 69);
-        Ret->AsmOp =
-            remniw::AsmOperand::createLabel(StrRef.data(), StrRef.size(), LastUnique);
-        return Ret;
-    }
-
-    static BrgTreeNode *createConstantStringLabelNode(llvm::StringRef StrRef) {
-        auto *Ret = new BrgTreeNode(KindTy::ConstantStringLabelNode, /*Label*/ 69);
-        Ret->AsmOp = remniw::AsmOperand::createLabel(StrRef.data(), StrRef.size());
+    static BrgTreeNode *createLabelNode(remniw::AsmSymbol *Symbol) {
+        auto *Ret = new BrgTreeNode(KindTy::LabelNode, /*Label*/ 69);
+        Ret->AsmOp = remniw::AsmOperand::createLabel(Symbol);
         return Ret;
     }
 
@@ -169,32 +150,7 @@ public:
     void setInstruction(llvm::Instruction *I) { Inst = I; }
 
     /** ================= LabelNode Functions =================== **/
-    remniw::AsmOperand *getAsmOperandLabel() {
-        assert((Kind == KindTy::FunctionLabelNode ||
-                Kind == KindTy::BasicBlockLabelNode ||
-                Kind == KindTy::ConstantStringLabelNode) &&
-               "Not a LabelNode");
-        return AsmOp;
-    }
-
-    std::string getLabelStringAsLabel() {
-        assert(
-            (Kind == KindTy::BasicBlockLabelNode || Kind == KindTy::FunctionLabelNode) &&
-            "Kind must be BasicBlockLabelNode or FunctionLabelNode");
-        if (Kind == KindTy::BasicBlockLabelNode) {
-            return ".BB." + std::string(AsmOp->Label.StringPtr, AsmOp->Label.StringSize) +
-                   '.' + std::to_string(AsmOp->Label.UniqueCounter);
-        } else {
-            return std::string(AsmOp->Label.StringPtr, AsmOp->Label.StringSize);
-        }
-    }
-
-    std::string getLabelStringAsConstant() {
-        assert((Kind == KindTy::ConstantStringLabelNode ||
-                Kind == KindTy::FunctionLabelNode) &&
-               "Kind must be ConstantStringLabelNode or FunctionLabelNode");
-        return "$" + std::string(AsmOp->Label.StringPtr, AsmOp->Label.StringSize);
-    }
+    remniw::AsmOperand *getAsmOperandLabel() { return AsmOp; }
 };
 
 typedef BrgTreeNode *NODEPTR;
@@ -245,10 +201,12 @@ private:
     llvm::DenseMap<llvm::Argument *, BrgTreeNode *> ArgMap;
     llvm::SmallVector<BrgTreeNode *> ExprTrees;
     const llvm::DataLayout &DL;
+    AsmContext &AsmCtx;
     int64_t Offset;  // clear per function
 
 public:
-    BrgTreeBuilder(const llvm::DataLayout &DL): DL(DL), Offset(0) {}
+    BrgTreeBuilder(const llvm::DataLayout &DL, AsmContext &AsmCtx):
+        DL(DL), AsmCtx(AsmCtx), Offset(0) {}
 
     ~BrgTreeBuilder() {}
 
@@ -272,7 +230,7 @@ public:
                     llvm::dyn_cast<llvm::ConstantDataArray>(GV.getInitializer())) {
                 if (CDA->isCString()) {
                     LabelMap[&GV] =
-                        BrgTreeNode::createConstantStringLabelNode(GV.getName());
+                        BrgTreeNode::createLabelNode(AsmCtx.getOrCreateSymbol(&GV));
                     ConstantStrings[&GV] = CDA->getAsCString();
                 }
             }
@@ -339,14 +297,14 @@ public:
         } else if (auto *F = llvm::dyn_cast<llvm::Function>(V)) {
             auto it = LabelMap.find(V);
             if (it == LabelMap.end()) {
-                LabelMap[V] = BrgTreeNode::createFunctionLabelNode(F->getName());
+                LabelMap[V] = BrgTreeNode::createLabelNode(AsmCtx.getOrCreateSymbol(F));
                 return LabelMap[V];
             }
             return it->second;
         } else if (auto *BB = llvm::dyn_cast<llvm::BasicBlock>(V)) {
             auto it = LabelMap.find(V);
             if (it == LabelMap.end()) {
-                LabelMap[V] = BrgTreeNode::createBasicBlockLabelNode(BB->getName());
+                LabelMap[V] = BrgTreeNode::createLabelNode(AsmCtx.getOrCreateSymbol(BB));
                 return LabelMap[V];
             }
             return it->second;

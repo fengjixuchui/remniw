@@ -243,8 +243,10 @@ stmt: BRG_STORE(label, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1;
     $action[3](Builder);
     // Builder->EmitMov($2->getLabelStringAsConstant(), $3->getMemLoc());
     auto *Src = $2->getAsmOperandLabel();
+    auto *Tmp = remniw::AsmOperand::createReg(remniw::Register::createVirtReg());
+    Builder->createLea(Src, Tmp);
     auto *Dst = $3->getAsmOperandMem();
-    Builder->createMov(Src, Dst);
+    Builder->createMov(Tmp, Dst);
 };
 
 cond: BRG_ICMP(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
@@ -636,12 +638,12 @@ arg: label { $cost[0].cost = $cost[1].cost + 1; }
     if (argNo < 6) {
         // Builder->createMov($1->getLabelStringAsConstant(),
         //                    remniw::convertRegisterToString(remniw::ArgRegs[argNo]));
-        Builder->createMov($1->getAsmOperandLabel(),
+        Builder->createLea($1->getAsmOperandLabel(),
             remniw::AsmOperand::createReg(remniw::ArgRegs[argNo]));
     } else {
         // Builder->createMov($1->getLabelStringAsConstant(),
         //                    std::to_string(8 * (argNo - 6)) + "(%rsp)");
-        Builder->createMov($1->getAsmOperandLabel(),
+        Builder->createLea($1->getAsmOperandLabel(),
             remniw::AsmOperand::createMem(8 * (argNo - 6), remniw::Register::RSP));
     }
 };
@@ -668,12 +670,12 @@ reg: BRG_CALL(label, args) { $cost[0].cost = $cost[2].cost + 1; }
     $action[2](Builder);
     $action[3](Builder, 0);
     auto* CB = llvm::cast<llvm::CallBase>($1->getInstruction());
-    std::string Callee = $2->getLabelStringAsLabel();
+    auto* Callee = $2->getAsmOperandLabel();
     auto* Rax = remniw::AsmOperand::createReg(remniw::Register::RAX);
-    if (Callee == "printf" || Callee == "scanf") {
+    std::string CalleeName = Callee->getLabel()->getName();
+    if (CalleeName == "printf" || CalleeName == "scanf") {
         Builder->createXor(Rax, Rax);
     }
-    // Builder->createCall($2->getLabelStringAsLabel());
     Builder->createCall($2->getAsmOperandLabel(), /*DirectCall*/true);
     $0->setAsmOperandReg(Rax);
 };

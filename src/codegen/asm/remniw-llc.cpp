@@ -1,6 +1,4 @@
-#include "AsmBuilder.h"
-#include "BrgTreeBuilder.h"
-#include "AsmRewriter.h"
+#include "AsmCodeGenetator.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IRReader/IRReader.h"
@@ -30,12 +28,7 @@ int main(int argc, char *argv[]) {
     std::error_code EC;
     llvm::ToolOutputFile Out(OutputFilename, EC, llvm::sys::fs::OF_Text);
 
-    remniw::BrgTreeBuilder BrgExprTreeBuilder(M->getDataLayout());
-    BrgExprTreeBuilder.visit(*M);
-    remniw::AsmBuilder AsmCodeBuilder(BrgExprTreeBuilder.getFunctions(),
-                                      BrgExprTreeBuilder.getConstantStrings());
-    remniw::AsmRewriter Rewriter(AsmCodeBuilder.getAsmFunctions());
-    // remniw::AsmPrinter Printer;
+    remniw::AsmCodeGenerator CG(M.get());
     Out.keep();
 
     return 0;

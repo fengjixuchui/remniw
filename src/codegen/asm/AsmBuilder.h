@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AsmContext.h"
 #include "AsmInstruction.h"
 #include "BrgTreeBuilder.h"
 #include "LiveInterval.h"
@@ -32,6 +33,7 @@ struct AsmFunction {
 
 class AsmBuilder {
 private:
+    AsmContext &AsmCtx;
     llvm::SmallVector<BrgFunction> BrgFunctions;
     llvm::DenseMap<llvm::GlobalVariable *, llvm::StringRef> GlobalVariables;
     llvm::SmallVector<AsmFunction> AsmFunctions;
@@ -39,10 +41,10 @@ private:
     std::unordered_map<uint32_t, remniw::LiveRanges> CurrentRegLiveRangesMap;
 
 public:
-    AsmBuilder(llvm::SmallVector<BrgFunction> Functions,
+    AsmBuilder(AsmContext &AsmCtx, llvm::SmallVector<BrgFunction> Functions,
                llvm::DenseMap<llvm::GlobalVariable *, llvm::StringRef> GVs):
-        BrgFunctions(std::move(Functions)),
-        GlobalVariables(std::move(GVs)) {
+        AsmCtx(AsmCtx),
+        BrgFunctions(std::move(Functions)), GlobalVariables(std::move(GVs)) {
         for (const auto &BrgFunc : BrgFunctions) {
             buildAsmFunction(BrgFunc);
         }
@@ -50,9 +52,7 @@ public:
 
     void buildAsmFunction(const BrgFunction &);
 
-    llvm::SmallVector<AsmFunction>& getAsmFunctions() {
-        return AsmFunctions;
-    }
+    llvm::SmallVector<AsmFunction> &getAsmFunctions() { return AsmFunctions; }
 
     void updateRegLiveRanges(uint32_t Reg) {
         uint32_t StartPoint = static_cast<uint32_t>(CurrentAsmFuncInsts.size());
