@@ -742,10 +742,9 @@ namespace remniw {
 void AsmBuilder::buildAsmFunction(const BrgFunction &BrgFunc) {
     for (auto* RootNode: BrgFunc.ExprTrees) {
         printDebugTree(RootNode);
-
-        // TODO: Label Instruction
-        // if (RootNode->getOp() == /*Label*/69)
-        //     Out << RootNode->getLabelStringAsLabel() << ":\n";
+        // FIXME: Label Instruction
+        if (RootNode->getOp() == /*Label*/69)
+            createLabel(RootNode->getAsmOperandLabel());
         gen(RootNode, this);
     }
     AsmFunction AsmFunc(BrgFunc.FuncName, BrgFunc.StackSizeInBytes,

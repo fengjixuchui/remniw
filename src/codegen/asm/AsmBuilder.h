@@ -35,16 +35,13 @@ class AsmBuilder {
 private:
     AsmContext &AsmCtx;
     llvm::SmallVector<BrgFunction> BrgFunctions;
-    llvm::DenseMap<llvm::GlobalVariable *, llvm::StringRef> GlobalVariables;
     llvm::SmallVector<AsmFunction> AsmFunctions;
     std::vector<AsmInstruction *> CurrentAsmFuncInsts;
     std::unordered_map<uint32_t, remniw::LiveRanges> CurrentRegLiveRangesMap;
 
 public:
-    AsmBuilder(AsmContext &AsmCtx, llvm::SmallVector<BrgFunction> Functions,
-               llvm::DenseMap<llvm::GlobalVariable *, llvm::StringRef> GVs):
-        AsmCtx(AsmCtx),
-        BrgFunctions(std::move(Functions)), GlobalVariables(std::move(GVs)) {
+    AsmBuilder(AsmContext &AsmCtx, llvm::SmallVector<BrgFunction> Functions):
+        AsmCtx(AsmCtx), BrgFunctions(std::move(Functions)) {
         for (const auto &BrgFunc : BrgFunctions) {
             buildAsmFunction(BrgFunc);
         }
@@ -220,65 +217,10 @@ public:
         updateAsmOperandLiveRanges(Dst);
     }
 
-    // void EmitAssembly() {
-    //     for (auto &F : Functions) {
-    //         EmitFunction(F);
-    //     }
-    //     EmitGlobalVariables();
-    // }
-
-    // void EmitFunction(AsmFunction &F);
-
-    // void EmitFunctionDeclaration(AsmFunction &F) {
-    //     // FIXME
-    //     Out << ".text\n"
-    //         << ".globl " << F.FuncName << "\n"
-    //         << ".type " << F.FuncName << ", @function\n"
-    //         << F.FuncName << ":\n";
-    // }
-
-    // void EmitFunctionPrologue(AsmFunction &F) {
-    //     Out << "\tpushq\t"
-    //         << "%rbp\n";
-    //     Out << "\tmovq\t"
-    //         << "%rsp, %rbp\n";
-    //     Out << "\tsubq\t"
-    //         << "$" << F.TotalAllocaSizeInBytes << ", %rsp\n";
-    // }
-
-    // void EmitFunctionEpilogue(AsmFunction &F) {
-    //     Out << "\tmovq\t"
-    //         << "%rbp, %rsp\n";
-    //     Out << "\tpopq\t"
-    //         << "%rbp\n";
-    //     Out << "\tretq\n\n";
-    // }
-
-    // void EmitGlobalVariables() {
-    //     for (auto p : GlobalVariables) {
-    //         Out << p.first->getName().str() << ":\n";
-    //         Out << "\t.asciz ";
-    //         Out << "\"";
-    //         Out.write_escaped(p.second);
-    //         Out << "\"\n";
-    //     }
-    // }
-
-    // void AsmCodeGenerator::EmitFunction(AsmFunction &F) {
-    //     EmitFunctionDeclaration(F);
-
-    //     EmitFunctionPrologue(F);
-
-    //     // body
-    //     for (auto *T : F.ExprTrees) {
-    //         printDebugTree(T);
-    //         if (T->getOp() == /*Label*/ 69)
-    //             Out << T->getLabelStringAsLabel() << ":\n";
-    //         gen(T, this);
-    //     }
-
-    //     EmitFunctionEpilogue(F);
-    // }
+    void createLabel(AsmOperand *LabelOp) {
+        CurrentAsmFuncInsts.push_back(
+            /*std::make_unique<AsmInstruction>*/ (new AsmLabelInst(LabelOp)));
+    }
 };
 
 using AsmBuilderPtr = AsmBuilder *;

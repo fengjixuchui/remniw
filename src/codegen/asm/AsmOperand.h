@@ -93,6 +93,8 @@ struct AsmOperand {
 
     bool isImm() const { return Kind == Immediate; }
 
+    bool isLabel() const { return Kind == Label; }
+
     uint32_t getReg() const {
         assert(Kind == Register && "Invalid access!");
         return Reg.RegNo;
@@ -139,11 +141,7 @@ struct AsmOperand {
             }
             OS << ")";
             break;
-        case Label:
-            Lbl.Symbol->print(OS);
-            if (Lbl.Symbol->isFunction() || Lbl.Symbol->isGlobalVariable())
-                OS << "(%rip)";  // rip relative addressing
-            break;
+        case Label: Lbl.Symbol->print(OS); break;
         }
     }
 };

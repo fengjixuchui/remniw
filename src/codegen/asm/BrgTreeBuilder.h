@@ -194,7 +194,7 @@ struct BrgFunction {
 
 class BrgTreeBuilder: public llvm::InstVisitor<BrgTreeBuilder, BrgTreeNode *> {
 private:
-    llvm::DenseMap<llvm::GlobalVariable *, llvm::StringRef> ConstantStrings;
+    llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> ConstantStrings;
     llvm::SmallVector<BrgFunction> Functions;
     llvm::DenseMap<llvm::Instruction *, BrgTreeNode *> InstMap;
     llvm::DenseMap<llvm::Value *, BrgTreeNode *> LabelMap;
@@ -210,7 +210,7 @@ public:
 
     ~BrgTreeBuilder() {}
 
-    llvm::DenseMap<llvm::GlobalVariable *, llvm::StringRef> getConstantStrings() {
+    llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> getConstantStrings() {
         return ConstantStrings;
     }
 
@@ -231,7 +231,7 @@ public:
                 if (CDA->isCString()) {
                     LabelMap[&GV] =
                         BrgTreeNode::createLabelNode(AsmCtx.getOrCreateSymbol(&GV));
-                    ConstantStrings[&GV] = CDA->getAsCString();
+                    ConstantStrings[AsmCtx.getOrCreateSymbol(&GV)] = CDA->getAsCString();
                 }
             }
         }

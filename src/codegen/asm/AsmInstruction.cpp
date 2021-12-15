@@ -12,16 +12,21 @@ void AsmInstruction::print(llvm::raw_ostream &OS) const {
         OS << ", ";
         Inst->getDstOp()->print(OS);
         OS << "\n";
-        return;
+        break;
     }
     case AsmInstruction::Lea: {
         auto *Inst = llvm::cast<AsmLeaInst>(this);
         OS << "\tleaq\t";
         Inst->getSrcOp()->print(OS);
+        if (Inst->getSrcOp()->isLabel() &&
+            (Inst->getSrcOp()->getLabel()->isFunction() ||
+             Inst->getSrcOp()->getLabel()->isGlobalVariable())) {
+            OS << "(%rip)";  // rip relative addressing
+        }
         OS << ", ";
         Inst->getDstOp()->print(OS);
         OS << "\n";
-        return;
+        break;
     }
     case AsmInstruction::Cmp: {
         auto *Inst = llvm::cast<AsmCmpInst>(this);
@@ -30,33 +35,21 @@ void AsmInstruction::print(llvm::raw_ostream &OS) const {
         OS << ", ";
         Inst->getDstOp()->print(OS);
         OS << "\n";
-        return;
+        break;
     }
     case AsmInstruction::Jmp: {
         auto *Inst = llvm::cast<AsmJmpInst>(this);
-        switch (Inst->getJmpKind())
-        {
-        case AsmJmpInst::Jmp:
-            OS << "\tjmp\t";
-            break;
-        case AsmJmpInst::Je:
-            OS << "\tje\t";
-            break;
-        case AsmJmpInst::Jne:
-            OS << "\tjne\t";
-            break;
-        case AsmJmpInst::Jg:
-            OS << "\tjg\t";
-            break;
-        case AsmJmpInst::Jle:
-            OS << "\tjle\t";
-            break;
-        default:
-            llvm_unreachable("Invalid AsmJmpInst!");
+        switch (Inst->getJmpKind()) {
+        case AsmJmpInst::Jmp: OS << "\tjmp\t"; break;
+        case AsmJmpInst::Je: OS << "\tje\t"; break;
+        case AsmJmpInst::Jne: OS << "\tjne\t"; break;
+        case AsmJmpInst::Jg: OS << "\tjg\t"; break;
+        case AsmJmpInst::Jle: OS << "\tjle\t"; break;
+        default: llvm_unreachable("Invalid AsmJmpInst!");
         }
         Inst->getOp()->print(OS);
         OS << "\n";
-        return;
+        break;
     }
     case AsmInstruction::Add: {
         auto *Inst = llvm::cast<AsmAddInst>(this);
@@ -65,7 +58,7 @@ void AsmInstruction::print(llvm::raw_ostream &OS) const {
         OS << ", ";
         Inst->getDstOp()->print(OS);
         OS << "\n";
-        return;
+        break;
     }
     case AsmInstruction::Sub: {
         auto *Inst = llvm::cast<AsmSubInst>(this);
@@ -74,7 +67,7 @@ void AsmInstruction::print(llvm::raw_ostream &OS) const {
         OS << ", ";
         Inst->getDstOp()->print(OS);
         OS << "\n";
-        return;
+        break;
     }
     case AsmInstruction::Imul: {
         auto *Inst = llvm::cast<AsmImulInst>(this);
@@ -83,18 +76,18 @@ void AsmInstruction::print(llvm::raw_ostream &OS) const {
         OS << ", ";
         Inst->getDstOp()->print(OS);
         OS << "\n";
-        return;
+        break;
     }
     case AsmInstruction::Idiv: {
         auto *Inst = llvm::cast<AsmIdivInst>(this);
         OS << "\tidivq\t";
         Inst->getOp()->print(OS);
         OS << "\n";
-        return;
+        break;
     }
     case AsmInstruction::Cqto: {
         OS << "\tidivq\n";
-        return;
+        break;
     }
     case AsmInstruction::Call: {
         auto *Inst = llvm::cast<AsmCallInst>(this);
@@ -103,7 +96,7 @@ void AsmInstruction::print(llvm::raw_ostream &OS) const {
             OS << "*";
         Inst->getCalleeOp()->print(OS);
         OS << "\n";
-        return;
+        break;
     }
     case AsmInstruction::Xor: {
         auto *Inst = llvm::cast<AsmXorInst>(this);
@@ -112,10 +105,16 @@ void AsmInstruction::print(llvm::raw_ostream &OS) const {
         OS << ", ";
         Inst->getDstOp()->print(OS);
         OS << "\n";
-        return;
+        break;
     }
+    case AsmInstruction::Label: {
+        auto *Inst = llvm::cast<AsmLabelInst>(this);
+        Inst->getLabelOp()->print(OS);
+        OS << ":\n";
+        break;
     }
-    llvm_unreachable("Invalid AsmInstruction");
+    default: llvm_unreachable("Invalid AsmInstruction");
+    }
 }
 
 }  // namespace remniw

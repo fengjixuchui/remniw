@@ -21,14 +21,9 @@ public:
                 rewriteAsmInstVirtRegToPhysReg(AsmInst, VirtToPhysRegMap);
             }
         }
-
-        llvm::outs() << "===== AsmRewriter =====\n";
-        for (auto &AsmFunc : AsmFunctions) {
-            for (auto *AsmInst : AsmFunc.Instructions) {
-                AsmInst->print(llvm::outs());
-            }
-        }
     }
+
+    llvm::SmallVector<AsmFunction> &getAsmFunctions() { return AsmFunctions; }
 
     void doRegAlloc() {
         for (auto &AsmFunc : AsmFunctions) {
@@ -60,64 +55,67 @@ public:
             auto *Inst = llvm::cast<AsmMovInst>(AsmInst);
             rewriteAsmOperandVirtRegToPhysReg(Inst->getSrcOp(), VirtToPhysRegMap);
             rewriteAsmOperandVirtRegToPhysReg(Inst->getDstOp(), VirtToPhysRegMap);
-            return;
+            break;
         }
         case AsmInstruction::Lea: {
             auto *Inst = llvm::cast<AsmLeaInst>(AsmInst);
             rewriteAsmOperandVirtRegToPhysReg(Inst->getSrcOp(), VirtToPhysRegMap);
             rewriteAsmOperandVirtRegToPhysReg(Inst->getDstOp(), VirtToPhysRegMap);
-            return;
+            break;
         }
         case AsmInstruction::Cmp: {
             auto *Inst = llvm::cast<AsmCmpInst>(AsmInst);
             rewriteAsmOperandVirtRegToPhysReg(Inst->getSrcOp(), VirtToPhysRegMap);
             rewriteAsmOperandVirtRegToPhysReg(Inst->getDstOp(), VirtToPhysRegMap);
-            return;
+            break;
         }
         case AsmInstruction::Jmp: {
             auto *Inst = llvm::cast<AsmJmpInst>(AsmInst);
             rewriteAsmOperandVirtRegToPhysReg(Inst->getOp(), VirtToPhysRegMap);
-            return;
+            break;
         }
         case AsmInstruction::Add: {
             auto *Inst = llvm::cast<AsmAddInst>(AsmInst);
             rewriteAsmOperandVirtRegToPhysReg(Inst->getSrcOp(), VirtToPhysRegMap);
             rewriteAsmOperandVirtRegToPhysReg(Inst->getDstOp(), VirtToPhysRegMap);
-            return;
+            break;
         }
         case AsmInstruction::Sub: {
             auto *Inst = llvm::cast<AsmSubInst>(AsmInst);
             rewriteAsmOperandVirtRegToPhysReg(Inst->getSrcOp(), VirtToPhysRegMap);
             rewriteAsmOperandVirtRegToPhysReg(Inst->getDstOp(), VirtToPhysRegMap);
-            return;
+            break;
         }
         case AsmInstruction::Imul: {
             auto *Inst = llvm::cast<AsmImulInst>(AsmInst);
             rewriteAsmOperandVirtRegToPhysReg(Inst->getSrcOp(), VirtToPhysRegMap);
             rewriteAsmOperandVirtRegToPhysReg(Inst->getDstOp(), VirtToPhysRegMap);
-            return;
+            break;
         }
         case AsmInstruction::Idiv: {
             auto *Inst = llvm::cast<AsmIdivInst>(AsmInst);
             rewriteAsmOperandVirtRegToPhysReg(Inst->getOp(), VirtToPhysRegMap);
-            return;
+            break;
         }
         case AsmInstruction::Cqto: {
-            return;
+            break;
         }
         case AsmInstruction::Call: {
             auto *Inst = llvm::cast<AsmCallInst>(AsmInst);
             rewriteAsmOperandVirtRegToPhysReg(Inst->getCalleeOp(), VirtToPhysRegMap);
-            return;
+            break;
         }
         case AsmInstruction::Xor: {
             auto *Inst = llvm::cast<AsmXorInst>(AsmInst);
             rewriteAsmOperandVirtRegToPhysReg(Inst->getSrcOp(), VirtToPhysRegMap);
             rewriteAsmOperandVirtRegToPhysReg(Inst->getDstOp(), VirtToPhysRegMap);
-            return;
+            break;
         }
+        case AsmInstruction::Label: {
+            break;
         }
-        llvm_unreachable("Invalid AsmInstruction");
+        default: llvm_unreachable("Invalid AsmInstruction");
+        }
     }
 };
 

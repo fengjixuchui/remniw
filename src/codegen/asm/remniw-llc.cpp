@@ -14,7 +14,7 @@ static llvm::cl::opt<std::string> InputFilename(llvm::cl::Positional,
                                                 llvm::cl::init("-"));
 static llvm::cl::opt<std::string>
     OutputFilename("o", llvm::cl::desc("Override output filename"),
-                   llvm::cl::init("a.out"), llvm::cl::value_desc("filename"));
+                   llvm::cl::init("-"), llvm::cl::value_desc("filename"));
 
 int main(int argc, char *argv[]) {
     // parse arguments from command line
@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
     std::error_code EC;
     llvm::ToolOutputFile Out(OutputFilename, EC, llvm::sys::fs::OF_Text);
 
-    remniw::AsmCodeGenerator CG(M.get());
+    remniw::AsmCodeGenerator CG(M.get(), Out.os());
     Out.keep();
 
     return 0;

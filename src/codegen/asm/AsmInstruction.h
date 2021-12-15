@@ -22,6 +22,7 @@ public:
         Cqto,
         Call,
         Xor,
+        Label,
     };
 
     AsmInstruction(KindTy Kind): Kind(Kind) {}
@@ -218,6 +219,21 @@ public:
 
     AsmOperand *getSrcOp() const { return Src; }
     AsmOperand *getDstOp() const { return Dst; }
+};
+
+class AsmLabelInst: public AsmInstruction {
+private:
+    AsmOperand *LabelOp;
+
+public:
+    AsmLabelInst(AsmOperand *LabelOp):
+        AsmInstruction(AsmInstruction::Label), LabelOp(LabelOp) {}
+
+    static bool classof(const AsmInstruction *I) {
+        return I->getInstKind() == AsmInstruction::Label;
+    }
+
+    AsmOperand *getLabelOp() const { return LabelOp; }
 };
 
 }  // namespace remniw
