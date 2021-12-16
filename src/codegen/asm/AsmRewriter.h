@@ -42,6 +42,12 @@ public:
         if (AsmOp->isVirtReg()) {
             AsmOp->Reg.RegNo = VirtToPhysRegMap[AsmOp->Reg.RegNo];
         }
+        if (AsmOp->isMem()) {
+            if (Register::isVirtualRegister(AsmOp->Mem.BaseReg))
+                AsmOp->Mem.BaseReg = VirtToPhysRegMap[AsmOp->Mem.BaseReg];
+            if (Register::isVirtualRegister(AsmOp->Mem.IndexReg))
+                AsmOp->Mem.IndexReg = VirtToPhysRegMap[AsmOp->Mem.IndexReg];
+        }
         if (AsmOp->isStackSlotReg()) {
             // TODO
         }
