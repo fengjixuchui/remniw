@@ -289,9 +289,8 @@ cond: BRG_ICMP(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     // const char* AvailRegStr = remniw::convertRegisterToString(AvailReg);
     // Builder->EmitMov($2->getImmVal(), AvailRegStr);
     // Builder->EmitCmp($3->getRegLocString(), AvailRegStr);
-    $0->setAsmOperandReg(remniw::AsmOperand::createReg(remniw::Register::createVirtReg()));
     auto *Src = $2->getAsmOperandImm();
-    auto *Dst = $0->getAsmOperandReg();
+    auto *Dst = remniw::AsmOperand::createReg(remniw::Register::createVirtReg());
     Builder->createMov(Src, Dst);
     Builder->createCmp($3->getAsmOperandReg(), Dst);
 };
@@ -548,6 +547,7 @@ reg: BRG_SDIV(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 3; }
     // Builder->EmitMov($3->getImmVal(), $0->getRegLocString());
     // Builder->EmitIdiv($0->getRegLocString());
     // Builder->EmitMov("%rax", $0->getRegLocString());
+    $0->setAsmOperandReg(remniw::AsmOperand::createReg(remniw::Register::createVirtReg()));
     auto *Tmp = remniw::AsmOperand::createReg(remniw::Register::RAX);
     Builder->createMov($2->getAsmOperandReg(), Tmp);
     Builder->createCqto();

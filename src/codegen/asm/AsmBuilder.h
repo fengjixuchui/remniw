@@ -38,6 +38,8 @@ private:
     llvm::SmallVector<AsmFunction> AsmFunctions;
     std::vector<AsmInstruction *> CurrentAsmFuncInsts;
     std::unordered_map<uint32_t, remniw::LiveRanges> CurrentRegLiveRangesMap;
+    // FIXME
+    uint32_t LastCqtoPoint;
 
 public:
     AsmBuilder(AsmContext &AsmCtx, llvm::SmallVector<BrgFunction> Functions):
@@ -50,6 +52,12 @@ public:
     void buildAsmFunction(const BrgFunction &);
 
     llvm::SmallVector<AsmFunction> &getAsmFunctions() { return AsmFunctions; }
+
+    void UpdatePhysRegLiveRanges(uint32_t Reg, uint32_t StartPoint, uint32_t EndPoint) {
+        assert(Register::isPhysicalRegister(Reg) &&
+               "UpdatePhysRegLiveRanges must update physReg");
+        CurrentRegLiveRangesMap[Reg].Ranges.push_back({StartPoint, EndPoint});
+    }
 
     void updateRegLiveRanges(uint32_t Reg) {
         uint32_t StartPoint = static_cast<uint32_t>(CurrentAsmFuncInsts.size());
@@ -191,6 +199,8 @@ public:
         llvm::outs() << CurrentAsmFuncInsts.size();
         CurrentAsmFuncInsts.back()->print(llvm::outs());
         updateAsmOperandLiveRanges(Op);
+        UpdatePhysRegLiveRanges(Register::RDX, LastCqtoPoint,
+                                static_cast<uint32_t>(CurrentAsmFuncInsts.size()) + 1);
     }
 
     void createCqto() {
@@ -198,6 +208,7 @@ public:
             /*std::make_unique<AsmInstruction>*/ (new AsmCqtoInst()));
         llvm::outs() << CurrentAsmFuncInsts.size();
         CurrentAsmFuncInsts.back()->print(llvm::outs());
+        LastCqtoPoint = static_cast<uint32_t>(CurrentAsmFuncInsts.size());
     }
 
     void createCall(AsmOperand *Callee, bool DirectCall) {

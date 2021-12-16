@@ -86,7 +86,7 @@ void AsmInstruction::print(llvm::raw_ostream &OS) const {
         break;
     }
     case AsmInstruction::Cqto: {
-        OS << "\tidivq\n";
+        OS << "\tcqto\n";
         break;
     }
     case AsmInstruction::Call: {
