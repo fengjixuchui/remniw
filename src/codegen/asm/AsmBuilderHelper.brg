@@ -120,8 +120,6 @@ reg: BRG_LOAD(mem) { $cost[0].cost = $cost[2].cost + 1; }
         return;
     $0->setActionExecuted();
     $action[2](Builder);
-    // $0->setRegLoc(true);
-    // Builder->EmitMov($2->getMemLoc(), $0->getRegLocString());
     $0->setAsmOperandReg(remniw::AsmOperand::createReg(remniw::Register::createVirtReg()));
     auto *Src = $2->getAsmOperandMem();
     auto *Dst = $0->getAsmOperandReg();
@@ -135,9 +133,6 @@ reg: BRG_LOAD(reg) { $cost[0].cost = $cost[2].cost + 1; }
         return;
     $0->setActionExecuted();
     $action[2](Builder);
-    // $0->setRegLoc(true);
-    // Builder->EmitMov('(' + $2->getRegLocString() + ')',
-    //                    $0->getRegLocString());
     $0->setAsmOperandReg(remniw::AsmOperand::createReg(remniw::Register::createVirtReg()));
     auto *Src = remniw::AsmOperand::createMem(0, $2->getAsmOperandReg()->getReg());
     auto *Dst = $0->getAsmOperandReg();
@@ -157,7 +152,6 @@ stmt: BRG_RET(reg) { $cost[0].cost = $cost[2].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "stmt:    Ret(reg)\n";
     $action[2](Builder);
-    // Builder->EmitMov($2->getRegLocString(), "%rax");
     auto *Src = $2->getAsmOperandReg();
     auto *Dst = remniw::AsmOperand::createReg(remniw::Register::RAX);
     Builder->createMov(Src, Dst);
@@ -167,7 +161,6 @@ stmt: BRG_RET(imm) { $cost[0].cost = $cost[2].cost + 1; }
 = {
     std::cerr << "[DEBUG] " << "stmt:    Ret(imm)\n";
     $action[2](Builder);
-    // Builder->EmitMov($2->getImmVal(), "%rax");
     auto *Src = $2->getAsmOperandImm();
     auto *Dst = remniw::AsmOperand::createReg(remniw::Register::RAX);
     Builder->createMov(Src, Dst);
@@ -178,7 +171,6 @@ stmt: BRG_STORE(reg, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     std::cerr << "[DEBUG] " << "stmt:   Store(reg, mem)\n";
     $action[2](Builder);
     $action[3](Builder);
-    // Builder->EmitMov($2->getRegLocString(), $3->getMemLoc());
     auto *Src = $2->getAsmOperandReg();
     auto *Dst = $3->getAsmOperandMem();
     Builder->createMov(Src, Dst);
@@ -189,8 +181,6 @@ stmt: BRG_STORE(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     std::cerr << "[DEBUG] " << "stmt:   Store(reg, reg)\n";
     $action[2](Builder);
     $action[3](Builder);
-    // Builder->EmitMov($2->getRegLocString(),
-    //                 '(' + $3->getRegLocString() + ')');
     auto *Src = $2->getAsmOperandReg();
     auto *Dst = remniw::AsmOperand::createMem(0, $3->getAsmOperandReg()->getReg());
     Builder->createMov(Src, Dst);
@@ -201,8 +191,6 @@ stmt: BRG_STORE(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     std::cerr << "[DEBUG] " << "stmt:   Store(imm, reg)\n";
     $action[2](Builder);
     $action[3](Builder);
-    // Builder->EmitMov($2->getImmVal(),
-    //                 '(' + $3->getRegLocString() + ')');
     auto *Src = $2->getAsmOperandImm();
     auto *Dst = remniw::AsmOperand::createMem(0, $3->getAsmOperandReg()->getReg());
     Builder->createMov(Src, Dst);
@@ -213,7 +201,6 @@ stmt: BRG_STORE(imm, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     std::cerr << "[DEBUG] " << "stmt:   Store(imm, mem)\n";
     $action[2](Builder);
     $action[3](Builder);
-    // Builder->EmitMov($2->getImmVal(), $3->getMemLoc());
     auto *Src = $2->getAsmOperandImm();
     auto *Dst = $3->getAsmOperandMem();
     Builder->createMov(Src, Dst);
@@ -224,10 +211,6 @@ stmt: BRG_STORE(mem, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     std::cerr << "[DEBUG] " << "stmt:   Store(mem, mem)\n";
     $action[2](Builder);
     $action[3](Builder);
-    // auto AvailReg = $0->RA.getAvailableRegister();
-    // const char* AvailRegStr = remniw::convertRegisterToString(AvailReg);
-    // Builder->EmitLea($2->getMemLoc(), AvailRegStr);
-    // Builder->EmitMov(AvailRegStr, $3->getMemLoc());
     $0->setAsmOperandReg(remniw::AsmOperand::createReg(remniw::Register::createVirtReg()));
     auto *Src = $2->getAsmOperandMem();
     auto *Tmp = $0->getAsmOperandReg();
@@ -241,7 +224,6 @@ stmt: BRG_STORE(label, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1;
     std::cerr << "[DEBUG] " << "stmt:   Store(label, mem)\n";
     $action[2](Builder);
     $action[3](Builder);
-    // Builder->EmitMov($2->getLabelStringAsConstant(), $3->getMemLoc());
     auto *Src = $2->getAsmOperandLabel();
     auto *Tmp = remniw::AsmOperand::createReg(remniw::Register::createVirtReg());
     Builder->createLea(Src, Tmp);
@@ -257,7 +239,6 @@ cond: BRG_ICMP(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    // Builder->EmitCmp($3->getRegLocString(), $2->getRegLocString());
     auto *Src = $3->getAsmOperandReg();
     auto *Dst = $2->getAsmOperandReg();
     Builder->createCmp(Src, Dst);
@@ -271,7 +252,6 @@ cond: BRG_ICMP(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    // Builder->EmitCmp($3->getImmVal(), $2->getRegLocString());
     auto *Src = $3->getAsmOperandImm();
     auto *Dst = $2->getAsmOperandReg();
     Builder->createCmp(Src, Dst);
@@ -285,10 +265,6 @@ cond: BRG_ICMP(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    // auto AvailReg = $0->RA.getAvailableRegister();
-    // const char* AvailRegStr = remniw::convertRegisterToString(AvailReg);
-    // Builder->EmitMov($2->getImmVal(), AvailRegStr);
-    // Builder->EmitCmp($3->getRegLocString(), AvailRegStr);
     auto *Src = $2->getAsmOperandImm();
     auto *Dst = remniw::AsmOperand::createReg(remniw::Register::createVirtReg());
     Builder->createMov(Src, Dst);
@@ -322,19 +298,12 @@ stmt: BRG_BR(cond, label, label)
     auto *BI = llvm::cast<llvm::BranchInst>($1->getInstruction());
     llvm::BasicBlock* NextBB = BI->getParent()->getNextNode();
     if (NextBB == BI->getSuccessor(0)) {
-        // Builder->EmitJmp(JmpFalse, $4->getLabelStringAsLabel());
-        // TODO
         Builder->createJmp(JmpFalse, $4->getAsmOperandLabel());
     }
     else if (NextBB == BI->getSuccessor(1)) {
-        // Builder->EmitJmp(JmpTrue, $3->getLabelStringAsLabel());
-        // TODO
         Builder->createJmp(JmpTrue, $3->getAsmOperandLabel());
     }
     else {
-        // Builder->EmitJmp(JmpTrue, $3->getLabelStringAsLabel());
-        // Builder->EmitJmp(JmpFalse, $4->getLabelStringAsLabel());
-        // TODO
         Builder->createJmp(JmpTrue, $3->getAsmOperandLabel());
         Builder->createJmp(JmpFalse, $4->getAsmOperandLabel());
     }
@@ -347,8 +316,6 @@ stmt: BRG_BR(label, BRG_UNDEF, BRG_UNDEF) { $cost[0].cost = $cost[2].cost + 1; }
     auto *BI = llvm::cast<llvm::BranchInst>($1->getInstruction());
     llvm::BasicBlock* NextBB = BI->getParent()->getNextNode();
     if (NextBB != BI->getSuccessor(0)) {
-        // Builder->EmitJmp("jmp", $2->getLabelStringAsLabel());
-        // TODO
         Builder->createJmp(remniw::AsmJmpInst::JmpKindTy::Jmp, $2->getAsmOperandLabel());
     }
 };
@@ -361,8 +328,6 @@ reg: BRG_ADD(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    // Builder->EmitAdd($2->getRegLocString(), $3->getRegLocString());
-    // $0->setRegLoc(false, $3->getRegLoc());
     Builder->createAdd($2->getAsmOperandReg(), $3->getAsmOperandReg());
     $0->setAsmOperandReg($3->getAsmOperandReg());
 };
@@ -375,8 +340,6 @@ reg: BRG_ADD(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    // Builder->EmitAdd($3->getImmVal(), $2->getRegLocString());
-    // $0->setRegLoc(false, $2->getRegLoc());
     Builder->createAdd($3->getAsmOperandImm(), $2->getAsmOperandReg());
     $0->setAsmOperandReg($2->getAsmOperandReg());
 };
@@ -389,8 +352,6 @@ reg: BRG_ADD(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    // Builder->EmitAdd($2->getImmVal(), $3->getRegLocString());
-    // $0->setRegLoc(false, $3->getRegLoc());
     Builder->createAdd($2->getAsmOperandImm(), $3->getAsmOperandReg());
     $0->setAsmOperandReg($3->getAsmOperandReg());
 };
@@ -414,10 +375,8 @@ reg: BRG_SUB(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    // Builder->EmitSub($3->getRegLocString(), $2->getRegLocString());
-    // $0->setRegLoc(false, $3->getRegLoc());
     Builder->createSub($3->getAsmOperandReg(), $2->getAsmOperandReg());
-    $0->setAsmOperandReg($3->getAsmOperandReg());
+    $0->setAsmOperandReg($2->getAsmOperandReg());
 };
 
 reg: BRG_SUB(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
@@ -428,8 +387,6 @@ reg: BRG_SUB(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    // Builder->EmitSub($3->getImmVal(), $2->getRegLocString());
-    // $0->setRegLoc(false, $2->getRegLoc());
     Builder->createSub($3->getAsmOperandImm(), $2->getAsmOperandReg());
     $0->setAsmOperandReg($2->getAsmOperandReg());
 };
@@ -442,9 +399,6 @@ reg: BRG_SUB(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    // $0->setRegLoc(true);
-    // Builder->EmitMov($2->getImmVal(), $0->getRegLocString());
-    // Builder->EmitSub($3->getRegLocString(), $0->getRegLocString());
     $0->setAsmOperandReg(remniw::AsmOperand::createReg(remniw::Register::createVirtReg()));
     Builder->createMov($2->getAsmOperandImm(), $0->getAsmOperandReg());
     Builder->createSub($3->getAsmOperandReg(), $0->getAsmOperandReg());
@@ -469,8 +423,6 @@ reg: BRG_MUL(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    // Builder->EmitImul($2->getRegLocString(), $3->getRegLocString());
-    // $0->setRegLoc(false, $3->getRegLoc());
     Builder->createImul($2->getAsmOperandReg(), $3->getAsmOperandReg());
     $0->setAsmOperandReg($3->getAsmOperandReg());
 };
@@ -483,8 +435,6 @@ reg: BRG_MUL(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    // Builder->EmitImul($3->getImmVal(), $2->getRegLocString());
-    // $0->setRegLoc(false, $2->getRegLoc());
     Builder->createImul($3->getAsmOperandImm(), $2->getAsmOperandReg());
     $0->setAsmOperandReg($2->getAsmOperandReg());
 };
@@ -497,8 +447,6 @@ reg: BRG_MUL(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    // Builder->EmitImul($2->getImmVal(), $3->getRegLocString());
-    // $0->setRegLoc(false, $3->getRegLoc());
     Builder->createImul($2->getAsmOperandImm(), $3->getAsmOperandReg());
     $0->setAsmOperandReg($3->getAsmOperandReg());
 };
@@ -522,10 +470,6 @@ reg: BRG_SDIV(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    // Builder->EmitMov($2->getRegLocString(), "%rax");
-    // Builder->EmitCqto();
-    // Builder->EmitIdiv($3->getRegLocString());
-    // $0->setRegLoc(false, remniw::Register::RAX);
     auto *Tmp = remniw::AsmOperand::createReg(remniw::Register::RAX);
     Builder->createMov($2->getAsmOperandReg(), Tmp);
     Builder->createCqto();
@@ -541,12 +485,6 @@ reg: BRG_SDIV(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 3; }
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    // $0->setRegLoc(true);
-    // Builder->EmitMov($2->getRegLocString(), "%rax");
-    // Builder->EmitCqto();
-    // Builder->EmitMov($3->getImmVal(), $0->getRegLocString());
-    // Builder->EmitIdiv($0->getRegLocString());
-    // Builder->EmitMov("%rax", $0->getRegLocString());
     $0->setAsmOperandReg(remniw::AsmOperand::createReg(remniw::Register::createVirtReg()));
     auto *Tmp = remniw::AsmOperand::createReg(remniw::Register::RAX);
     Builder->createMov($2->getAsmOperandReg(), Tmp);
@@ -564,10 +502,6 @@ reg: BRG_SDIV(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    // Builder->EmitMov($2->getImmVal(), "%rax");
-    // Builder->EmitCqto();
-    // Builder->EmitIdiv($3->getRegLocString());
-    // $0->setRegLoc(false, remniw::Register::RAX);
     auto *Tmp = remniw::AsmOperand::createReg(remniw::Register::RAX);
     Builder->createMov($2->getAsmOperandImm(), Tmp);
     Builder->createCqto();
@@ -584,12 +518,6 @@ reg: BRG_SDIV(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 3; }
     $action[2](Builder);
     $action[3](Builder);
     llvm_unreachable("unexpected `reg: SDiv(imm, imm)!`\n");
-    // $0->setRegLoc(true);
-    // Builder->EmitMov($3->getImmVal(), "%rax");
-    // Builder->EmitCqto();
-    // Builder->EmitMov($2->getImmVal(), $0->getRegLocString());
-    // Builder->EmitIdiv($0->getRegLocString());
-    // Builder->EmitMov("%rax", $0->getRegLocString());
 };
 
 arg: reg { $cost[0].cost = $cost[1].cost + 1; }
@@ -598,7 +526,7 @@ arg: reg { $cost[0].cost = $cost[1].cost + 1; }
     $action[1](Builder);
     if (argNo < 6) {
         Builder->createMov($1->getAsmOperandReg(),
-            remniw::AsmOperand::createReg(remniw::ArgRegs[argNo]));
+            remniw::AsmOperand::createReg(remniw::Register::ArgRegs[argNo]));
     } else {
         Builder->createMov($1->getAsmOperandReg(),
             remniw::AsmOperand::createMem(8 * (argNo - 6), remniw::Register::RSP));
@@ -611,7 +539,7 @@ arg: imm { $cost[0].cost = $cost[1].cost + 1; }
     $action[1](Builder);
     if (argNo < 6) {
         Builder->createMov($1->getAsmOperandImm(),
-            remniw::AsmOperand::createReg(remniw::ArgRegs[argNo]));
+            remniw::AsmOperand::createReg(remniw::Register::ArgRegs[argNo]));
     } else {
         Builder->createMov($1->getAsmOperandImm(),
             remniw::AsmOperand::createMem(8 * (argNo - 6), remniw::Register::RSP));
@@ -624,7 +552,7 @@ arg: mem { $cost[0].cost = $cost[1].cost + 1; }
     $action[1](Builder);
     if (argNo < 6) {
         Builder->createLea($1->getAsmOperandMem(),
-            remniw::AsmOperand::createReg(remniw::ArgRegs[argNo]));
+            remniw::AsmOperand::createReg(remniw::Register::ArgRegs[argNo]));
     } else {
         Builder->createMov($1->getAsmOperandMem(),
             remniw::AsmOperand::createMem(8 * (argNo - 6), remniw::Register::RSP));
@@ -636,13 +564,9 @@ arg: label { $cost[0].cost = $cost[1].cost + 1; }
     std::cerr << "[DEBUG] " << "arg:  mem\n";
     $action[1](Builder);
     if (argNo < 6) {
-        // Builder->createMov($1->getLabelStringAsConstant(),
-        //                    remniw::convertRegisterToString(remniw::ArgRegs[argNo]));
         Builder->createLea($1->getAsmOperandLabel(),
-            remniw::AsmOperand::createReg(remniw::ArgRegs[argNo]));
+            remniw::AsmOperand::createReg(remniw::Register::ArgRegs[argNo]));
     } else {
-        // Builder->createMov($1->getLabelStringAsConstant(),
-        //                    std::to_string(8 * (argNo - 6)) + "(%rsp)");
         Builder->createLea($1->getAsmOperandLabel(),
             remniw::AsmOperand::createMem(8 * (argNo - 6), remniw::Register::RSP));
     }
@@ -689,8 +613,6 @@ reg: BRG_CALL(reg, args) { $cost[0].cost = $cost[2].cost + 1; }
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder, 0);
-    // Builder->EmitCall("*" + $2->getRegLocString());
-    // $0->setRegLoc(false, remniw::Register::RAX);
     Builder->createCall($2->getAsmOperandLabel(), /*DirectCall*/false);
     $0->setAsmOperandReg(remniw::AsmOperand::createReg(remniw::Register::RAX));
 };

@@ -57,22 +57,33 @@ public:
     enum
     {
         RAX = 1,
-        RDX = 2,
-        RCX = 3,
-        RBX = 4,
-        RSI = 5,
-        RDI = 6,
-        RSP = 7,
-        RBP = 8,
-        R8 = 9,
-        R9 = 10,
-        R10 = 11,
-        R11 = 12,
+        RDI = 2,
+        RSI = 3,
+        RDX = 4,
+        RCX = 5,
+        R8 = 6,
+        R9 = 7,
+        R10 = 8,
+        R11 = 9,
+        RSP = 10,
+        RBP = 11,
+        RBX = 12,
         R12 = 13,
         R13 = 14,
         R14 = 15,
         R15 = 16,
     };
+
+    static constexpr uint32_t CallerSavedRegs[] = {
+        Register::RAX, Register::RDI, Register::RSI, Register::RDX, Register::RCX,
+        Register::R8,  Register::R9,  Register::R10, Register::R11};
+
+    static constexpr uint32_t CalleeSavedRegs[] = {
+        Register::RSP, Register::RBP, Register::RBX, Register::R12,
+        Register::R13, Register::R14, Register::R15};
+
+    static constexpr uint32_t ArgRegs[] = {Register::RDI, Register::RSI, Register::RDX,
+                                       Register::RCX, Register::R8,  Register::R9};
 
     // Register numbers can represent physical registers, virtual registers, and
     // sometimes stack slots. The unsigned values are divided into these ranges:
@@ -160,16 +171,5 @@ public:
         llvm_unreachable("unexpected Register\n");
     }
 };
-
-static Register CallerSavedRegs[] = {Register::RAX, Register::RDI, Register::RSI,
-                                     Register::RDX, Register::RCX, Register::R8,
-                                     Register::R9,  Register::R10, Register::R11};
-
-static Register CalleeSavedRegs[] = {Register::RSP, Register::RBP, Register::RBX,
-                                     Register::R12, Register::R13, Register::R14,
-                                     Register::R15};
-
-static Register ArgRegs[] = {Register::RDI, Register::RSI, Register::RDX,
-                             Register::RCX, Register::R8,  Register::R9};
 
 }  // namespace remniw

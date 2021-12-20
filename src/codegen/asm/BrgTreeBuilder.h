@@ -250,7 +250,7 @@ public:
             llvm::Argument *Arg = F.getArg(i);
             BrgTreeNode *ArgNode;
             if (i < 6) {
-                ArgNode = BrgTreeNode::createRegNode(ArgRegs[i]);
+                ArgNode = BrgTreeNode::createRegNode(Register::ArgRegs[i]);
             } else {
                 llvm::Type *Ty = F.getArg(i)->getType();
                 uint64_t SizeInBytes =

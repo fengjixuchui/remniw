@@ -79,19 +79,14 @@ public:
         RegLiveRangesMap(RegLiveRangesMap),
         Unhandled(StartPointIncreasingOrder) {
         FreeRegisters[Register::RAX] = true;
+        FreeRegisters[Register::RDI] = true;
+        FreeRegisters[Register::RSI] = true;
         FreeRegisters[Register::RDX] = true;
         FreeRegisters[Register::RCX] = true;
-        FreeRegisters[Register::RBX] = true;
-        FreeRegisters[Register::RSI] = true;
-        FreeRegisters[Register::RDI] = true;
         FreeRegisters[Register::R8] = true;
         FreeRegisters[Register::R9] = true;
         FreeRegisters[Register::R10] = true;
         FreeRegisters[Register::R11] = true;
-        FreeRegisters[Register::R12] = true;
-        FreeRegisters[Register::R13] = true;
-        FreeRegisters[Register::R14] = true;
-        FreeRegisters[Register::R15] = true;
     }
 
     void LinearScan() {
