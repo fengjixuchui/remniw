@@ -362,16 +362,16 @@ Value *IRCodeGeneratorImpl::codegenWhileStmt(WhileStmtAST *WhileStmt) {
 
 Value *IRCodeGeneratorImpl::codegenBasicAssignmentStmt(
     BasicAssignmentStmtAST *BasicAssignmentStmt) {
-    Value *Ptr = codegenExpr(BasicAssignmentStmt->getLHS());
     Value *Val = codegenExpr(BasicAssignmentStmt->getRHS());
+    Value *Ptr = codegenExpr(BasicAssignmentStmt->getLHS());
     assert((Ptr && Val) && "invalid operand of BasicAssignmentStmt");
     return IRB->CreateStore(Val, Ptr);
 }
 
 Value *IRCodeGeneratorImpl::codegenDerefAssignmentStmt(
     DerefAssignmentStmtAST *DerefAssignmentStmt) {
-    Value *Ptr = codegenExpr(DerefAssignmentStmt->getLHS());
     Value *Val = codegenExpr(DerefAssignmentStmt->getRHS());
+    Value *Ptr = codegenExpr(DerefAssignmentStmt->getLHS());
     assert((Ptr && Val) && "invalid operand of DerefAssignmentStmt");
     Ptr = IRB->CreateLoad(Ptr->getType()->getPointerElementType(), Ptr);
     return IRB->CreateStore(Val, Ptr);
