@@ -107,6 +107,24 @@ void AsmInstruction::print(llvm::raw_ostream &OS) const {
         OS << "\n";
         break;
     }
+    case AsmInstruction::Push: {
+        auto *Inst = llvm::cast<AsmPushInst>(this);
+        OS << "\tpushq\t";
+        Inst->getOp()->print(OS);
+        OS << "\n";
+        break;
+    }
+    case AsmInstruction::Pop: {
+        auto *Inst = llvm::cast<AsmPopInst>(this);
+        OS << "\tpopq\t";
+        Inst->getOp()->print(OS);
+        OS << "\n";
+        break;
+    }
+    case AsmInstruction::Ret: {
+        OS << "\tretq\n";
+        break;
+    }
     case AsmInstruction::Label: {
         auto *Inst = llvm::cast<AsmLabelInst>(this);
         Inst->getLabelOp()->print(OS);

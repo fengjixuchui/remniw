@@ -22,6 +22,9 @@ public:
         Cqto,
         Call,
         Xor,
+        Push,
+        Pop,
+        Ret,
         Label,
     };
 
@@ -219,6 +222,45 @@ public:
 
     AsmOperand *getSrcOp() const { return Src; }
     AsmOperand *getDstOp() const { return Dst; }
+};
+
+class AsmPushInst: public AsmInstruction {
+private:
+    AsmOperand *Op;
+
+public:
+    AsmPushInst(AsmOperand *Op):
+        AsmInstruction(AsmInstruction::Push), Op(Op) {}
+
+    static bool classof(const AsmInstruction *I) {
+        return I->getInstKind() == AsmInstruction::Push;
+    }
+
+    AsmOperand *getOp() const { return Op; }
+};
+
+class AsmPopInst: public AsmInstruction {
+private:
+    AsmOperand *Op;
+
+public:
+    AsmPopInst(AsmOperand *Op):
+        AsmInstruction(AsmInstruction::Pop), Op(Op) {}
+
+    static bool classof(const AsmInstruction *I) {
+        return I->getInstKind() == AsmInstruction::Pop;
+    }
+
+    AsmOperand *getOp() const { return Op; }
+};
+
+class AsmRetInst: public AsmInstruction {
+public:
+    AsmRetInst(): AsmInstruction(AsmInstruction::Ret) {}
+
+    static bool classof(const AsmInstruction *I) {
+        return I->getInstKind() == AsmInstruction::Ret;
+    }
 };
 
 class AsmLabelInst: public AsmInstruction {

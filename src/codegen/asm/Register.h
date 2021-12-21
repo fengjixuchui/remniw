@@ -83,7 +83,7 @@ public:
         Register::R13, Register::R14, Register::R15};
 
     static constexpr uint32_t ArgRegs[] = {Register::RDI, Register::RSI, Register::RDX,
-                                       Register::RCX, Register::R8,  Register::R9};
+                                           Register::RCX, Register::R8,  Register::R9};
 
     // Register numbers can represent physical registers, virtual registers, and
     // sometimes stack slots. The unsigned values are divided into these ranges:
@@ -117,6 +117,12 @@ public:
     static bool isVirtualRegister(uint32_t Reg) {
         return Reg & VirtualRegFlag && !isStackSlot(Reg);
     }
+
+    static bool isCallerSavedRegister(uint32_t Reg) { return RAX <= Reg && Reg <= R11; }
+
+    static bool isCalleeSavedRegister(uint32_t Reg) { return RSP <= Reg && Reg <= R15; }
+
+    static bool isArgRegister(uint32_t Reg) { return RDI <= Reg && Reg <= R9; }
 
     /// Compute the frame index from a register value representing a stack slot.
     static int stackSlot2Index(Register Reg) {

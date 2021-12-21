@@ -62,6 +62,7 @@ auto EndPointIncreasingOrder = [](const LiveInterval *LHS, const LiveInterval *R
 
 class LinearScanRegisterAllocator {
 private:
+    AsmFunction &AsmFunc;
     std::unordered_map<uint32_t, remniw::LiveRanges> &RegLiveRangesMap;
     std::vector<LiveInterval *> LiveIntervals;
     std::priority_queue<LiveInterval *, std::vector<LiveInterval *>,
@@ -75,9 +76,11 @@ private:
 
 public:
     LinearScanRegisterAllocator(
+        AsmFunction &AsmFunc,
         std::unordered_map<uint32_t, remniw::LiveRanges> &RegLiveRangesMap):
-        RegLiveRangesMap(RegLiveRangesMap),
-        Unhandled(StartPointIncreasingOrder) {
+        AsmFunc(AsmFunc),
+        RegLiveRangesMap(RegLiveRangesMap), Unhandled(StartPointIncreasingOrder) {
+        // Caller saved registers
         FreeRegisters[Register::RAX] = true;
         FreeRegisters[Register::RDI] = true;
         FreeRegisters[Register::RSI] = true;
@@ -87,6 +90,12 @@ public:
         FreeRegisters[Register::R9] = true;
         FreeRegisters[Register::R10] = true;
         FreeRegisters[Register::R11] = true;
+        // Callee saved registers
+        FreeRegisters[Register::RBX] = true;
+        FreeRegisters[Register::R12] = true;
+        FreeRegisters[Register::R13] = true;
+        FreeRegisters[Register::R14] = true;
+        FreeRegisters[Register::R15] = true;
     }
 
     void LinearScan() {
@@ -150,6 +159,14 @@ private:
     }
 
     unsigned getAvailablePhysReg(LiveInterval *LI) {
+        bool UsedAcrossFunctionCall = false;
+        for (uint32_t i = LI->StartPoint; i < LI->EndPoint; ++i) {
+            if (llvm::isa<AsmCallInst>(AsmFunc.Instructions[i-1])) {
+                UsedAcrossFunctionCall = true;
+                break;
+            }
+        }
+
         for (auto p : FreeRegisters) {
             if (p.second == false)
                 continue;
@@ -163,9 +180,14 @@ private:
                     break;
                 }
             }
-            if (ConflictWithFixed) {
+            if (ConflictWithFixed)
                 continue;
-            }
+
+            if (UsedAcrossFunctionCall && !Register::isCalleeSavedRegister(p.first))
+                continue;
+            if (!UsedAcrossFunctionCall && !Register::isCallerSavedRegister(p.first))
+                continue;
+
             // Find an available PhysReg
             return p.first;
         }

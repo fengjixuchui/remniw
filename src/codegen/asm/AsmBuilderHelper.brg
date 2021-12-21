@@ -601,7 +601,8 @@ reg: BRG_CALL(label, args) { $cost[0].cost = $cost[2].cost + 1; }
         Builder->createXor(Rax, Rax);
     }
     Builder->createCall($2->getAsmOperandLabel(), /*DirectCall*/true);
-    $0->setAsmOperandReg(Rax);
+    $0->setAsmOperandReg(remniw::AsmOperand::createReg(remniw::Register::createVirtReg()));
+    Builder->createMov(Rax, $0->getAsmOperandReg());
 };
 
 # Indirect Call
@@ -614,7 +615,9 @@ reg: BRG_CALL(reg, args) { $cost[0].cost = $cost[2].cost + 1; }
     $action[2](Builder);
     $action[3](Builder, 0);
     Builder->createCall($2->getAsmOperandLabel(), /*DirectCall*/false);
-    $0->setAsmOperandReg(remniw::AsmOperand::createReg(remniw::Register::RAX));
+    $0->setAsmOperandReg(remniw::AsmOperand::createReg(remniw::Register::createVirtReg()));
+    auto* Rax = remniw::AsmOperand::createReg(remniw::Register::RAX);
+    Builder->createMov(Rax, $0->getAsmOperandReg());
 };
 
 # Indirect call
@@ -627,7 +630,9 @@ reg: BRG_CALL(mem, args) { $cost[0].cost = $cost[2].cost + 1; }
     $action[2](Builder);
     $action[3](Builder, 0);
     Builder->createCall($2->getAsmOperandMem(), /*DirectCall*/false);
-    $0->setAsmOperandReg(remniw::AsmOperand::createReg(remniw::Register::RAX));
+    $0->setAsmOperandReg(remniw::AsmOperand::createReg(remniw::Register::createVirtReg()));
+    auto* Rax = remniw::AsmOperand::createReg(remniw::Register::RAX);
+    Builder->createMov(Rax, $0->getAsmOperandReg());
 };
 
 %%

@@ -269,8 +269,7 @@ public:
             }
         }
 
-        /* align to 16-bytes*/
-        int64_t StackSizesInBytes = (-Offset + 16 - 1) / 16 * 16;
+        int64_t StackSizesInBytes = -Offset;
         BrgFunction Func(StackSizesInBytes, ExprTrees, F.getName().str());
         Functions.push_back(Func);
     }
