@@ -123,7 +123,7 @@ int main(int argc, char *argv[]) {
         out_file_name = (char *)malloc(i + 4);
         def_file_name = (char *)malloc(i + 4);
         strcpy(in_file_base, cp);
-        cp = strchr(in_file_base, '.');
+        cp = strrchr(in_file_base, '.');
         if (cp)
             *cp = 0;
         sprintf(out_file_name, "%s.cpp", in_file_base);
