@@ -11,44 +11,6 @@
 
 namespace remniw {
 
-// struct LiveInterval {
-//     enum Kind
-//     {
-//         VirtualRegister,
-//         PhysicalResigter,
-//         StackSlot,
-//     };
-
-//     Kind Kind_;
-//     // [StartPoint, EndPoint)
-//     unsigned StartPoint;
-//     unsigned EndPoint;
-//     unsigned Reg;
-//     unsigned StackSlot_;
-
-//     LiveInterval(Kind Kind_, unsigned StartPoint, unsigned EndPoint):
-//         Kind_(Kind_), StartPoint(StartPoint), EndPoint(EndPoint), Reg(0),
-//         StackSlot_(0) {}
-
-//     bool isStackSlot() { return Kind_ == StackSlot && StackSlot_ != 0; }
-
-//     bool isPhysicalRegister() { return Kind_ == PhysicalResigter && Reg != 0; }
-
-//     void assignToPhysicalRegister(unsigned PhysReg) {
-//         Kind_ = PhysicalResigter;
-//         Reg = PhysReg;
-//     }
-
-//     void spillToStackSlot() {
-//         Kind_ = StackSlot;
-//         StackSlot_ = 1;
-//     }
-
-//     bool operator<(const LiveInterval &other) const {
-//         return StartPoint < other.StartPoint;
-//     }
-// };
-
 auto StartPointIncreasingOrder = [](const LiveInterval *LHS, const LiveInterval *RHS) {
     if (LHS->StartPoint != RHS->StartPoint)
         return LHS->StartPoint > RHS->StartPoint;
