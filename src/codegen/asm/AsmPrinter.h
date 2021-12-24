@@ -20,9 +20,7 @@ public:
     void print() {
         for (auto &AsmFunc : AsmFunctions) {
             EmitFunctionDeclaration(AsmFunc);
-            // EmitFunctionPrologue(AsmFunc);
             EmitFunctionBody(AsmFunc);
-            // EmitFunctionEpilogue(AsmFunc);
         }
         EmitGlobalVariables();
     }
@@ -34,23 +32,6 @@ public:
            << ".type " << F.FuncName << ", @function\n"
            << F.FuncName << ":\n";
     }
-
-    // void EmitFunctionPrologue(AsmFunction &F) {
-    //     OS << "\tpushq\t"
-    //        << "%rbp\n";
-    //     OS << "\tmovq\t"
-    //        << "%rsp, %rbp\n";
-    //     OS << "\tsubq\t"
-    //        << "$" << F.StackSizeInBytes << ", %rsp\n";
-    // }
-
-    // void EmitFunctionEpilogue(AsmFunction &F) {
-    //     OS << "\tmovq\t"
-    //        << "%rbp, %rsp\n";
-    //     OS << "\tpopq\t"
-    //        << "%rbp\n";
-    //     OS << "\tretq\n\n";
-    // }
 
     void EmitFunctionBody(AsmFunction &F) {
         for (auto *AsmInst : F.Instructions) {
