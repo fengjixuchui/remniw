@@ -87,14 +87,10 @@ public:
 
     // Register numbers can represent physical registers, virtual registers, and
     // sometimes stack slots. The unsigned values are divided into these ranges:
-    //
     //   0           Not a register, can be used as a sentinel.
-    //   [1;2^30)    Physical registers assigned by TableGen.
+    //   [1;2^30)    Physical registers.
     //   [2^30;2^31) Stack slots. (Rarely used.)
-    //   [2^31;2^32) Virtual registers assigned by MachineRegisterInfo.
-    //
-    // Further sentinels can be allocated from the small negative integers.
-    // DenseMapInfo<unsigned> uses -1u and -2u.
+    //   [2^31;2^32) Virtual registers.
     static constexpr uint32_t NoRegister = 0u;
     static constexpr uint32_t FirstPhysicalReg = 1u;
     static constexpr uint32_t FirstStackSlot = 1u << 30;

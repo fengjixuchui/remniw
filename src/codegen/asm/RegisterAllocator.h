@@ -11,64 +11,51 @@
 
 namespace remniw {
 
-auto StartPointIncreasingOrder = [](const LiveInterval *LHS, const LiveInterval *RHS) {
-    if (LHS->StartPoint != RHS->StartPoint)
-        return LHS->StartPoint > RHS->StartPoint;
-    else
-        return LHS->EndPoint > RHS->EndPoint;
+struct LiveIntervalStartPointIncreasingOrderCompare
+    : public std::binary_function<LiveInterval *, LiveInterval *, bool> {
+    bool operator()(const LiveInterval *LHS, const LiveInterval *RHS) const {
+        return LHS->StartPoint > RHS->StartPoint ||
+               (LHS->StartPoint == RHS->StartPoint && LHS->EndPoint > RHS->EndPoint);
+    }
 };
 
-auto EndPointIncreasingOrder = [](const LiveInterval *LHS, const LiveInterval *RHS) {
-    return LHS->EndPoint < RHS->EndPoint;
+struct LiveIntervalEndPointIncreasingOrderCompare
+    : public std::binary_function<LiveInterval *, LiveInterval *, bool> {
+    bool operator()(const LiveInterval *LHS, const LiveInterval *RHS) const {
+        return LHS->EndPoint < RHS->EndPoint;
+    }
 };
 
 class LinearScanRegisterAllocator {
 private:
     AsmFunction &AsmFunc;
-    std::unordered_map<uint32_t, remniw::LiveRanges> &RegLiveRangesMap;
     std::vector<LiveInterval *> LiveIntervals;
     std::priority_queue<LiveInterval *, std::vector<LiveInterval *>,
-                        decltype(StartPointIncreasingOrder)>
+                        LiveIntervalStartPointIncreasingOrderCompare>
         Unhandled;
     std::vector<LiveInterval *> Fixed;
     std::vector<LiveInterval *> Active;
     std::vector<LiveInterval *> Spilled;
-    std::map<unsigned, bool> FreeRegisters;
+    llvm::SmallVector<bool, 32> FreeRegisters;
     std::unordered_map<uint32_t, uint32_t> VirtToPhysRegMap;
 
 public:
     LinearScanRegisterAllocator(
         AsmFunction &AsmFunc,
         std::unordered_map<uint32_t, remniw::LiveRanges> &RegLiveRangesMap):
-        AsmFunc(AsmFunc),
-        RegLiveRangesMap(RegLiveRangesMap), Unhandled(StartPointIncreasingOrder) {
-        // Caller saved registers
-        FreeRegisters[Register::RAX] = true;
-        FreeRegisters[Register::RDI] = true;
-        FreeRegisters[Register::RSI] = true;
-        FreeRegisters[Register::RDX] = true;
-        FreeRegisters[Register::RCX] = true;
-        FreeRegisters[Register::R8] = true;
-        FreeRegisters[Register::R9] = true;
-        FreeRegisters[Register::R10] = true;
-        FreeRegisters[Register::R11] = true;
-        // Callee saved registers
-        FreeRegisters[Register::RBX] = true;
-        FreeRegisters[Register::R12] = true;
-        FreeRegisters[Register::R13] = true;
-        FreeRegisters[Register::R14] = true;
-        FreeRegisters[Register::R15] = true;
+        AsmFunc(AsmFunc) {
+        initIntervalSets(RegLiveRangesMap);
+        initFreeRegisters();
     }
 
     void LinearScan() {
-        initIntervalSets();
-
         while (!Unhandled.empty()) {
             LiveInterval *LI = Unhandled.top();
             Unhandled.pop();
-            std::sort(Active.begin(), Active.end(), EndPointIncreasingOrder);
+            std::sort(Active.begin(), Active.end(),
+                      LiveIntervalEndPointIncreasingOrderCompare());
             ExpireOldIntervals(LI);
-            unsigned PhysReg = getAvailablePhysReg(LI);
+            uint32_t PhysReg = getAvailablePhysReg(LI);
             if (PhysReg != Register::NoRegister) {
                 FreeRegisters[PhysReg] = false;
                 VirtToPhysRegMap[LI->Reg] = PhysReg;
@@ -87,14 +74,13 @@ public:
         }
     }
 
-    void setFreeRegisters(std::map<unsigned, bool> FR) { FreeRegisters = FR; }
-
     std::unordered_map<uint32_t, uint32_t> &getVirtToPhysRegMap() {
         return VirtToPhysRegMap;
     }
 
 private:
-    void initIntervalSets() {
+    void
+    initIntervalSets(std::unordered_map<uint32_t, remniw::LiveRanges> &RegLiveRangesMap) {
         Active.clear();
         for (const auto &p : RegLiveRangesMap) {
             if (Register::isVirtualRegister(p.first)) {
@@ -110,6 +96,28 @@ private:
         }
     }
 
+    void initFreeRegisters() {
+        FreeRegisters.resize(16 /*number of registers*/ + 1);
+        FreeRegisters[Register::NoRegister /*0*/] = false;
+        // Caller saved registers
+        FreeRegisters[Register::RAX /*1*/] = true;
+        FreeRegisters[Register::RDI /*2*/] = true;
+        FreeRegisters[Register::RSI /*3*/] = true;
+        FreeRegisters[Register::RDX /*4*/] = true;
+        FreeRegisters[Register::RCX /*5*/] = true;
+        FreeRegisters[Register::R8 /*6*/] = true;
+        FreeRegisters[Register::R9 /*7*/] = true;
+        FreeRegisters[Register::R10 /*8*/] = true;
+        FreeRegisters[Register::R11 /*9*/] = true;
+        // Callee saved registers
+        FreeRegisters[Register::RSP /*10*/] = false;
+        FreeRegisters[Register::RBP /*11*/] = false;
+        FreeRegisters[Register::RBX /*12*/] = true;
+        FreeRegisters[Register::R12 /*13*/] = true;
+        FreeRegisters[Register::R13 /*14*/] = true;
+        FreeRegisters[Register::R14 /*15*/] = true;
+        FreeRegisters[Register::R15 /*16*/] = true;
+    }
     void ExpireOldIntervals(LiveInterval *LI) {
         for (auto it = Active.begin(); it != Active.end();) {
             if ((*it)->EndPoint > LI->StartPoint) {
@@ -120,21 +128,21 @@ private:
         }
     }
 
-    unsigned getAvailablePhysReg(LiveInterval *LI) {
+    uint32_t getAvailablePhysReg(LiveInterval *LI) {
         bool UsedAcrossFunctionCall = false;
         for (uint32_t i = LI->StartPoint; i < LI->EndPoint; ++i) {
-            if (llvm::isa<AsmCallInst>(AsmFunc.Instructions[i-1])) {
+            if (llvm::isa<AsmCallInst>(AsmFunc.Instructions[i - 1])) {
                 UsedAcrossFunctionCall = true;
                 break;
             }
         }
 
-        for (auto p : FreeRegisters) {
-            if (p.second == false)
+        for (uint32_t Reg = 0, e = FreeRegisters.size(); Reg != e; ++Reg) {
+            if (FreeRegisters[Reg] == false)
                 continue;
             bool ConflictWithFixed = false;
             for (auto FixReg : Fixed) {
-                if (FixReg->Reg != p.first)
+                if (FixReg->Reg != Reg)
                     continue;
                 if (FixReg->EndPoint > LI->StartPoint ||
                     FixReg->StartPoint < LI->EndPoint) {
@@ -145,13 +153,13 @@ private:
             if (ConflictWithFixed)
                 continue;
 
-            if (UsedAcrossFunctionCall && !Register::isCalleeSavedRegister(p.first))
+            if (UsedAcrossFunctionCall && !Register::isCalleeSavedRegister(Reg))
                 continue;
-            if (!UsedAcrossFunctionCall && !Register::isCallerSavedRegister(p.first))
+            if (!UsedAcrossFunctionCall && !Register::isCallerSavedRegister(Reg))
                 continue;
 
             // Find an available PhysReg
-            return p.first;
+            return Reg;
         }
 
         // non-avaliable PhysReg
