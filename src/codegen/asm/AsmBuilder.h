@@ -19,7 +19,7 @@ namespace remniw {
 
 struct AsmFunction {
     AsmFunction(std::string FuncName, int64_t StackSizeInBytes,
-                std::vector<AsmInstruction *> Instructions,
+                llvm::SmallVector<AsmInstruction *> Instructions,
                 std::unordered_map<uint32_t, remniw::LiveRanges> RegLiveRangesMap):
         FuncName(FuncName),
         StackSizeInBytes(StackSizeInBytes), Instructions(std::move(Instructions)),
@@ -27,7 +27,7 @@ struct AsmFunction {
 
     std::string FuncName;
     int64_t StackSizeInBytes;
-    std::vector<AsmInstruction *> Instructions;
+    llvm::SmallVector<AsmInstruction *> Instructions;
     std::unordered_map<uint32_t, remniw::LiveRanges> RegLiveRangesMap;
 };
 
@@ -36,7 +36,7 @@ private:
     AsmContext &AsmCtx;
     llvm::SmallVector<BrgFunction> BrgFunctions;
     llvm::SmallVector<AsmFunction> AsmFunctions;
-    std::vector<AsmInstruction *> CurrentAsmFuncInsts;
+    llvm::SmallVector<AsmInstruction *> CurrentAsmFuncInsts;
     std::unordered_map<uint32_t, remniw::LiveRanges> CurrentRegLiveRangesMap;
 
 public:
@@ -106,7 +106,6 @@ public:
 
     void updateAsmOperandLiveRanges(AsmOperand *Op) {
         llvm::outs() << "updateAsmOperandLiveRanges " << Op << "\n";
-        uint32_t Reg;
         if (Op->isReg()) {
             updateRegLiveRanges(Op->getReg());
         }

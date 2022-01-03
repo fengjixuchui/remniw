@@ -2,12 +2,15 @@
 
 #include "LiveInterval.h"
 #include "Register.h"
+#include "llvm/Support/Debug.h"
 #include <algorithm>
 #include <iostream>
 #include <map>
 #include <queue>
 #include <set>
 #include <unordered_map>
+
+#define DEBUG_TYPE "remniw-lsra"
 
 namespace remniw {
 
@@ -37,7 +40,7 @@ private:
     std::vector<LiveInterval *> Active;
     std::vector<LiveInterval *> Spilled;
     llvm::SmallVector<bool, 32> FreeRegisters;
-    std::unordered_map<uint32_t, uint32_t> VirtToPhysRegMap;
+    std::unordered_map<uint32_t, uint32_t> VirtRegToAllocatedRegMap;
 
 public:
     LinearScanRegisterAllocator(
@@ -55,32 +58,31 @@ public:
             std::sort(Active.begin(), Active.end(),
                       LiveIntervalEndPointIncreasingOrderCompare());
             ExpireOldIntervals(LI);
-            uint32_t PhysReg = getAvailablePhysReg(LI);
+            uint32_t PhysReg = getFreePhysReg(LI);
             if (PhysReg != Register::NoRegister) {
                 FreeRegisters[PhysReg] = false;
-                VirtToPhysRegMap[LI->Reg] = PhysReg;
-                LI->Reg = PhysReg;
+                VirtRegToAllocatedRegMap[LI->Reg] = PhysReg;
                 Active.push_back(LI);
             } else {
                 spillAtInterval(LI);
             }
-            printActive();
         }
-
-        std::cout << "===VirtToPhysRegMap===\n";
-        for (const auto &p : VirtToPhysRegMap) {
-            std::cout << p.first << " ==>> "
-                      << Register::convertRegisterToString(p.second) << "\n";
-        }
+        LLVM_DEBUG({
+            llvm::outs() << "===== LSRA ===== \n";
+            dumpRegAllocResults();
+        });
     }
 
-    std::unordered_map<uint32_t, uint32_t> &getVirtToPhysRegMap() {
-        return VirtToPhysRegMap;
+    std::unordered_map<uint32_t, uint32_t> &getVirtRegToAllocatedRegMap() {
+        return VirtRegToAllocatedRegMap;
+    }
+
+    std::size_t getSpilledRegCount() {
+        return Spilled.size();
     }
 
 private:
-    void
-    initIntervalSets(std::unordered_map<uint32_t, remniw::LiveRanges> &RegLiveRangesMap) {
+    void initIntervalSets(std::unordered_map<uint32_t, LiveRanges> &RegLiveRangesMap) {
         Active.clear();
         for (const auto &p : RegLiveRangesMap) {
             if (Register::isVirtualRegister(p.first)) {
@@ -118,17 +120,21 @@ private:
         FreeRegisters[Register::R14 /*15*/] = true;
         FreeRegisters[Register::R15 /*16*/] = true;
     }
+
     void ExpireOldIntervals(LiveInterval *LI) {
         for (auto it = Active.begin(); it != Active.end();) {
             if ((*it)->EndPoint > LI->StartPoint) {
                 return;
             }
-            FreeRegisters[(*it)->Reg] = true;
+            uint32_t AllocatedReg = VirtRegToAllocatedRegMap[(*it)->Reg];
+            if (Register::isPhysicalRegister(AllocatedReg)) {
+                FreeRegisters[AllocatedReg] = true;
+            }
             it = Active.erase(it);
         }
     }
 
-    uint32_t getAvailablePhysReg(LiveInterval *LI) {
+    uint32_t getFreePhysReg(LiveInterval *LI) {
         bool UsedAcrossFunctionCall = false;
         for (uint32_t i = LI->StartPoint; i < LI->EndPoint; ++i) {
             if (llvm::isa<AsmCallInst>(AsmFunc.Instructions[i - 1])) {
@@ -162,38 +168,36 @@ private:
             return Reg;
         }
 
-        // non-avaliable PhysReg
+        // No avaliable PhysReg
         return Register::NoRegister;
     }
 
     void spillAtInterval(LiveInterval *LI) {
-        static uint32_t StackSlotIndex = 0;
+        static uint32_t StackSlotIndex = 1;
         if (!Active.empty() && Active.back()->EndPoint > LI->EndPoint) {
-            LI->Reg = Active.back()->Reg;
-            Active.back()->Reg = Register::index2StackSlot(StackSlotIndex++);
+            VirtRegToAllocatedRegMap[LI->Reg] =
+                VirtRegToAllocatedRegMap[Active.back()->Reg];
+            VirtRegToAllocatedRegMap[Active.back()->Reg] =
+                Register::index2StackSlot(StackSlotIndex++);
+            Spilled.push_back(Active.back());
             Active.pop_back();
             Active.push_back(LI);
         } else {
-            LI->Reg = Register::index2StackSlot(StackSlotIndex++);
+            VirtRegToAllocatedRegMap[LI->Reg] =
+                Register::index2StackSlot(StackSlotIndex++);
             Spilled.push_back(LI);
         }
     }
 
-    void printActive() {
-        for (auto LI : Active) {
-            std::cout << "[" << LI->StartPoint << "," << LI->EndPoint << ")"
-                      << " assigned " << Register::convertRegisterToString(LI->Reg)
-                      << std::endl;
-        }
-        for (auto LI : Spilled) {
-            std::cout << "[" << LI->StartPoint << "," << LI->EndPoint << ")"
-                      << " assigned " << Register::convertRegisterToString(LI->Reg)
-                      << std::endl;
+    void dumpRegAllocResults() {
+        for (auto p : VirtRegToAllocatedRegMap) {
+            std::cout << "Virtual Register: " << p.first << " assigned "
+                      << Register::convertRegisterToString(p.second) << std::endl;
         }
         for (auto LI : Fixed) {
-            std::cout << "[" << LI->StartPoint << "," << LI->EndPoint << ")"
-                      << " assigned " << Register::convertRegisterToString(LI->Reg)
-                      << std::endl;
+            std::cout << "Fixed Physical Register: "
+                      << Register::convertRegisterToString(LI->Reg) << ", ["
+                      << LI->StartPoint << "," << LI->EndPoint << ")" << std::endl;
         }
         std::cout << "======\n";
     }

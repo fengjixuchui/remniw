@@ -142,6 +142,7 @@ struct AsmOperand {
             OS << ")";
             break;
         case Label: Lbl.Symbol->print(OS); break;
+        default: llvm_unreachable("Invalid AsmOperand");
         }
     }
 };

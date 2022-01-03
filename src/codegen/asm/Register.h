@@ -169,7 +169,10 @@ public:
         case Register::R15: return "%r15";
         };
         // TODO: remove this debug code
-        return "%virtreg";
+        if (isVirtualRegister(Reg))
+            return "%virtreg";
+        if (isStackSlot(Reg))
+            return "%stackslot";
         llvm_unreachable("unexpected Register\n");
     }
 };

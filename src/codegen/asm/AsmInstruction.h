@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AsmOperand.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cstdint>
 #include <memory>
@@ -30,63 +31,63 @@ public:
 
     AsmInstruction(KindTy Kind): Kind(Kind) {}
 
+    AsmInstruction(KindTy Kind, AsmOperand *Dst): Kind(Kind), Operands({Dst}) {}
+
+    AsmInstruction(KindTy Kind, AsmOperand *Src, AsmOperand *Dst):
+        Kind(Kind), Operands({Src, Dst}) {}
+
+    void addOperand(AsmOperand *Op) { Operands.push_back(Op); }
+
+    llvm::SmallVectorImpl<AsmOperand *> &getOperands() { return Operands; }
+
+    const llvm::SmallVectorImpl<AsmOperand *> &getOperands() const { return Operands; }
+
     KindTy getInstKind() const { return Kind; }
 
     void print(llvm::raw_ostream &OS) const;
 
 private:
     KindTy Kind;
+    llvm::SmallVector<AsmOperand *, 2> Operands;
 };
 
 class AsmMovInst: public AsmInstruction {
-private:
-    AsmOperand *Src;
-    AsmOperand *Dst;
-
 public:
     AsmMovInst(AsmOperand *Src, AsmOperand *Dst):
-        AsmInstruction(AsmInstruction::Mov), Src(Src), Dst(Dst) {}
+        AsmInstruction(AsmInstruction::Mov, Src, Dst) {}
 
     static bool classof(const AsmInstruction *I) {
         return I->getInstKind() == AsmInstruction::Mov;
     }
 
-    AsmOperand *getSrcOp() const { return Src; }
-    AsmOperand *getDstOp() const { return Dst; }
+    AsmOperand *getSrcOp() const { return getOperands()[0]; }
+    AsmOperand *getDstOp() const { return getOperands()[1]; }
 };
 
 class AsmLeaInst: public AsmInstruction {
-private:
-    AsmOperand *Src;
-    AsmOperand *Dst;
-
 public:
     AsmLeaInst(AsmOperand *Src, AsmOperand *Dst):
-        AsmInstruction(AsmInstruction::Lea), Src(Src), Dst(Dst) {}
+        AsmInstruction(AsmInstruction::Lea, Src, Dst) {}
 
     static bool classof(const AsmInstruction *I) {
         return I->getInstKind() == AsmInstruction::Lea;
     }
 
-    AsmOperand *getSrcOp() const { return Src; }
-    AsmOperand *getDstOp() const { return Dst; }
+    AsmOperand *getSrcOp() const { return getOperands()[0]; }
+    AsmOperand *getDstOp() const { return getOperands()[1]; }
 };
 
 class AsmCmpInst: public AsmInstruction {
-private:
-    AsmOperand *Src;
-    AsmOperand *Dst;
-
 public:
     AsmCmpInst(AsmOperand *Src, AsmOperand *Dst):
-        AsmInstruction(AsmInstruction::Cmp), Src(Src), Dst(Dst) {}
+        AsmInstruction(AsmInstruction::Cmp, Src, Dst) {}
 
     static bool classof(const AsmInstruction *I) {
         return I->getInstKind() == AsmInstruction::Cmp;
     }
 
-    AsmOperand *getSrcOp() const { return Src; }
-    AsmOperand *getDstOp() const { return Dst; }
+    AsmOperand *getSrcOp() const { return getOperands()[0]; }
+    AsmOperand *getDstOp() const { return getOperands()[1]; }
 };
 
 class AsmJmpInst: public AsmInstruction {
@@ -101,83 +102,67 @@ public:
     };
 
     AsmJmpInst(AsmJmpInst::JmpKindTy JmpKind, AsmOperand *Op):
-        AsmInstruction(AsmInstruction::Jmp), JmpKind(JmpKind), Op(Op) {}
+        AsmInstruction(AsmInstruction::Jmp, Op), JmpKind(JmpKind) {}
 
     static bool classof(const AsmInstruction *I) {
         return I->getInstKind() == AsmInstruction::Jmp;
     }
 
     AsmJmpInst::JmpKindTy getJmpKind() const { return JmpKind; }
-    AsmOperand *getOp() const { return Op; }
+    AsmOperand *getOp() const { return getOperands()[0]; }
 
 private:
     AsmJmpInst::JmpKindTy JmpKind;
-    AsmOperand *Op;
 };
 
 class AsmAddInst: public AsmInstruction {
-private:
-    AsmOperand *Src;
-    AsmOperand *Dst;
-
 public:
     AsmAddInst(AsmOperand *Src, AsmOperand *Dst):
-        AsmInstruction(AsmInstruction::Add), Src(Src), Dst(Dst) {}
+        AsmInstruction(AsmInstruction::Add, Src, Dst) {}
 
     static bool classof(const AsmInstruction *I) {
         return I->getInstKind() == AsmInstruction::Add;
     }
 
-    AsmOperand *getSrcOp() const { return Src; }
-    AsmOperand *getDstOp() const { return Dst; }
+    AsmOperand *getSrcOp() const { return getOperands()[0]; }
+    AsmOperand *getDstOp() const { return getOperands()[1]; }
 };
 
 class AsmSubInst: public AsmInstruction {
-private:
-    AsmOperand *Src;
-    AsmOperand *Dst;
-
 public:
     AsmSubInst(AsmOperand *Src, AsmOperand *Dst):
-        AsmInstruction(AsmInstruction::Sub), Src(Src), Dst(Dst) {}
+        AsmInstruction(AsmInstruction::Sub, Src, Dst) {}
 
     static bool classof(const AsmInstruction *I) {
         return I->getInstKind() == AsmInstruction::Sub;
     }
 
-    AsmOperand *getSrcOp() const { return Src; }
-    AsmOperand *getDstOp() const { return Dst; }
+    AsmOperand *getSrcOp() const { return getOperands()[0]; }
+    AsmOperand *getDstOp() const { return getOperands()[1]; }
 };
 
 class AsmImulInst: public AsmInstruction {
-private:
-    AsmOperand *Src;
-    AsmOperand *Dst;
-
 public:
     AsmImulInst(AsmOperand *Src, AsmOperand *Dst):
-        AsmInstruction(AsmInstruction::Imul), Src(Src), Dst(Dst) {}
+        AsmInstruction(AsmInstruction::Imul, Src, Dst) {}
 
     static bool classof(const AsmInstruction *I) {
         return I->getInstKind() == AsmInstruction::Imul;
     }
 
-    AsmOperand *getSrcOp() const { return Src; }
-    AsmOperand *getDstOp() const { return Dst; }
+    AsmOperand *getSrcOp() const { return getOperands()[0]; }
+    AsmOperand *getDstOp() const { return getOperands()[1]; }
 };
 
 class AsmIdivInst: public AsmInstruction {
-private:
-    AsmOperand *Op;
-
 public:
-    AsmIdivInst(AsmOperand *Op): AsmInstruction(AsmInstruction::Idiv), Op(Op) {}
+    AsmIdivInst(AsmOperand *Op): AsmInstruction(AsmInstruction::Idiv, Op) {}
 
     static bool classof(const AsmInstruction *I) {
         return I->getInstKind() == AsmInstruction::Idiv;
     }
 
-    AsmOperand *getOp() const { return Op; }
+    AsmOperand *getOp() const { return getOperands()[0]; }
 };
 
 class AsmCqtoInst: public AsmInstruction {
@@ -191,67 +176,54 @@ public:
 
 class AsmCallInst: public AsmInstruction {
 private:
-    AsmOperand *Callee;
     bool DirectCall;
 
 public:
     AsmCallInst(AsmOperand *Callee, bool DirectCall):
-        AsmInstruction(AsmInstruction::Call), Callee(Callee), DirectCall(DirectCall) {}
+        AsmInstruction(AsmInstruction::Call, Callee), DirectCall(DirectCall) {}
 
     static bool classof(const AsmInstruction *I) {
         return I->getInstKind() == AsmInstruction::Call;
     }
 
-    AsmOperand *getCalleeOp() const { return Callee; }
+    AsmOperand *getCalleeOp() const { return getOperands()[0]; }
 
     bool isDirectCall() const { return DirectCall; }
 };
 
 class AsmXorInst: public AsmInstruction {
-private:
-    AsmOperand *Src;
-    AsmOperand *Dst;
-
 public:
     AsmXorInst(AsmOperand *Src, AsmOperand *Dst):
-        AsmInstruction(AsmInstruction::Xor), Src(Src), Dst(Dst) {}
+        AsmInstruction(AsmInstruction::Xor, Src, Dst) {}
 
     static bool classof(const AsmInstruction *I) {
         return I->getInstKind() == AsmInstruction::Xor;
     }
 
-    AsmOperand *getSrcOp() const { return Src; }
-    AsmOperand *getDstOp() const { return Dst; }
+    AsmOperand *getSrcOp() const { return getOperands()[0]; }
+    AsmOperand *getDstOp() const { return getOperands()[1]; }
 };
 
 class AsmPushInst: public AsmInstruction {
-private:
-    AsmOperand *Op;
-
 public:
-    AsmPushInst(AsmOperand *Op):
-        AsmInstruction(AsmInstruction::Push), Op(Op) {}
+    AsmPushInst(AsmOperand *Op): AsmInstruction(AsmInstruction::Push, Op) {}
 
     static bool classof(const AsmInstruction *I) {
         return I->getInstKind() == AsmInstruction::Push;
     }
 
-    AsmOperand *getOp() const { return Op; }
+    AsmOperand *getOp() const { return getOperands()[0]; }
 };
 
 class AsmPopInst: public AsmInstruction {
-private:
-    AsmOperand *Op;
-
 public:
-    AsmPopInst(AsmOperand *Op):
-        AsmInstruction(AsmInstruction::Pop), Op(Op) {}
+    AsmPopInst(AsmOperand *Op): AsmInstruction(AsmInstruction::Pop, Op) {}
 
     static bool classof(const AsmInstruction *I) {
         return I->getInstKind() == AsmInstruction::Pop;
     }
 
-    AsmOperand *getOp() const { return Op; }
+    AsmOperand *getOp() const { return getOperands()[0]; }
 };
 
 class AsmRetInst: public AsmInstruction {
@@ -264,18 +236,14 @@ public:
 };
 
 class AsmLabelInst: public AsmInstruction {
-private:
-    AsmOperand *LabelOp;
-
 public:
-    AsmLabelInst(AsmOperand *LabelOp):
-        AsmInstruction(AsmInstruction::Label), LabelOp(LabelOp) {}
+    AsmLabelInst(AsmOperand *LabelOp): AsmInstruction(AsmInstruction::Label, LabelOp) {}
 
     static bool classof(const AsmInstruction *I) {
         return I->getInstKind() == AsmInstruction::Label;
     }
 
-    AsmOperand *getLabelOp() const { return LabelOp; }
+    AsmOperand *getLabelOp() const { return getOperands()[0]; }
 };
 
 }  // namespace remniw
