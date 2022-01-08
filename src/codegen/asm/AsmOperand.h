@@ -46,22 +46,22 @@ struct AsmOperand {
 
     AsmOperand(KindTy Kind): Kind(Kind) {}
 
-    static AsmOperand* createReg(uint32_t RegNo) {
-        auto Res = new AsmOperand(KindTy::Register);
+    static std::unique_ptr<AsmOperand> createReg(uint32_t RegNo) {
+        auto Res = std::make_unique<AsmOperand>(KindTy::Register);
         Res->Reg.RegNo = RegNo;
         return Res;
     }
 
-    static AsmOperand* createImm(int64_t Val) {
-        auto Res = new AsmOperand(KindTy::Immediate);
+    static std::unique_ptr<AsmOperand> createImm(int64_t Val) {
+        auto Res = std::make_unique<AsmOperand>(KindTy::Immediate);
         Res->Imm.Val = Val;
         return Res;
     }
 
-    static AsmOperand* createMem(int64_t Disp, uint32_t BaseReg = Register::RBP,
+    static std::unique_ptr<AsmOperand> createMem(int64_t Disp, uint32_t BaseReg = Register::RBP,
                                  uint32_t IndexReg = Register::NoRegister,
                                  uint32_t Scale = 1) {
-        auto Res = new AsmOperand(KindTy::Memory);
+        auto Res = std::make_unique<AsmOperand>(KindTy::Memory);
         Res->Mem.Disp = Disp;
         Res->Mem.BaseReg = BaseReg;
         Res->Mem.IndexReg = IndexReg;
@@ -69,8 +69,8 @@ struct AsmOperand {
         return Res;
     }
 
-    static AsmOperand* createLabel(AsmSymbol* Symbol) {
-        auto Res = new AsmOperand(KindTy::Label);
+    static std::unique_ptr<AsmOperand> createLabel(AsmSymbol* Symbol) {
+        auto Res = std::make_unique<AsmOperand>(KindTy::Label);
         Res->Lbl.Symbol = Symbol;
         return Res;
     }

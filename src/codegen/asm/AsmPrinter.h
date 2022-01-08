@@ -1,6 +1,6 @@
 #pragma once
 
-#include "AsmBuilder.h"
+#include "AsmFunction.h"
 #include "llvm/ADT/SmallVector.h"
 
 namespace remniw {
@@ -8,11 +8,11 @@ namespace remniw {
 class AsmPrinter {
 private:
     llvm::raw_ostream &OS;
-    llvm::SmallVector<AsmFunction> AsmFunctions;
+    llvm::SmallVector<AsmFunction*> AsmFunctions;
     llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> GlobalVariables;
 
 public:
-    AsmPrinter(llvm::raw_ostream &OS, llvm::SmallVector<AsmFunction> AsmFunctions,
+    AsmPrinter(llvm::raw_ostream &OS, llvm::SmallVector<AsmFunction*> AsmFunctions,
                llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> GVs):
         OS(OS),
         AsmFunctions(AsmFunctions), GlobalVariables(GVs) {}
@@ -25,17 +25,17 @@ public:
         EmitGlobalVariables();
     }
 
-    void EmitFunctionDeclaration(AsmFunction &F) {
+    void EmitFunctionDeclaration(AsmFunction *F) {
         // FIXME
         OS << ".text\n"
-           << ".globl " << F.FuncName << "\n"
-           << ".type " << F.FuncName << ", @function\n"
-           << F.FuncName << ":\n";
+           << ".globl " << F->FuncName << "\n"
+           << ".type " << F->FuncName << ", @function\n"
+           << F->FuncName << ":\n";
     }
 
-    void EmitFunctionBody(AsmFunction &F) {
-        for (auto *AsmInst : F.Instructions) {
-            AsmInst->print(OS);
+    void EmitFunctionBody(AsmFunction *F) {
+        for (auto &AsmInst : *F) {
+            AsmInst.print(OS);
         }
     }
 

@@ -5,7 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "AsmOperand.h"
+#include "AsmSymbol.h"
+#include "Register.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Constants.h"
@@ -21,12 +22,31 @@ public:
     enum KindTy
     {
         UndefNode,
-        ImmNode,
-        MemNode,
-        RegNode,
-        InstNode,
         ArgsNode,
+        InstNode,
+        RegNode,
+        MemNode,
+        ImmNode,
         LabelNode,
+    };
+
+    struct RegOp {
+        uint32_t RegNo;
+    };
+
+    struct MemOp {
+        int64_t Disp;
+        uint32_t BaseReg;
+        uint32_t IndexReg;
+        uint32_t Scale;
+    };
+
+    struct ImmOp {
+        int64_t Val;
+    };
+
+    struct LabelOp {
+        remniw::AsmSymbol *Symbol;
     };
 
 private:
@@ -36,20 +56,24 @@ private:
     std::vector<BrgTreeNode *> Kids;
     bool ActionExecuted;
     union {
-        // ImmNode, MemNode, RegNode, LabelNode member
-        remniw::AsmOperand *AsmOp;
-        // InstNode member
-        llvm::Instruction *Inst;
+        struct RegOp Reg;         // RegNode
+        struct MemOp Mem;         // MemNode
+        struct ImmOp Imm;         // ImmNode
+        struct LabelOp Label;     // LabelNode
+        llvm::Instruction *Inst;  // InstNode
     };
 
-public:
-    /** ================= Common Functions =================== **/
-    BrgTreeNode(KindTy Kind, int Op): Kind(Kind), Op(Op), Kids(), ActionExecuted(false) {}
+    BrgTreeNode(KindTy Kind, int Op): Kind(Kind), Op(Op), ActionExecuted(false) {}
 
     BrgTreeNode(KindTy Kind, int Op, std::vector<BrgTreeNode *> Kids):
         Kind(Kind), Op(Op), Kids(Kids), ActionExecuted(false) {}
 
-    const char *getNodeKind() {
+public:
+    ~BrgTreeNode() {}
+
+    KindTy getNodeKind() const { return Kind; }
+
+    const char *getNodeKindString() {
         switch (Kind) {
         case UndefNode: return "UndefNode";
         case ImmNode: return "ImmNode";
@@ -80,34 +104,9 @@ public:
 
     void setActionExecuted() { ActionExecuted = true; }
 
-    static BrgTreeNode *createUndefNode() {
-        auto *Ret = new BrgTreeNode(KindTy::UndefNode, /*Undef*/ 0);
-        return Ret;
-    }
-
-    static BrgTreeNode *createImmNode(int64_t Val) {
-        auto *Ret = new BrgTreeNode(KindTy::ImmNode, /*Const*/ 68);
-        Ret->AsmOp = remniw::AsmOperand::createImm(Val);
-        return Ret;
-    }
-
-    static BrgTreeNode *createMemNode(int64_t Offset, std::vector<BrgTreeNode *> Kids) {
-        auto *Ret = new BrgTreeNode(KindTy::MemNode, /*Alloca*/ 31, Kids);
-        Ret->AsmOp = remniw::AsmOperand::createMem(Offset);
-        return Ret;
-    }
-
-    static BrgTreeNode *createRegNode(uint32_t Reg) {
-        auto *Ret = new BrgTreeNode(KindTy::RegNode, /*Reg*/ 71);
-        Ret->AsmOp = remniw::AsmOperand::createReg(Reg);
-        return Ret;
-    }
-
-    static BrgTreeNode *createInstNode(llvm::Instruction *I,
-                                       std::vector<BrgTreeNode *> Kids) {
-        auto *Ret = new BrgTreeNode(KindTy::InstNode, I->getOpcode(), Kids);
-        Ret->setInstruction(I);
-        return Ret;
+    static BrgTreeNode *getUndefNode() {
+        static BrgTreeNode Undef(KindTy::UndefNode, /*Undef*/ 0);
+        return &Undef;
     }
 
     static BrgTreeNode *createArgsNode(std::vector<BrgTreeNode *> Kids) {
@@ -115,42 +114,84 @@ public:
         return Ret;
     }
 
-    static BrgTreeNode *createLabelNode(remniw::AsmSymbol *Symbol) {
-        auto *Ret = new BrgTreeNode(KindTy::LabelNode, /*Label*/ 69);
-        Ret->AsmOp = remniw::AsmOperand::createLabel(Symbol);
+    static BrgTreeNode *createInstNode(llvm::Instruction *I,
+                                       std::vector<BrgTreeNode *> Kids) {
+        auto *Ret = new BrgTreeNode(KindTy::InstNode, I->getOpcode(), Kids);
+        Ret->Inst = I;
         return Ret;
     }
 
-    /** ================= ImmNode Functions =================== **/
-    remniw::AsmOperand *getAsmOperandImm() {
-        assert(Kind == KindTy::ImmNode && "Not a ImmNode");
-        return AsmOp;
+    static BrgTreeNode *createRegNode(uint32_t RegNo) {
+        auto *Ret = new BrgTreeNode(KindTy::RegNode, /*Reg*/ 71);
+        Ret->Reg.RegNo = RegNo;
+        return Ret;
     }
 
-    /** ================= MemNode Functions =================== **/
-    remniw::AsmOperand *getAsmOperandMem() {
-        assert(Kind == KindTy::MemNode && "Not a MemNode");
-        return AsmOp;
+    static BrgTreeNode *createMemNode(int64_t Offset, std::vector<BrgTreeNode *> Kids) {
+        auto *Ret = new BrgTreeNode(KindTy::MemNode, /*Alloca*/ 31, Kids);
+        Ret->Mem.Disp = Offset;
+        Ret->Mem.BaseReg = remniw::Register::RBP;
+        Ret->Mem.IndexReg = remniw::Register::NoRegister;
+        Ret->Mem.Scale = 1;
+        return Ret;
     }
 
-    /** ================= RegNode Functions =================== **/
-    remniw::AsmOperand *getAsmOperandReg() {
+    static BrgTreeNode *createImmNode(int64_t Val) {
+        auto *Ret = new BrgTreeNode(KindTy::ImmNode, /*Const*/ 68);
+        Ret->Imm.Val = Val;
+        return Ret;
+    }
+
+    static BrgTreeNode *createLabelNode(remniw::AsmSymbol *Symbol) {
+        auto *Ret = new BrgTreeNode(KindTy::LabelNode, /*Label*/ 69);
+        Ret->Label.Symbol = Symbol;
+        return Ret;
+    }
+
+    llvm::Instruction *getInstruction() {
+        assert(Kind == KindTy::InstNode && "Not a InstNode");
+        return Inst;
+    }
+
+    uint32_t getReg() {
         assert(Kind == KindTy::RegNode && "Not a RegNode");
-        return AsmOp;
+        return Reg.RegNo;
     }
 
-    void setAsmOperandReg(remniw::AsmOperand *Op) {
+    void setReg(uint32_t RegNo) {
         Kind = KindTy::RegNode;
-        AsmOp = Op;
+        Reg.RegNo = RegNo;
     }
 
-    /** ================= InstNode Functions =================== **/
-    llvm::Instruction *getInstruction() { return Inst; }
+    int64_t getMemDisp() {
+        assert(Kind == KindTy::MemNode && "Not a MemNode");
+        return Mem.Disp;
+    }
 
-    void setInstruction(llvm::Instruction *I) { Inst = I; }
+    uint32_t getMemBaseReg() {
+        assert(Kind == KindTy::MemNode && "Not a MemNode");
+        return Mem.BaseReg;
+    }
 
-    /** ================= LabelNode Functions =================== **/
-    remniw::AsmOperand *getAsmOperandLabel() { return AsmOp; }
+    uint32_t getMemIndexReg() {
+        assert(Kind == KindTy::MemNode && "Not a MemNode");
+        return Mem.IndexReg;
+    }
+
+    uint32_t getMemScale() {
+        assert(Kind == KindTy::MemNode && "Not a MemNode");
+        return Mem.Scale;
+    }
+
+    int64_t getImmVal() {
+        assert(Kind == KindTy::ImmNode && "Not a ImmNode");
+        return Imm.Val;
+    }
+
+    remniw::AsmSymbol *getLabel() {
+        assert(Kind == KindTy::LabelNode && "Not a LabelNode");
+        return Label.Symbol;
+    }
 };
 
 typedef BrgTreeNode *NODEPTR;
@@ -182,39 +223,63 @@ static void burm_trace(NODEPTR, int, COST);
 namespace remniw {
 
 struct BrgFunction {
-    BrgFunction(int64_t StackSizeInBytes, llvm::SmallVector<BrgTreeNode *> ExprTrees,
-                std::string FuncName):
-        FuncName(FuncName),
-        StackSizeInBytes(StackSizeInBytes), ExprTrees(ExprTrees) {}
+    BrgFunction(std::string FuncName): FuncName(FuncName) {}
+
+    ~BrgFunction() {
+        for (const auto &DM : InstToNodeMap)
+            delete DM.second;
+        for (const auto &DM : BasicBlockToNodeMap)
+            delete DM.second;
+        for (const auto &DM : ArgToNodeMap)
+            delete DM.second;
+        // for (auto *Node : TmpArgNode)
+        //     delete Node;
+    }
 
     std::string FuncName;
     int64_t StackSizeInBytes;
-    llvm::SmallVector<BrgTreeNode *> ExprTrees;
+    llvm::SmallVector<BrgTreeNode *> Insts;
+    llvm::DenseMap<llvm::Instruction *, BrgTreeNode *> InstToNodeMap;
+    llvm::DenseMap<llvm::BasicBlock *, BrgTreeNode *> BasicBlockToNodeMap;
+    llvm::DenseMap<llvm::Argument *, BrgTreeNode *> ArgToNodeMap;
+    llvm::SmallVector<BrgTreeNode *> TmpArgNode;
 };
 
 class BrgTreeBuilder: public llvm::InstVisitor<BrgTreeBuilder, BrgTreeNode *> {
 private:
     llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> ConstantStrings;
-    llvm::SmallVector<BrgFunction> Functions;
-    llvm::DenseMap<llvm::Instruction *, BrgTreeNode *> InstMap;
-    llvm::DenseMap<llvm::Value *, BrgTreeNode *> LabelMap;
-    llvm::DenseMap<llvm::Argument *, BrgTreeNode *> ArgMap;
-    llvm::SmallVector<BrgTreeNode *> ExprTrees;
+    llvm::SmallVector<BrgFunction *> Functions;
+    llvm::DenseMap<llvm::GlobalVariable *, BrgTreeNode *> GlobalVariableToNodeMap;
+    llvm::DenseMap<llvm::Function *, BrgTreeNode *> FunctionToNodeMap;
+    llvm::DenseMap<llvm::ConstantInt *, BrgTreeNode *> ConstantIntToNodeMap;
+    llvm::DenseMap<uint64_t, BrgTreeNode *> ImmToNodeMap;
     const llvm::DataLayout &DL;
     AsmContext &AsmCtx;
     int64_t Offset;  // clear per function
+    BrgFunction *CurrentFunction;
 
 public:
     BrgTreeBuilder(const llvm::DataLayout &DL, AsmContext &AsmCtx):
-        DL(DL), AsmCtx(AsmCtx), Offset(0) {}
+        DL(DL), AsmCtx(AsmCtx), Offset(0), CurrentFunction(nullptr) {}
 
-    ~BrgTreeBuilder() {}
+    ~BrgTreeBuilder() {
+        for (auto *F : Functions)
+            delete F;
+        for (const auto &DM : GlobalVariableToNodeMap)
+            delete DM.second;
+        for (const auto &DM : FunctionToNodeMap)
+            delete DM.second;
+        for (const auto &DM : ConstantIntToNodeMap)
+            delete DM.second;
+        for (const auto &DM : ImmToNodeMap)
+            delete DM.second;
+    }
 
     llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> getConstantStrings() {
         return ConstantStrings;
     }
 
-    llvm::SmallVector<BrgFunction> getFunctions() { return Functions; }
+    llvm::SmallVector<BrgFunction *> &getFunctions() { return Functions; }
 
     template<class Iterator>
     void visit(Iterator Start, Iterator End) {
@@ -229,7 +294,7 @@ public:
             if (llvm::ConstantDataArray *CDA =
                     llvm::dyn_cast<llvm::ConstantDataArray>(GV.getInitializer())) {
                 if (CDA->isCString()) {
-                    LabelMap[&GV] =
+                    GlobalVariableToNodeMap[&GV] =
                         BrgTreeNode::createLabelNode(AsmCtx.getOrCreateSymbol(&GV));
                     ConstantStrings[AsmCtx.getOrCreateSymbol(&GV)] = CDA->getAsCString();
                 }
@@ -243,8 +308,9 @@ public:
         if (F.isDeclaration())
             return;
 
+        Functions.push_back(new BrgFunction(F.getName().str()));
+        CurrentFunction = Functions.back();
         Offset = 0;
-        ExprTrees.clear();
 
         for (unsigned i = 0, e = F.arg_size(); i != e; ++i) {
             llvm::Argument *Arg = F.getArg(i);
@@ -255,58 +321,161 @@ public:
                 llvm::Type *Ty = F.getArg(i)->getType();
                 uint64_t SizeInBytes =
                     F.getParent()->getDataLayout().getTypeAllocSize(Ty);
-                ArgNode = BrgTreeNode::createMemNode(
-                    8 * (i - 6 + 2), {BrgTreeNode::createImmNode(SizeInBytes)});
+                ArgNode = BrgTreeNode::createMemNode(8 * (i - 6 + 2),
+                                                     {getBrgNodeForImm(SizeInBytes)});
             }
-            ArgMap[Arg] = ArgNode;
+            CurrentFunction->ArgToNodeMap[Arg] = ArgNode;
         }
 
         // body
         for (auto &BB : F) {
-            ExprTrees.push_back(visitOperand(&BB));
+            CurrentFunction->Insts.push_back(getBrgNodeForValue(&BB));
             for (auto &I : BB) {
-                InstVisitor::visit(I);
+                auto *InstNode = InstVisitor::visit(I);
+                CurrentFunction->Insts.push_back(InstNode);
             }
         }
 
-        int64_t StackSizesInBytes = -Offset;
-        BrgFunction Func(StackSizesInBytes, ExprTrees, F.getName().str());
-        Functions.push_back(Func);
+        CurrentFunction->StackSizeInBytes = -Offset;
     }
 
-    BrgTreeNode *visitOperand(llvm::Value *V) {
+    BrgTreeNode *visitAllocaInst(llvm::AllocaInst &AI) {
+        uint64_t AllocaSizeInBytes = getAllocaSizeInBytes(AI);
+        Offset -= AllocaSizeInBytes;
+        auto *InstNode =
+            BrgTreeNode::createMemNode(Offset, {getBrgNodeForImm(AllocaSizeInBytes)});
+        CurrentFunction->InstToNodeMap[&AI] = InstNode;
+        return InstNode;
+    }
+
+    BrgTreeNode *visitBranchInst(llvm::BranchInst &BI) {
+        BrgTreeNode *InstNode;
+        if (BI.isUnconditional()) {
+            InstNode = BrgTreeNode::createInstNode(
+                &BI, {getBrgNodeForValue(BI.getSuccessor(0)), BrgTreeNode::getUndefNode(),
+                      BrgTreeNode::getUndefNode()});
+        } else {
+            auto *Int1Ty = llvm::Type::getInt1Ty(BI.getContext());
+            auto *ConstantIntTrue = llvm::ConstantInt::getTrue(Int1Ty);
+            auto *ConstantIntFalse = llvm::ConstantInt::getFalse(Int1Ty);
+            if (BI.getCondition() == ConstantIntTrue) {
+                InstNode = BrgTreeNode::createInstNode(
+                    &BI, {getBrgNodeForValue(BI.getSuccessor(0)),
+                          BrgTreeNode::getUndefNode(), BrgTreeNode::getUndefNode()});
+            } else if (BI.getCondition() == ConstantIntFalse) {
+                InstNode = BrgTreeNode::createInstNode(
+                    &BI, {getBrgNodeForValue(BI.getSuccessor(1)),
+                          BrgTreeNode::getUndefNode(), BrgTreeNode::getUndefNode()});
+            } else {
+                auto *ICI = llvm::cast<llvm::ICmpInst>(BI.getCondition());
+                assert(CurrentFunction->InstToNodeMap.count(ICI) &&
+                       "BI.getCondition() not in InstMap");
+                InstNode = BrgTreeNode::createInstNode(
+                    &BI, {CurrentFunction->InstToNodeMap[ICI],
+                          getBrgNodeForValue(BI.getSuccessor(0)),
+                          getBrgNodeForValue(BI.getSuccessor(1))});
+            }
+        }
+        CurrentFunction->InstToNodeMap[&BI] = InstNode;
+        return InstNode;
+    }
+
+    BrgTreeNode *visitCallInst(llvm::CallInst &CI) {
+        std::vector<BrgTreeNode *> Kids;
+        BrgTreeNode *Args = BrgTreeNode::createArgsNode(
+            {BrgTreeNode::getUndefNode(), BrgTreeNode::getUndefNode()});
+        CurrentFunction->TmpArgNode.push_back(Args);
+        BrgTreeNode *CurrentNode = Args;
+        for (unsigned i = 0, e = CI.arg_size(); i != e; ++i) {
+            BrgTreeNode *ArgsTmp = BrgTreeNode::createArgsNode(
+                {BrgTreeNode::getUndefNode(), BrgTreeNode::getUndefNode()});
+            CurrentFunction->TmpArgNode.push_back(ArgsTmp);
+            CurrentNode->setKids({getBrgNodeForValue(CI.getArgOperand(i)), ArgsTmp});
+            CurrentNode = ArgsTmp;
+            if (i >= 6)  // push arg on stack
+            {
+                llvm::Type *Ty = CI.getArgOperand(i)->getType();
+                uint64_t SizeInBytes =
+                    CI.getModule()->getDataLayout().getTypeAllocSize(Ty);
+                Offset -= SizeInBytes;
+            }
+        }
+        BrgTreeNode *InstNode;
+        if (auto *Callee = CI.getCalledFunction()) {
+            // direct call
+            InstNode =
+                BrgTreeNode::createInstNode(&CI, {getBrgNodeForValue(Callee), Args});
+        } else {
+            // indirect call
+            InstNode = BrgTreeNode::createInstNode(
+                &CI, {getBrgNodeForValue(CI.getCalledOperand()), Args});
+        }
+        CurrentFunction->InstToNodeMap[&CI] = InstNode;
+        return InstNode;
+    }
+
+    // BrgTreeNode* visitReturnInst(llvm::ReturnInst &I);
+    // BrgTreeNode* visitLoadInst(llvm::LoadInst &I);
+    // BrgTreeNode* visitStoreInst(llvm::StoreInst &I);
+    // BrgTreeNode* visitICmpInst(llvm::ICmpInst &I);
+    // BrgTreeNode* visitAdd(llvm::BinaryOperator &I);
+    // BrgTreeNode* visitSub(llvm::BinaryOperator &I);
+    // BrgTreeNode* visitMul(llvm::BinaryOperator &I);
+    // BrgTreeNode* visitSDiv(llvm::BinaryOperator &I);
+
+    /// Specify what to return for unhandled instructions.
+    BrgTreeNode *visitInstruction(llvm::Instruction &I) {
+        std::vector<BrgTreeNode *> Kids;
+        for (unsigned i = 0, e = I.getNumOperands(); i != e; ++i) {
+            Kids.push_back(getBrgNodeForValue(I.getOperand(i)));
+        }
+        auto *InstNode = BrgTreeNode::createInstNode(&I, Kids);
+        CurrentFunction->InstToNodeMap[&I] = InstNode;
+        return InstNode;
+    }
+
+private:
+    BrgTreeNode *getBrgNodeForImm(uint64_t V) {
+        if (!ImmToNodeMap.count(V))
+            ImmToNodeMap[V] = BrgTreeNode::createImmNode(V);
+        return ImmToNodeMap[V];
+    }
+    BrgTreeNode *getBrgNodeForValue(llvm::Value *V) {
         if (auto *CE = llvm::dyn_cast<llvm::ConstantExpr>(V)) {
             // FIXME
-            return visitOperand(CE->getOperand(0));
+            return getBrgNodeForValue(CE->getOperand(0));
         } else if (auto *GV = llvm::dyn_cast<llvm::GlobalVariable>(V)) {
-            auto it = LabelMap.find(GV);
-            assert(it != LabelMap.end() && "operands must be previously defined");
+            auto it = GlobalVariableToNodeMap.find(GV);
+            assert(it != GlobalVariableToNodeMap.end() &&
+                   "operands must be previously defined");
             return it->second;
-        } else if (auto *CI = llvm::dyn_cast<llvm::ConstantInt>(V)) {
-            BrgTreeNode *T = BrgTreeNode::createImmNode(CI->getSExtValue());
-            return T;
         } else if (auto *I = llvm::dyn_cast<llvm::Instruction>(V)) {
-            auto it = InstMap.find(I);
-            assert(it != InstMap.end() && "operands must be previously defined");
+            auto it = CurrentFunction->InstToNodeMap.find(I);
+            assert(it != CurrentFunction->InstToNodeMap.end() &&
+                   "operands must be previously defined");
             return it->second;
         } else if (auto *Arg = llvm::dyn_cast<llvm::Argument>(V)) {
-            auto it = ArgMap.find(Arg);
-            assert(it != ArgMap.end() && "operands must be previously defined");
+            auto it = CurrentFunction->ArgToNodeMap.find(Arg);
+            assert(it != CurrentFunction->ArgToNodeMap.end() &&
+                   "operands must be previously defined");
             return it->second;
         } else if (auto *F = llvm::dyn_cast<llvm::Function>(V)) {
-            auto it = LabelMap.find(V);
-            if (it == LabelMap.end()) {
-                LabelMap[V] = BrgTreeNode::createLabelNode(AsmCtx.getOrCreateSymbol(F));
-                return LabelMap[V];
+            if (!FunctionToNodeMap.count(F)) {
+                FunctionToNodeMap[F] =
+                    BrgTreeNode::createLabelNode(AsmCtx.getOrCreateSymbol(F));
             }
-            return it->second;
+            return FunctionToNodeMap[F];
         } else if (auto *BB = llvm::dyn_cast<llvm::BasicBlock>(V)) {
-            auto it = LabelMap.find(V);
-            if (it == LabelMap.end()) {
-                LabelMap[V] = BrgTreeNode::createLabelNode(AsmCtx.getOrCreateSymbol(BB));
-                return LabelMap[V];
+            if (!CurrentFunction->BasicBlockToNodeMap.count(BB)) {
+                CurrentFunction->BasicBlockToNodeMap[BB] =
+                    BrgTreeNode::createLabelNode(AsmCtx.getOrCreateSymbol(BB));
             }
-            return it->second;
+            return CurrentFunction->BasicBlockToNodeMap[BB];
+        } else if (auto *CI = llvm::dyn_cast<llvm::ConstantInt>(V)) {
+            if (!ConstantIntToNodeMap.count(CI)) {
+                ConstantIntToNodeMap[CI] = BrgTreeNode::createImmNode(CI->getSExtValue());
+            }
+            return ConstantIntToNodeMap[CI];
         }
         llvm_unreachable("unhandled operand");
         return nullptr;
@@ -323,101 +492,6 @@ public:
         llvm::Type *Ty = AI.getAllocatedType();
         uint64_t SizeInBytes = AI.getModule()->getDataLayout().getTypeAllocSize(Ty);
         return SizeInBytes * ArraySize;
-    }
-
-    BrgTreeNode *visitAllocaInst(llvm::AllocaInst &AI) {
-        uint64_t AllocaSizeInBytes = getAllocaSizeInBytes(AI);
-        Offset -= AllocaSizeInBytes;
-        auto *AllocaNode = BrgTreeNode::createMemNode(
-            Offset, {BrgTreeNode::createImmNode(AllocaSizeInBytes)});
-        InstMap[&AI] = AllocaNode;
-        ExprTrees.push_back(AllocaNode);
-        return AllocaNode;
-    }
-
-    BrgTreeNode *visitBranchInst(llvm::BranchInst &BI) {
-        BrgTreeNode *InstNode;
-        if (BI.isUnconditional()) {
-            InstNode = BrgTreeNode::createInstNode(&BI, {visitOperand(BI.getSuccessor(0)),
-                                                         BrgTreeNode::createUndefNode(),
-                                                         BrgTreeNode::createUndefNode()});
-        } else {
-            if (BI.getCondition() ==
-                llvm::ConstantInt::getTrue(llvm::Type::getInt1Ty(BI.getContext()))) {
-                InstNode =
-                    BrgTreeNode::createInstNode(&BI, {visitOperand(BI.getSuccessor(0)),
-                                                      BrgTreeNode::createUndefNode(),
-                                                      BrgTreeNode::createUndefNode()});
-            } else if (BI.getCondition() == llvm::ConstantInt::getFalse(
-                                                llvm::Type::getInt1Ty(BI.getContext()))) {
-                InstNode =
-                    BrgTreeNode::createInstNode(&BI, {visitOperand(BI.getSuccessor(1)),
-                                                      BrgTreeNode::createUndefNode(),
-                                                      BrgTreeNode::createUndefNode()});
-            } else {
-                auto *ICI = llvm::cast<llvm::ICmpInst>(BI.getCondition());
-                assert(InstMap.count(ICI) && "BI.getCondition() not in InstMap");
-                InstNode = BrgTreeNode::createInstNode(
-                    &BI, {InstMap[ICI], visitOperand(BI.getSuccessor(0)),
-                          visitOperand(BI.getSuccessor(1))});
-            }
-        }
-        InstMap[&BI] = InstNode;
-        ExprTrees.push_back(InstNode);
-        return InstNode;
-    }
-
-    BrgTreeNode *visitCallInst(llvm::CallInst &CI) {
-        std::vector<BrgTreeNode *> Kids;
-        BrgTreeNode *Args = BrgTreeNode::createArgsNode(
-            {BrgTreeNode::createUndefNode(), BrgTreeNode::createUndefNode()});
-        BrgTreeNode *CurrentNode = Args;
-        for (unsigned i = 0, e = CI.arg_size(); i != e; ++i) {
-            BrgTreeNode *ArgsTmp = BrgTreeNode::createArgsNode(
-                {BrgTreeNode::createUndefNode(), BrgTreeNode::createUndefNode()});
-            CurrentNode->setKids({visitOperand(CI.getArgOperand(i)), ArgsTmp});
-            CurrentNode = ArgsTmp;
-            if (i >= 6)  // push arg on stack
-            {
-                llvm::Type *Ty = CI.getArgOperand(i)->getType();
-                uint64_t SizeInBytes =
-                    CI.getModule()->getDataLayout().getTypeAllocSize(Ty);
-                Offset -= SizeInBytes;
-            }
-        }
-        BrgTreeNode *Ret;
-        if (auto *Callee = CI.getCalledFunction()) {
-            // direct call
-            Ret = BrgTreeNode::createInstNode(&CI, {visitOperand(Callee), Args});
-        } else {
-            // indirect call
-            Ret = BrgTreeNode::createInstNode(
-                &CI, {visitOperand(CI.getCalledOperand()), Args});
-        }
-        InstMap[&CI] = Ret;
-        ExprTrees.push_back(Ret);
-        return Ret;
-    }
-
-    // BrgTreeNode* visitReturnInst(llvm::ReturnInst &I);
-    // BrgTreeNode* visitLoadInst(llvm::LoadInst &I);
-    // BrgTreeNode* visitStoreInst(llvm::StoreInst &I);
-    // BrgTreeNode* visitICmpInst(llvm::ICmpInst &I);
-    // BrgTreeNode* visitAdd(llvm::BinaryOperator &I);
-    // BrgTreeNode* visitSub(llvm::BinaryOperator &I);
-    // BrgTreeNode* visitMul(llvm::BinaryOperator &I);
-    // BrgTreeNode* visitSDiv(llvm::BinaryOperator &I);
-
-    /// Specify what to return for unhandled instructions.
-    BrgTreeNode *visitInstruction(llvm::Instruction &I) {
-        std::vector<BrgTreeNode *> Kids;
-        for (unsigned i = 0, e = I.getNumOperands(); i != e; ++i) {
-            Kids.push_back(visitOperand(I.getOperand(i)));
-        }
-        BrgTreeNode *T = BrgTreeNode::createInstNode(&I, Kids);
-        InstMap[&I] = T;
-        ExprTrees.push_back(T);
-        return T;
     }
 };
 

@@ -51,6 +51,15 @@ public:
         initFreeRegisters();
     }
 
+    ~LinearScanRegisterAllocator() {
+        for (auto *LI: Fixed)
+            delete LI;
+        for (auto *LI: Spilled)
+            delete LI;
+        for (auto *LI: Active)
+            delete LI;
+    }
+
     void LinearScan() {
         while (!Unhandled.empty()) {
             LiveInterval *LI = Unhandled.top();
@@ -77,22 +86,21 @@ public:
         return VirtRegToAllocatedRegMap;
     }
 
-    std::size_t getSpilledRegCount() {
-        return Spilled.size();
-    }
+    std::size_t getSpilledRegCount() { return Spilled.size(); }
 
 private:
     void initIntervalSets(std::unordered_map<uint32_t, LiveRanges> &RegLiveRangesMap) {
         Active.clear();
         for (const auto &p : RegLiveRangesMap) {
             if (Register::isVirtualRegister(p.first)) {
-                Unhandled.push(new LiveInterval({p.second.Ranges[0].StartPoint,
-                                                 p.second.Ranges[0].EndPoint, p.first}));
+                Unhandled.push(new LiveInterval({p.second.Ranges.back().StartPoint,
+                                                 p.second.Ranges.back().EndPoint, p.first,
+                                                 p.second.Ranges.back().UsedAcrossCall}));
             }
             if (Register::isPhysicalRegister(p.first)) {
                 for (const auto &Range : p.second.Ranges) {
-                    Fixed.push_back(
-                        new LiveInterval({Range.StartPoint, Range.EndPoint, p.first}));
+                    Fixed.push_back(new LiveInterval({Range.StartPoint, Range.EndPoint,
+                                                      p.first, Range.UsedAcrossCall}));
                 }
             }
         }
@@ -123,26 +131,20 @@ private:
 
     void ExpireOldIntervals(LiveInterval *LI) {
         for (auto it = Active.begin(); it != Active.end();) {
-            if ((*it)->EndPoint > LI->StartPoint) {
+            LiveInterval *ActiveLI = *it;
+            if (ActiveLI->EndPoint > LI->StartPoint) {
                 return;
             }
-            uint32_t AllocatedReg = VirtRegToAllocatedRegMap[(*it)->Reg];
+            uint32_t AllocatedReg = VirtRegToAllocatedRegMap[ActiveLI->Reg];
             if (Register::isPhysicalRegister(AllocatedReg)) {
                 FreeRegisters[AllocatedReg] = true;
             }
+            delete ActiveLI;
             it = Active.erase(it);
         }
     }
 
     uint32_t getFreePhysReg(LiveInterval *LI) {
-        bool UsedAcrossFunctionCall = false;
-        for (uint32_t i = LI->StartPoint; i < LI->EndPoint; ++i) {
-            if (llvm::isa<AsmCallInst>(AsmFunc.Instructions[i - 1])) {
-                UsedAcrossFunctionCall = true;
-                break;
-            }
-        }
-
         for (uint32_t Reg = 0, e = FreeRegisters.size(); Reg != e; ++Reg) {
             if (FreeRegisters[Reg] == false)
                 continue;
@@ -159,9 +161,9 @@ private:
             if (ConflictWithFixed)
                 continue;
 
-            if (UsedAcrossFunctionCall && !Register::isCalleeSavedRegister(Reg))
+            if (LI->UsedAcrossCall && !Register::isCalleeSavedRegister(Reg))
                 continue;
-            if (!UsedAcrossFunctionCall && !Register::isCallerSavedRegister(Reg))
+            if (!LI->UsedAcrossCall && !Register::isCallerSavedRegister(Reg))
                 continue;
 
             // Find an available PhysReg

@@ -9,7 +9,7 @@ namespace remniw {
 struct LiveRange {
     uint32_t StartPoint;
     uint32_t EndPoint;
-
+    bool UsedAcrossCall;
     void print(llvm::raw_ostream &OS) const {
         OS << "[" << StartPoint << ", " << EndPoint << ")";
     }
@@ -25,6 +25,7 @@ struct LiveInterval {
     uint32_t StartPoint;
     uint32_t EndPoint;
     uint32_t Reg;
+    bool UsedAcrossCall;
 };
 
 }  // namespace remniw

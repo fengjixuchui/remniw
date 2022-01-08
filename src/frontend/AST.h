@@ -56,6 +56,7 @@ public:
     };
 
     ASTNode(Kind K, SourceLocation Loc): ASTNodeKind(K), Loc(Loc) {}
+    virtual ~ASTNode() = default;
 
     Kind getKind() const { return ASTNodeKind; }
     int getLine() const { return Loc.Line; }

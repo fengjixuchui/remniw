@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AsmContext.h"
+#include "AsmFunction.h"
 #include "AsmInstruction.h"
 #include "BrgTreeBuilder.h"
 #include "LiveInterval.h"
@@ -12,48 +13,47 @@
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/InstVisitor.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/Support/Debug.h"
 #include <unordered_map>
 #include <vector>
 
+#define DEBUG_TYPE "remniw-asmbuilder"
+
 namespace remniw {
-
-struct AsmFunction {
-    AsmFunction(std::string FuncName, int64_t StackSizeInBytes,
-                llvm::SmallVector<AsmInstruction *> Instructions,
-                std::unordered_map<uint32_t, remniw::LiveRanges> RegLiveRangesMap):
-        FuncName(FuncName),
-        StackSizeInBytes(StackSizeInBytes), Instructions(std::move(Instructions)),
-        RegLiveRangesMap(std::move(RegLiveRangesMap)) {}
-
-    std::string FuncName;
-    int64_t StackSizeInBytes;
-    llvm::SmallVector<AsmInstruction *> Instructions;
-    std::unordered_map<uint32_t, remniw::LiveRanges> RegLiveRangesMap;
-};
 
 class AsmBuilder {
 private:
     AsmContext &AsmCtx;
-    llvm::SmallVector<BrgFunction> BrgFunctions;
-    llvm::SmallVector<AsmFunction> AsmFunctions;
-    llvm::SmallVector<AsmInstruction *> CurrentAsmFuncInsts;
-    std::unordered_map<uint32_t, remniw::LiveRanges> CurrentRegLiveRangesMap;
+    llvm::SmallVector<AsmFunction *> AsmFunctions;
+    llvm::SmallVector<uint32_t> CurrentCallInstIndexs;
+    AsmFunction *CurrentFunction;
 
 public:
-    AsmBuilder(AsmContext &AsmCtx, llvm::SmallVector<BrgFunction> Functions):
-        AsmCtx(AsmCtx), BrgFunctions(std::move(Functions)) {
-        for (const auto &BrgFunc : BrgFunctions) {
+    AsmBuilder(AsmContext &AsmCtx,
+               const llvm::SmallVectorImpl<BrgFunction *> &BrgFunctions):
+        AsmCtx(AsmCtx),
+        CurrentFunction(nullptr) {
+        for (auto *BrgFunc : BrgFunctions) {
+            CurrentCallInstIndexs.clear();
             buildAsmFunction(BrgFunc);
         }
     }
 
-    void buildAsmFunction(const BrgFunction &);
+    ~AsmBuilder() {
+        for (auto *F : AsmFunctions)
+            delete F;
+    }
 
-    llvm::SmallVector<AsmFunction> &getAsmFunctions() { return AsmFunctions; }
+    void buildAsmFunction(const BrgFunction *);
+
+    llvm::SmallVector<AsmFunction *> &getAsmFunctions() { return AsmFunctions; }
 
     void updateRegLiveRanges(uint32_t Reg) {
-        uint32_t StartPoint = static_cast<uint32_t>(CurrentAsmFuncInsts.size());
+        uint32_t StartPoint = static_cast<uint32_t>(CurrentFunction->size());
         uint32_t EndPoint = StartPoint + 1;
+        bool UsedAcrossCall = false;
+        std::unordered_map<uint32_t, remniw::LiveRanges> &CurrentRegLiveRangesMap =
+            CurrentFunction->getRegLiveRangesMap();
         // For virtual registers, we simply do not consider lifetime holes.
         // The lifetime interval of virtual register is the segment of the program that
         // starts where the virtual register is first live in the static linear order
@@ -62,15 +62,25 @@ public:
         // registers, the `struct LiveRanges` only consists of one `struct LiveRange`.
         if (Register::isVirtualRegister(Reg)) {
             if (CurrentRegLiveRangesMap.count(Reg)) {
-                CurrentRegLiveRangesMap[Reg].Ranges[0].EndPoint = EndPoint;
+                CurrentRegLiveRangesMap[Reg].Ranges.back().EndPoint = EndPoint;
+                StartPoint = CurrentRegLiveRangesMap[Reg].Ranges.back().StartPoint;
             } else {
-                CurrentRegLiveRangesMap[Reg].Ranges.push_back({StartPoint, EndPoint});
+                CurrentRegLiveRangesMap[Reg].Ranges.push_back(
+                    {StartPoint, EndPoint, false});
             }
 
+            if (std::find_if(CurrentCallInstIndexs.begin(), CurrentCallInstIndexs.end(),
+                             [&](uint32_t Index) {
+                                 return StartPoint <= Index && Index < EndPoint;
+                             }) != CurrentCallInstIndexs.end())
+                CurrentRegLiveRangesMap[Reg].Ranges.back().UsedAcrossCall = true;
+
             for (const auto &Range : CurrentRegLiveRangesMap[Reg].Ranges) {
-                llvm::outs() << "VirtualRegister " << Reg << " LiveRange: ";
-                Range.print(llvm::outs());
-                llvm::outs() << "\n";
+                LLVM_DEBUG({
+                    llvm::outs() << "VirtualRegister " << Reg << " LiveRange: ";
+                    Range.print(llvm::outs());
+                    llvm::outs() << "\n";
+                });
             }
         }
         // For physical register, we consider lifetime holes.
@@ -89,143 +99,170 @@ public:
                     // Do nothing
                 } else if (LastActiveRange.EndPoint == StartPoint) {
                     LastActiveRange.EndPoint = EndPoint;
+                    StartPoint = LastActiveRange.StartPoint;
                 } else {
-                    CurrentRegLiveRangesMap[Reg].Ranges.push_back({StartPoint, EndPoint});
+                    CurrentRegLiveRangesMap[Reg].Ranges.push_back(
+                        {StartPoint, EndPoint, false});
                 }
             } else {
-                CurrentRegLiveRangesMap[Reg].Ranges.push_back({StartPoint, EndPoint});
+                CurrentRegLiveRangesMap[Reg].Ranges.push_back(
+                    {StartPoint, EndPoint, false});
             }
 
+            if (std::find_if(CurrentCallInstIndexs.begin(), CurrentCallInstIndexs.end(),
+                             [&](uint32_t Index) {
+                                 return StartPoint <= Index && Index < EndPoint;
+                             }) != CurrentCallInstIndexs.end())
+                CurrentRegLiveRangesMap[Reg].Ranges.back().UsedAcrossCall = true;
+
             for (const auto &Range : CurrentRegLiveRangesMap[Reg].Ranges) {
-                llvm::outs() << "PhysicalRegiste " << Reg << " LiveRange: ";
-                Range.print(llvm::outs());
-                llvm::outs() << "\n";
+                LLVM_DEBUG({
+                    llvm::outs() << "PhysicalRegiste " << Reg << " LiveRange: ";
+                    Range.print(llvm::outs());
+                    llvm::outs() << "\n";
+                });
             }
         }
     }
 
-    void updateAsmOperandLiveRanges(AsmOperand *Op) {
-        llvm::outs() << "updateAsmOperandLiveRanges " << Op << "\n";
-        if (Op->isReg()) {
-            updateRegLiveRanges(Op->getReg());
+    void updateAsmOperandLiveRanges(const AsmOperand &Op) {
+        LLVM_DEBUG({ llvm::outs() << "updateAsmOperandLiveRanges " << &Op << "\n"; });
+        if (Op.isReg()) {
+            updateRegLiveRanges(Op.getReg());
         }
-        if (Op->isMem()) {
-            uint32_t MemBaseReg = Op->getMemBaseReg();
+        if (Op.isMem()) {
+            uint32_t MemBaseReg = Op.getMemBaseReg();
             if (MemBaseReg != Register::RBP) {
                 updateRegLiveRanges(MemBaseReg);
             }
-            uint32_t MemIndexReg = Op->getMemIndexReg();
+            uint32_t MemIndexReg = Op.getMemIndexReg();
             if (MemIndexReg != Register::NoRegister) {
                 updateRegLiveRanges(MemIndexReg);
             }
         }
-        llvm::outs() << "\n";
     }
 
-    void createMov(AsmOperand *Src, AsmOperand *Dst) {
-        CurrentAsmFuncInsts.push_back(
-            /*std::make_unique<AsmInstruction>*/ (new AsmMovInst(Src, Dst)));
-        llvm::outs() << CurrentAsmFuncInsts.size();
-        CurrentAsmFuncInsts.back()->print(llvm::outs());
-        updateAsmOperandLiveRanges(Src);
-        updateAsmOperandLiveRanges(Dst);
+    void createMov(std::unique_ptr<AsmOperand> Src, std::unique_ptr<AsmOperand> Dst) {
+        updateAsmOperandLiveRanges(*Src);
+        updateAsmOperandLiveRanges(*Dst);
+        auto *I = AsmMovInst::Create(std::move(Src), std::move(Dst), CurrentFunction);
+        LLVM_DEBUG({
+            llvm::outs() << CurrentFunction->size();
+            I->print(llvm::outs());
+        });
     }
 
-    void createLea(AsmOperand *Src, AsmOperand *Dst) {
-        CurrentAsmFuncInsts.push_back(
-            /*std::make_unique<AsmInstruction>*/ (new AsmLeaInst(Src, Dst)));
-        llvm::outs() << CurrentAsmFuncInsts.size();
-        CurrentAsmFuncInsts.back()->print(llvm::outs());
-        updateAsmOperandLiveRanges(Src);
-        updateAsmOperandLiveRanges(Dst);
+    void createLea(std::unique_ptr<AsmOperand> Src, std::unique_ptr<AsmOperand> Dst) {
+        updateAsmOperandLiveRanges(*Src);
+        updateAsmOperandLiveRanges(*Dst);
+        auto *I = AsmLeaInst::Create(std::move(Src), std::move(Dst), CurrentFunction);
+        LLVM_DEBUG({
+            llvm::outs() << CurrentFunction->size();
+            I->print(llvm::outs());
+        });
     }
 
-    void createCmp(AsmOperand *Src, AsmOperand *Dst) {
-        CurrentAsmFuncInsts.push_back(
-            /*std::make_unique<AsmInstruction>*/ (new AsmCmpInst(Src, Dst)));
-        llvm::outs() << CurrentAsmFuncInsts.size();
-        CurrentAsmFuncInsts.back()->print(llvm::outs());
-        updateAsmOperandLiveRanges(Src);
-        updateAsmOperandLiveRanges(Dst);
+    void createCmp(std::unique_ptr<AsmOperand> Src, std::unique_ptr<AsmOperand> Dst) {
+        updateAsmOperandLiveRanges(*Src);
+        updateAsmOperandLiveRanges(*Dst);
+        auto *I = AsmCmpInst::Create(std::move(Src), std::move(Dst), CurrentFunction);
+        LLVM_DEBUG({
+            llvm::outs() << CurrentFunction->size();
+            I->print(llvm::outs());
+        });
     }
 
-    void createJmp(AsmJmpInst::JmpKindTy JmpKind, AsmOperand *Op) {
-        CurrentAsmFuncInsts.push_back(
-            /*std::make_unique<AsmInstruction>*/ (new AsmJmpInst(JmpKind, Op)));
-        llvm::outs() << CurrentAsmFuncInsts.size();
-        CurrentAsmFuncInsts.back()->print(llvm::outs());
-        updateAsmOperandLiveRanges(Op);
+    void createJmp(AsmJmpInst::JmpKindTy JmpKind, std::unique_ptr<AsmOperand> Op) {
+        updateAsmOperandLiveRanges(*Op);
+        auto *I = AsmJmpInst::Create(JmpKind, std::move(Op), CurrentFunction);
+        LLVM_DEBUG({
+            llvm::outs() << CurrentFunction->size();
+            I->print(llvm::outs());
+        });
     }
 
-    void createAdd(AsmOperand *Src, AsmOperand *Dst) {
-        CurrentAsmFuncInsts.push_back(
-            /*std::make_unique<AsmInstruction>*/ (new AsmAddInst(Src, Dst)));
-        llvm::outs() << CurrentAsmFuncInsts.size();
-        CurrentAsmFuncInsts.back()->print(llvm::outs());
-        updateAsmOperandLiveRanges(Src);
-        updateAsmOperandLiveRanges(Dst);
+    void createAdd(std::unique_ptr<AsmOperand> Src, std::unique_ptr<AsmOperand> Dst) {
+        updateAsmOperandLiveRanges(*Src);
+        updateAsmOperandLiveRanges(*Dst);
+        auto *I = AsmAddInst::Create(std::move(Src), std::move(Dst), CurrentFunction);
+        LLVM_DEBUG({
+            llvm::outs() << CurrentFunction->size();
+            I->print(llvm::outs());
+        });
     }
 
-    void createSub(AsmOperand *Src, AsmOperand *Dst) {
-        CurrentAsmFuncInsts.push_back(
-            /*std::make_unique<AsmInstruction>*/ (new AsmSubInst(Src, Dst)));
-        llvm::outs() << CurrentAsmFuncInsts.size();
-        CurrentAsmFuncInsts.back()->print(llvm::outs());
-        updateAsmOperandLiveRanges(Src);
-        updateAsmOperandLiveRanges(Dst);
+    void createSub(std::unique_ptr<AsmOperand> Src, std::unique_ptr<AsmOperand> Dst) {
+        updateAsmOperandLiveRanges(*Src);
+        updateAsmOperandLiveRanges(*Dst);
+        auto *I = AsmSubInst::Create(std::move(Src), std::move(Dst), CurrentFunction);
+        LLVM_DEBUG({
+            llvm::outs() << CurrentFunction->size();
+            I->print(llvm::outs());
+        });
     }
 
-    void createImul(AsmOperand *Src, AsmOperand *Dst) {
-        CurrentAsmFuncInsts.push_back(
-            /*std::make_unique<AsmInstruction>*/ (new AsmImulInst(Src, Dst)));
-        llvm::outs() << CurrentAsmFuncInsts.size();
-        CurrentAsmFuncInsts.back()->print(llvm::outs());
-        updateAsmOperandLiveRanges(Src);
-        updateAsmOperandLiveRanges(Dst);
+    void createImul(std::unique_ptr<AsmOperand> Src, std::unique_ptr<AsmOperand> Dst) {
+        updateAsmOperandLiveRanges(*Src);
+        updateAsmOperandLiveRanges(*Dst);
+        auto *I = AsmImulInst::Create(std::move(Src), std::move(Dst), CurrentFunction);
+        LLVM_DEBUG({
+            llvm::outs() << CurrentFunction->size();
+            I->print(llvm::outs());
+        });
     }
 
-    void createIdiv(AsmOperand *Op) {
-        CurrentAsmFuncInsts.push_back(
-            /*std::make_unique<AsmInstruction>*/ (new AsmIdivInst(Op)));
-        llvm::outs() << CurrentAsmFuncInsts.size();
-        CurrentAsmFuncInsts.back()->print(llvm::outs());
-        updateAsmOperandLiveRanges(Op);
+    void createIdiv(std::unique_ptr<AsmOperand> Op) {
+        updateAsmOperandLiveRanges(*Op);
         updateRegLiveRanges(Register::RAX);
         updateRegLiveRanges(Register::RDX);
+        auto *I = AsmIdivInst::Create(std::move(Op), CurrentFunction);
+        LLVM_DEBUG({
+            llvm::outs() << CurrentFunction->size();
+            I->print(llvm::outs());
+        });
     }
 
     void createCqto() {
-        CurrentAsmFuncInsts.push_back(
-            /*std::make_unique<AsmInstruction>*/ (new AsmCqtoInst()));
-        llvm::outs() << CurrentAsmFuncInsts.size();
-        CurrentAsmFuncInsts.back()->print(llvm::outs());
         updateRegLiveRanges(Register::RAX);
         updateRegLiveRanges(Register::RDX);
+        auto *I = AsmCqtoInst::Create(CurrentFunction);
+        LLVM_DEBUG({
+            llvm::outs() << CurrentFunction->size();
+            I->print(llvm::outs());
+        });
     }
 
-    void createCall(AsmOperand *Callee, bool DirectCall) {
-        CurrentAsmFuncInsts.push_back(
-            /*std::make_unique<AsmInstruction>*/ (new AsmCallInst(Callee, DirectCall)));
-        llvm::outs() << CurrentAsmFuncInsts.size();
-        CurrentAsmFuncInsts.back()->print(llvm::outs());
-        updateAsmOperandLiveRanges(Callee);
+    void createCall(std::unique_ptr<AsmOperand> Callee, bool DirectCall) {
+        updateAsmOperandLiveRanges(*Callee);
+        auto *I = AsmCallInst::Create(std::move(Callee), DirectCall, CurrentFunction);
+        LLVM_DEBUG({
+            llvm::outs() << CurrentFunction->size();
+            I->print(llvm::outs());
+        });
+        CurrentCallInstIndexs.push_back(CurrentFunction->size());
     }
 
-    void createXor(AsmOperand *Src, AsmOperand *Dst) {
-        CurrentAsmFuncInsts.push_back(
-            /*std::make_unique<AsmInstruction>*/ (new AsmXorInst(Src, Dst)));
-        llvm::outs() << CurrentAsmFuncInsts.size();
-        CurrentAsmFuncInsts.back()->print(llvm::outs());
-        updateAsmOperandLiveRanges(Src);
-        updateAsmOperandLiveRanges(Dst);
+    void createXor(std::unique_ptr<AsmOperand> Src, std::unique_ptr<AsmOperand> Dst) {
+        updateAsmOperandLiveRanges(*Src);
+        updateAsmOperandLiveRanges(*Dst);
+        auto *I = AsmXorInst::Create(std::move(Src), std::move(Dst), CurrentFunction);
+        LLVM_DEBUG({
+            llvm::outs() << CurrentFunction->size();
+            I->print(llvm::outs());
+        });
     }
 
-    void createLabel(AsmOperand *LabelOp) {
-        CurrentAsmFuncInsts.push_back(
-            /*std::make_unique<AsmInstruction>*/ (new AsmLabelInst(LabelOp)));
+    void createLabel(std::unique_ptr<AsmOperand> LabelOp) {
+        auto *I = AsmLabelInst::Create(std::move(LabelOp), CurrentFunction);
+        LLVM_DEBUG({
+            llvm::outs() << CurrentFunction->size();
+            I->print(llvm::outs());
+        });
     }
 };
 
 using AsmBuilderPtr = AsmBuilder *;
 
 }  // namespace remniw
+
+#undef DEBUG_TYPE

@@ -655,7 +655,7 @@ static void emitfuncs(void) {
           "%1else {\n"
           "%2for(i=0;i<arity;i++)\n"
           "%3%Pfree(s->kids[i]);\n"
-          "%2free(s->kids);\n"
+          "%2free(s->kids);free(s);\n"
           "%1}\n"
           "}\n");
     print("struct %Pstate *%Pimmed(struct %Pstate *s,int n)\n"

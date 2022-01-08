@@ -10,6 +10,11 @@ namespace remniw {
 class AsmContext {
 public:
     AsmContext() {}
+    ~AsmContext() {
+        for (auto p : SymbolTable) {
+            delete p.second;
+        }
+    }
     AsmSymbol *getOrCreateSymbol(llvm::Value *V);
 
 private:
