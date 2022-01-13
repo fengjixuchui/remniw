@@ -10,6 +10,7 @@
 namespace remniw {
 
 struct AsmOperand {
+public:
     enum KindTy
     {
         Register,
@@ -58,9 +59,10 @@ struct AsmOperand {
         return Res;
     }
 
-    static std::unique_ptr<AsmOperand> createMem(int64_t Disp, uint32_t BaseReg = Register::RBP,
-                                 uint32_t IndexReg = Register::NoRegister,
-                                 uint32_t Scale = 1) {
+    static std::unique_ptr<AsmOperand> createMem(int64_t Disp,
+                                                 uint32_t BaseReg = Register::RBP,
+                                                 uint32_t IndexReg = Register::NoRegister,
+                                                 uint32_t Scale = 1) {
         auto Res = std::make_unique<AsmOperand>(KindTy::Memory);
         Res->Mem.Disp = Disp;
         Res->Mem.BaseReg = BaseReg;
@@ -74,6 +76,8 @@ struct AsmOperand {
         Res->Lbl.Symbol = Symbol;
         return Res;
     }
+
+    std::unique_ptr<AsmOperand> clone() { return std::make_unique<AsmOperand>(*this); }
 
     bool isReg() const { return Kind == Register; }
 

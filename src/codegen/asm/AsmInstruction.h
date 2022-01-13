@@ -85,6 +85,10 @@ public:
 
     AsmOperand *getOperand(unsigned i) const { return Operands[i].get(); }
 
+    void setOperand(unsigned i, std::unique_ptr<AsmOperand> Op) {
+        Operands[i] = std::move(Op);
+    }
+
     KindTy getInstKind() const { return Kind; }
 
     void deleteValue();

@@ -10,6 +10,7 @@ namespace remniw {
 class AsmRewriter {
 private:
     llvm::SmallVector<AsmFunction *> AsmFunctions;
+    AsmFunction *CurrentFunction;
     int64_t OriginStackSizeInBytes;
     int64_t StackSizeInBytesWithSpilledReg;
     uint32_t NumReversedStackSlotForReg;
@@ -21,8 +22,9 @@ public:
         for (auto *AsmFunc : AsmFunctions) {
             if (AsmFunc->empty())
                 continue;
+            CurrentFunction = AsmFunc;
             std::vector<uint32_t> UsedCalleeSavedRegisters;
-            doRegAlloc(*AsmFunc, UsedCalleeSavedRegisters);
+            doRegAlloc(UsedCalleeSavedRegisters);
             AsmFunc->StackSizeInBytes =
                 StackSizeInBytesWithSpilledReg + 8 * NumReversedStackSlotForReg;
             insertPrologue(AsmFunc, UsedCalleeSavedRegisters);
@@ -32,17 +34,16 @@ public:
 
     llvm::SmallVector<AsmFunction *> &getAsmFunctions() { return AsmFunctions; }
 
-    void doRegAlloc(remniw::AsmFunction &AsmFunc,
-                    std::vector<uint32_t> &UsedCalleeSavedRegisters) {
-        LinearScanRegisterAllocator LSRA(AsmFunc, AsmFunc.RegLiveRangesMap);
+    void doRegAlloc(std::vector<uint32_t> &UsedCalleeSavedRegisters) {
+        LinearScanRegisterAllocator LSRA(CurrentFunction->RegLiveRangesMap);
         LSRA.LinearScan();
         std::unordered_map<uint32_t, uint32_t> &VirtRegToAllocatedRegMap =
             LSRA.getVirtRegToAllocatedRegMap();
-        OriginStackSizeInBytes = AsmFunc.StackSizeInBytes;
+        OriginStackSizeInBytes = CurrentFunction->StackSizeInBytes;
         StackSizeInBytesWithSpilledReg =
             OriginStackSizeInBytes + 8 * LSRA.getSpilledRegCount();
 
-        for (auto &AsmInst : AsmFunc)
+        for (auto &AsmInst : *CurrentFunction)
             rewriteAsmInstVirtRegToPhysReg(&AsmInst, VirtRegToAllocatedRegMap);
 
         for (auto p : VirtRegToAllocatedRegMap) {
@@ -51,115 +52,135 @@ public:
         }
     }
 
-    // void rewriteAsmOperandsToStackSlot(
-    //     AsmFunction &AsmFunc, AsmInstruction *AsmInst,
-    //     llvm::SmallVectorImpl<AsmOperand *> &AsmOps,
-    //     llvm::SmallVectorImpl<AsmInstruction *> &NewAsmInsts,
-    //     std::unordered_map<uint32_t, uint32_t> &VirtRegToAllocatedRegMap) {
-    //     assert(AsmOps.size() <= 2 && "The operands count of AsmInst must <= 2");
-    //     if (AsmOps.size() == 0) {
-    //         NewAsmInsts.push_back(AsmInst);
-    //     }
-    //     if (AsmOps.size() == 1) {
-    //         rewriteAsmOperandToStackSlot(AsmFunc, AsmInst, AsmOps[0], /*IsDst=*/true,
-    //                                      NewAsmInsts, VirtRegToAllocatedRegMap);
-    //     }
-    //     if (AsmOps.size() == 2) {
-    //         rewriteAsmOperandToStackSlot(AsmFunc, AsmInst, AsmOps[0], /*IsDst=*/false,
-    //                                      NewAsmInsts, VirtRegToAllocatedRegMap);
-    //         rewriteAsmOperandToStackSlot(AsmFunc, AsmInst, AsmOps[1], /*IsDst=*/true,
-    //                                      NewAsmInsts, VirtRegToAllocatedRegMap);
-    //     }
-    // }
+    void rewriteAsmInstSpilledRegToStackSlot(
+        AsmInstruction *AsmInst,
+        std::unordered_map<uint32_t, uint32_t> &VirtRegToAllocatedRegMap) {
+        size_t NumOperands = AsmInst->getNumOperands();
+        assert(NumOperands <= 2 && "The operands count of AsmInst must <= 2");
+        llvm::SmallVector<uint32_t, 4> UsedRegs;
+        getUsedRegisters(AsmInst, UsedRegs);
+        if (NumOperands == 1) {
+            rewriteAsmOperandSpilledRegToStackSlot(AsmInst, 0, /*IsDst=*/true,
+                                                   VirtRegToAllocatedRegMap, UsedRegs);
+        }
+        if (NumOperands == 2) {
+            rewriteAsmOperandSpilledRegToStackSlot(AsmInst, 0, /*IsDst=*/false,
+                                                   VirtRegToAllocatedRegMap, UsedRegs);
+            rewriteAsmOperandSpilledRegToStackSlot(AsmInst, 1, /*IsDst=*/true,
+                                                   VirtRegToAllocatedRegMap, UsedRegs);
+        }
+    }
 
-    // bool rewriteAsmOperandToStackSlot(
-    //     AsmFunction &AsmFunc, AsmInstruction *AsmInst, AsmOperand *&AsmOp, bool IsDst,
-    //     llvm::SmallVectorImpl<AsmInstruction *> &NewAsmInsts,
-    //     std::unordered_map<uint32_t, uint32_t> &VirtRegToAllocatedRegMap) {
-    //     bool changed = false;
-    //     llvm::SmallVector<uint32_t, 4> UsedRegs;
-    //     getUsedRegisters(AsmInst, UsedRegs);
-    //     if (AsmOp->isVirtReg()) {
-    //         assert(VirtRegToAllocatedRegMap.count(AsmOp->Reg.RegNo));
-    //         uint32_t AllocatedReg = VirtRegToAllocatedRegMap[AsmOp->Reg.RegNo];
-    //         assert(Register::isStackSlot(AllocatedReg));
-    //         int64_t Offset = getStackSlotOffsetForSpilledReg(AsmOp->Reg.RegNo,
-    //         AsmFunc); AsmOperand *StackSlot = AsmOperand::createMem(Offset); if (IsDst)
-    //         {
-    //             uint32_t AvailReg = getAvailableRegister(AsmInst, UsedRegs);
-    //             AsmOperand *Reg = AsmOperand::createReg(AvailReg);
-    //             AsmOperand *ReservedStackSlot = getReservedStackSlotForReg();
-    //             NewAsmInsts.push_back(new AsmMovInst(Reg, ReservedStackSlot));
-    //             NewAsmInsts.push_back(new AsmMovInst(StackSlot, Reg));
-    //             AsmOp = Reg;
-    //             NewAsmInsts.push_back(AsmInst);
-    //             NewAsmInsts.push_back(new AsmMovInst(Reg, StackSlot));
-    //             NewAsmInsts.push_back(new AsmMovInst(ReservedStackSlot, Reg));
-    //             changed = true;
-    //         } else {
-    //             AsmOp = StackSlot;
-    //             NewAsmInsts.push_back(AsmInst);
-    //             changed = false;
-    //         }
-    //     }
+    void rewriteAsmOperandSpilledRegToStackSlot(
+        AsmInstruction *AsmInst, unsigned OpNo, bool IsDst,
+        std::unordered_map<uint32_t, uint32_t> &VirtRegToAllocatedRegMap,
+        llvm::SmallVectorImpl<uint32_t> &UsedRegs) {
+        AsmOperand *AsmOp = AsmInst->getOperand(OpNo);
+        if (AsmOp->isVirtReg()) {
+            assert(VirtRegToAllocatedRegMap.count(AsmOp->Reg.RegNo));
+            uint32_t AllocatedReg = VirtRegToAllocatedRegMap[AsmOp->Reg.RegNo];
+            assert(Register::isStackSlot(AllocatedReg));
+            int64_t StackSlotOffset = getStackSlotOffsetForSpilledReg(AsmOp->Reg.RegNo);
+            if (!IsDst) {
+                AsmInst->setOperand(OpNo, AsmOperand::createMem(StackSlotOffset));
+            } else {
+                uint32_t AvailReg = getAvailableRegister(AsmInst, UsedRegs);
+                std::unique_ptr<AsmOperand>
+                    ReservedStackSlot; /* = getReservedStackSlotForReg();*/
+                AsmMovInst::create(AsmOperand::createReg(AvailReg),
+                                   ReservedStackSlot->clone(), AsmInst);
+                AsmMovInst::create(AsmOperand::createMem(StackSlotOffset),
+                                   AsmOperand::createReg(AvailReg), AsmInst);
+                AsmInst->setOperand(OpNo, AsmOperand::createReg(AvailReg));
+                if (auto *NextInst = AsmInst->getNextNode()) {
+                    AsmMovInst::create(AsmOperand::createReg(AvailReg),
+                                       AsmOperand::createMem(StackSlotOffset), NextInst);
+                    AsmMovInst::create(ReservedStackSlot->clone(),
+                                       AsmOperand::createReg(AvailReg), NextInst);
+                } else {
+                    AsmMovInst::create(AsmOperand::createReg(AvailReg),
+                                       AsmOperand::createMem(StackSlotOffset),
+                                       AsmInst->getParent());
+                    AsmMovInst::create(ReservedStackSlot->clone(),
+                                       AsmOperand::createReg(AvailReg),
+                                       AsmInst->getParent());
+                }
+            }
+        }
 
-    //     if (AsmOp->isMem()) {
-    //         if (Register::isVirtualRegister(AsmOp->Mem.BaseReg)) {
-    //             assert(VirtRegToAllocatedRegMap.count(AsmOp->Mem.BaseReg));
-    //             uint32_t AllocatedReg = VirtRegToAllocatedRegMap[AsmOp->Mem.BaseReg];
-    //             assert(Register::isStackSlot(AllocatedReg));
-    //             int64_t Offset =
-    //                 getStackSlotOffsetForSpilledReg(AsmOp->Mem.BaseReg, AsmFunc);
-    //             AsmOperand *StackSlot = AsmOperand::createMem(Offset);
-    //             uint32_t AvailReg = getAvailableRegister(AsmInst, UsedRegs);
-    //             UsedRegs.push_back(AvailReg);
-    //             AsmOperand *Reg = AsmOperand::createReg(AvailReg);
-    //             AsmOperand *ReservedStackSlot = getReservedStackSlotForReg();
-    //             NewAsmInsts.push_back(new AsmMovInst(Reg, ReservedStackSlot));
-    //             NewAsmInsts.push_back(new AsmMovInst(StackSlot, Reg));
-    //             AsmOp->Mem.BaseReg = AvailReg;
-    //             NewAsmInsts.push_back(AsmInst);
-    //             NewAsmInsts.push_back(new AsmMovInst(Reg, StackSlot));
-    //             NewAsmInsts.push_back(new AsmMovInst(ReservedStackSlot, Reg));
-    //             changed = true;
-    //         }
-    //         if (Register::isVirtualRegister(AsmOp->Mem.IndexReg)) {
-    //             assert(VirtRegToAllocatedRegMap.count(AsmOp->Mem.IndexReg));
-    //             uint32_t AllocatedReg = VirtRegToAllocatedRegMap[AsmOp->Mem.IndexReg];
-    //             assert(Register::isStackSlot(AllocatedReg));
-    //             int64_t Offset =
-    //                 getStackSlotOffsetForSpilledReg(AsmOp->Mem.IndexReg, AsmFunc);
-    //             AsmOperand *StackSlot = AsmOperand::createMem(Offset);
-    //             uint32_t AvailReg = getAvailableRegister(AsmInst, UsedRegs);
-    //             UsedRegs.push_back(AvailReg);
-    //             AsmOperand *Reg = AsmOperand::createReg(AvailReg);
-    //             AsmOperand *ReservedStackSlot = getReservedStackSlotForReg();
-    //             NewAsmInsts.push_back(new AsmMovInst(Reg, ReservedStackSlot));
-    //             NewAsmInsts.push_back(new AsmMovInst(StackSlot, Reg));
-    //             AsmOp->Mem.IndexReg = AvailReg;
-    //             NewAsmInsts.push_back(AsmInst);
-    //             NewAsmInsts.push_back(new AsmMovInst(Reg, StackSlot));
-    //             NewAsmInsts.push_back(new AsmMovInst(ReservedStackSlot, Reg));
-    //             changed = true;
-    //         }
-    //         if (!changed)
-    //             NewAsmInsts.push_back(AsmInst);
-    //     }
-    //     return changed;
-    // }
+        if (AsmOp->isMem()) {
+            if (Register::isVirtualRegister(AsmOp->Mem.BaseReg)) {
+                assert(VirtRegToAllocatedRegMap.count(AsmOp->Mem.BaseReg));
+                uint32_t AllocatedReg = VirtRegToAllocatedRegMap[AsmOp->Mem.BaseReg];
+                assert(Register::isStackSlot(AllocatedReg));
+                int64_t StackSlotOffset =
+                    getStackSlotOffsetForSpilledReg(AsmOp->Mem.BaseReg);
+                uint32_t AvailReg = getAvailableRegister(AsmInst, UsedRegs);
+                UsedRegs.push_back(AvailReg);
+                int64_t ReservedStackSlotOffset = getReservedStackSlotOffsetForReg();
+                AsmMovInst::create(AsmOperand::createReg(AvailReg),
+                                   AsmOperand::createMem(ReservedStackSlotOffset), AsmInst);
+                AsmMovInst::create(AsmOperand::createMem(StackSlotOffset),
+                                   AsmOperand::createReg(AvailReg), AsmInst);
+                AsmOp->Mem.BaseReg = AvailReg;
+                if (auto *NextInst = AsmInst->getNextNode()) {
+                    AsmMovInst::create(AsmOperand::createReg(AvailReg),
+                                       AsmOperand::createMem(StackSlotOffset), NextInst);
+                    AsmMovInst::create(AsmOperand::createMem(ReservedStackSlotOffset),
+                                       AsmOperand::createReg(AvailReg), NextInst);
+                }
+                else {
+                    AsmMovInst::create(AsmOperand::createReg(AvailReg),
+                                       AsmOperand::createMem(StackSlotOffset), AsmInst->getParent());
+                    AsmMovInst::create(AsmOperand::createMem(ReservedStackSlotOffset),
+                                       AsmOperand::createReg(AvailReg), AsmInst->getParent());
+                }
+            }
 
-    // int64_t getStackSlotOffsetForSpilledReg(uint32_t RegNo, AsmFunction &AsmFunc) {
-    //     assert(Register::isStackSlot(RegNo) && "Must be StackSlot");
-    //     uint32_t StackSlotIndex = Register::stackSlot2Index(RegNo);
-    //     return -(AsmFunc.StackSizeInBytes + 8 * StackSlotIndex);
-    // }
+            if (Register::isVirtualRegister(AsmOp->Mem.IndexReg)) {
+                assert(VirtRegToAllocatedRegMap.count(AsmOp->Mem.IndexReg));
+                uint32_t AllocatedReg = VirtRegToAllocatedRegMap[AsmOp->Mem.IndexReg];
+                assert(Register::isStackSlot(AllocatedReg));
+                int64_t StackSlotOffset =
+                    getStackSlotOffsetForSpilledReg(AsmOp->Mem.IndexReg);
+                uint32_t AvailReg = getAvailableRegister(AsmInst, UsedRegs);
+                UsedRegs.push_back(AvailReg);
+                AsmOperand::createReg(AvailReg);
+                int64_t ReservedStackSlotOffset = getReservedStackSlotOffsetForReg();
+                AsmMovInst::create(AsmOperand::createReg(AvailReg),
+                                   AsmOperand::createMem(ReservedStackSlotOffset), AsmInst);
+                AsmMovInst::create(AsmOperand::createMem(StackSlotOffset),
+                                   AsmOperand::createReg(AvailReg), AsmInst);
+                AsmOp->Mem.IndexReg = AvailReg;
+                if (auto *NextInst = AsmInst->getNextNode()) {
+                    AsmMovInst::create(AsmOperand::createReg(AvailReg),
+                                       AsmOperand::createMem(StackSlotOffset), NextInst);
+                    AsmMovInst::create(AsmOperand::createMem(ReservedStackSlotOffset),
+                                       AsmOperand::createReg(AvailReg), NextInst);
+                }
+                else {
+                    AsmMovInst::create(AsmOperand::createReg(AvailReg),
+                                       AsmOperand::createMem(StackSlotOffset), AsmInst->getParent());
+                    AsmMovInst::create(AsmOperand::createMem(ReservedStackSlotOffset),
+                                       AsmOperand::createReg(AvailReg), AsmInst->getParent());
+                }
+            }
+        }
+    }
 
-    // AsmOperand *getReservedStackSlotForReg() {
-    //     NumReversedStackSlotForReg++;
-    //     int64_t Offset =
-    //         -(StackSizeInBytesWithSpilledReg + 8 * NumReversedStackSlotForReg);
-    //     return AsmOperand::createMem(Offset);
-    // }
+    int64_t getStackSlotOffsetForSpilledReg(uint32_t RegNo) {
+        assert(Register::isStackSlot(RegNo) && "Must be StackSlot");
+        uint32_t StackSlotIndex = Register::stackSlot2Index(RegNo);
+        return -(CurrentFunction->StackSizeInBytes + 8 * StackSlotIndex);
+    }
+
+    // FIXME
+    int64_t getReservedStackSlotOffsetForReg() {
+        NumReversedStackSlotForReg++;
+        int64_t Offset =
+            -(StackSizeInBytesWithSpilledReg + 8 * NumReversedStackSlotForReg);
+        return Offset;
+    }
 
     void insertPrologue(remniw::AsmFunction *AsmFunc,
                         std::vector<uint32_t> &UsedCalleeSavedRegisters) {
@@ -181,7 +202,6 @@ public:
 
     void insertEpilogue(remniw::AsmFunction *AsmFunc,
                         std::vector<uint32_t> &UsedCalleeSavedRegisters) {
-        std::vector<remniw::AsmInstruction *> InsertedEpilogue;
         AsmMovInst::create(AsmOperand::createReg(Register::RBP),
                            AsmOperand::createReg(Register::RSP), AsmFunc);
         AsmPopInst::create(AsmOperand::createReg(Register::RBP), AsmFunc);
@@ -254,23 +274,25 @@ private:
             break;
         case AsmInstruction::Cqto:
         case AsmInstruction::Label:
+            break;
         default: llvm_unreachable("Invalid AsmInstruction");
         }
     }
 
     void getUsedRegisters(AsmInstruction *AsmInst,
                           llvm::SmallVectorImpl<uint32_t> &UsedRegs) {
-        // for (auto *AsmOp : AsmInst->getOperands()) {
-        //     if (AsmOp->isPhysReg()) {
-        //         UsedRegs.push_back(AsmOp->Reg.RegNo);
-        //     }
-        //     if (AsmOp->isMem()) {
-        //         if (Register::isPhysicalRegister(AsmOp->Mem.BaseReg))
-        //             UsedRegs.push_back(AsmOp->Mem.BaseReg);
-        //         if (Register::isPhysicalRegister(AsmOp->Mem.IndexReg))
-        //             UsedRegs.push_back(AsmOp->Mem.IndexReg);
-        //     }
-        // }
+        for (unsigned i = 0; i< AsmInst->getNumOperands();++i) {
+            auto* AsmOp = AsmInst->getOperand(i);
+            if (AsmOp->isPhysReg()) {
+                UsedRegs.push_back(AsmOp->Reg.RegNo);
+            }
+            if (AsmOp->isMem()) {
+                if (Register::isPhysicalRegister(AsmOp->Mem.BaseReg))
+                    UsedRegs.push_back(AsmOp->Mem.BaseReg);
+                if (Register::isPhysicalRegister(AsmOp->Mem.IndexReg))
+                    UsedRegs.push_back(AsmOp->Mem.IndexReg);
+            }
+        }
     }
 
     uint32_t getAvailableRegister(AsmInstruction *AsmInst,

@@ -31,7 +31,6 @@ struct LiveIntervalEndPointIncreasingOrderCompare
 
 class LinearScanRegisterAllocator {
 private:
-    AsmFunction &AsmFunc;
     std::vector<LiveInterval *> LiveIntervals;
     std::priority_queue<LiveInterval *, std::vector<LiveInterval *>,
                         LiveIntervalStartPointIncreasingOrderCompare>
@@ -44,19 +43,17 @@ private:
 
 public:
     LinearScanRegisterAllocator(
-        AsmFunction &AsmFunc,
-        std::unordered_map<uint32_t, remniw::LiveRanges> &RegLiveRangesMap):
-        AsmFunc(AsmFunc) {
+        std::unordered_map<uint32_t, remniw::LiveRanges> &RegLiveRangesMap) {
         initIntervalSets(RegLiveRangesMap);
         initFreeRegisters();
     }
 
     ~LinearScanRegisterAllocator() {
-        for (auto *LI: Fixed)
+        for (auto *LI : Fixed)
             delete LI;
-        for (auto *LI: Spilled)
+        for (auto *LI : Spilled)
             delete LI;
-        for (auto *LI: Active)
+        for (auto *LI : Active)
             delete LI;
     }
 
