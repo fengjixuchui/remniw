@@ -166,33 +166,33 @@ public:
         AsmInstruction *InsertBefore = &AsmFunc->front();
         if (AsmFunc->FuncName != "main") {
             for (uint32_t Reg : UsedCalleeSavedRegisters) {
-                AsmPushInst::Create(AsmOperand::createReg(Reg), InsertBefore);
+                AsmPushInst::create(AsmOperand::createReg(Reg), InsertBefore);
             }
         }
 
-        AsmPushInst::Create(AsmOperand::createReg(Register::RBP), InsertBefore);
-        AsmMovInst::Create(AsmOperand::createReg(Register::RSP),
+        AsmPushInst::create(AsmOperand::createReg(Register::RBP), InsertBefore);
+        AsmMovInst::create(AsmOperand::createReg(Register::RSP),
                            AsmOperand::createReg(Register::RBP), InsertBefore);
         int64_t AlignedStackSizeInBytes = llvm::alignTo(
             AsmFunc->StackSizeInBytes + (UsedCalleeSavedRegisters.size() * 8) % 16, 16);
-        AsmSubInst::Create(AsmOperand::createImm(AlignedStackSizeInBytes),
+        AsmSubInst::create(AsmOperand::createImm(AlignedStackSizeInBytes),
                            AsmOperand::createReg(Register::RSP), InsertBefore);
     }
 
     void insertEpilogue(remniw::AsmFunction *AsmFunc,
                         std::vector<uint32_t> &UsedCalleeSavedRegisters) {
         std::vector<remniw::AsmInstruction *> InsertedEpilogue;
-        AsmMovInst::Create(AsmOperand::createReg(Register::RBP),
+        AsmMovInst::create(AsmOperand::createReg(Register::RBP),
                            AsmOperand::createReg(Register::RSP), AsmFunc);
-        AsmPopInst::Create(AsmOperand::createReg(Register::RBP), AsmFunc);
+        AsmPopInst::create(AsmOperand::createReg(Register::RBP), AsmFunc);
         if (AsmFunc->FuncName != "main") {
             for (auto i = UsedCalleeSavedRegisters.rbegin(),
                       e = UsedCalleeSavedRegisters.rend();
                  i != e; ++i) {
-                AsmPopInst::Create(AsmOperand::createReg(*i), AsmFunc);
+                AsmPopInst::create(AsmOperand::createReg(*i), AsmFunc);
             }
         }
-        AsmRetInst::Create(AsmFunc);
+        AsmRetInst::create(AsmFunc);
     }
 
 private:
@@ -234,70 +234,26 @@ private:
         AsmInstruction *AsmInst,
         std::unordered_map<uint32_t, uint32_t> &VirtRegToAllocatedRegMap) {
         switch (AsmInst->getInstKind()) {
-        case AsmInstruction::Mov: {
-            auto *Inst = llvm::cast<AsmMovInst>(AsmInst);
-            rewriteAsmOperandVirtRegToPhysReg(Inst->getSrcOp(), VirtRegToAllocatedRegMap);
-            rewriteAsmOperandVirtRegToPhysReg(Inst->getDstOp(), VirtRegToAllocatedRegMap);
-            break;
-        }
-        case AsmInstruction::Lea: {
-            auto *Inst = llvm::cast<AsmLeaInst>(AsmInst);
-            rewriteAsmOperandVirtRegToPhysReg(Inst->getSrcOp(), VirtRegToAllocatedRegMap);
-            rewriteAsmOperandVirtRegToPhysReg(Inst->getDstOp(), VirtRegToAllocatedRegMap);
-            break;
-        }
-        case AsmInstruction::Cmp: {
-            auto *Inst = llvm::cast<AsmCmpInst>(AsmInst);
-            rewriteAsmOperandVirtRegToPhysReg(Inst->getSrcOp(), VirtRegToAllocatedRegMap);
-            rewriteAsmOperandVirtRegToPhysReg(Inst->getDstOp(), VirtRegToAllocatedRegMap);
-            break;
-        }
-        case AsmInstruction::Jmp: {
-            auto *Inst = llvm::cast<AsmJmpInst>(AsmInst);
-            rewriteAsmOperandVirtRegToPhysReg(Inst->getOp(), VirtRegToAllocatedRegMap);
-            break;
-        }
-        case AsmInstruction::Add: {
-            auto *Inst = llvm::cast<AsmAddInst>(AsmInst);
-            rewriteAsmOperandVirtRegToPhysReg(Inst->getSrcOp(), VirtRegToAllocatedRegMap);
-            rewriteAsmOperandVirtRegToPhysReg(Inst->getDstOp(), VirtRegToAllocatedRegMap);
-            break;
-        }
-        case AsmInstruction::Sub: {
-            auto *Inst = llvm::cast<AsmSubInst>(AsmInst);
-            rewriteAsmOperandVirtRegToPhysReg(Inst->getSrcOp(), VirtRegToAllocatedRegMap);
-            rewriteAsmOperandVirtRegToPhysReg(Inst->getDstOp(), VirtRegToAllocatedRegMap);
-            break;
-        }
-        case AsmInstruction::Imul: {
-            auto *Inst = llvm::cast<AsmImulInst>(AsmInst);
-            rewriteAsmOperandVirtRegToPhysReg(Inst->getSrcOp(), VirtRegToAllocatedRegMap);
-            rewriteAsmOperandVirtRegToPhysReg(Inst->getDstOp(), VirtRegToAllocatedRegMap);
-            break;
-        }
-        case AsmInstruction::Idiv: {
-            auto *Inst = llvm::cast<AsmIdivInst>(AsmInst);
-            rewriteAsmOperandVirtRegToPhysReg(Inst->getOp(), VirtRegToAllocatedRegMap);
-            break;
-        }
-        case AsmInstruction::Cqto: {
-            break;
-        }
-        case AsmInstruction::Call: {
-            auto *Inst = llvm::cast<AsmCallInst>(AsmInst);
-            rewriteAsmOperandVirtRegToPhysReg(Inst->getCalleeOp(),
+        case AsmInstruction::Mov:
+        case AsmInstruction::Lea:
+        case AsmInstruction::Cmp:
+        case AsmInstruction::Add:
+        case AsmInstruction::Sub:
+        case AsmInstruction::Imul:
+        case AsmInstruction::Xor:
+            rewriteAsmOperandVirtRegToPhysReg(AsmInst->getOperand(0),
+                                              VirtRegToAllocatedRegMap);
+            rewriteAsmOperandVirtRegToPhysReg(AsmInst->getOperand(1),
                                               VirtRegToAllocatedRegMap);
             break;
-        }
-        case AsmInstruction::Xor: {
-            auto *Inst = llvm::cast<AsmXorInst>(AsmInst);
-            rewriteAsmOperandVirtRegToPhysReg(Inst->getSrcOp(), VirtRegToAllocatedRegMap);
-            rewriteAsmOperandVirtRegToPhysReg(Inst->getDstOp(), VirtRegToAllocatedRegMap);
+        case AsmInstruction::Jmp:
+        case AsmInstruction::Idiv:
+        case AsmInstruction::Call:
+            rewriteAsmOperandVirtRegToPhysReg(AsmInst->getOperand(0),
+                                              VirtRegToAllocatedRegMap);
             break;
-        }
-        case AsmInstruction::Label: {
-            break;
-        }
+        case AsmInstruction::Cqto:
+        case AsmInstruction::Label:
         default: llvm_unreachable("Invalid AsmInstruction");
         }
     }

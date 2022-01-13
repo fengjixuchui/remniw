@@ -81,6 +81,8 @@ public:
 
     void removeFromParent();
 
+    size_t getNumOperands() { return Operands.size(); }
+
     AsmOperand *getOperand(unsigned i) const { return Operands[i].get(); }
 
     KindTy getInstKind() const { return Kind; }
@@ -108,12 +110,12 @@ private:
                        InsertBefore) {}
 
 public:
-    static AsmMovInst *Create(std::unique_ptr<AsmOperand> Src,
+    static AsmMovInst *create(std::unique_ptr<AsmOperand> Src,
                               std::unique_ptr<AsmOperand> Dst, AsmFunction *InsertAtEnd) {
         return new AsmMovInst(std::move(Src), std::move(Dst), InsertAtEnd);
     }
 
-    static AsmMovInst *Create(std::unique_ptr<AsmOperand> Src,
+    static AsmMovInst *create(std::unique_ptr<AsmOperand> Src,
                               std::unique_ptr<AsmOperand> Dst,
                               AsmInstruction *InsertBefore) {
         return new AsmMovInst(std::move(Src), std::move(Dst), InsertBefore);
@@ -122,9 +124,6 @@ public:
     static bool classof(const AsmInstruction *I) {
         return I->getInstKind() == AsmInstruction::Mov;
     }
-
-    AsmOperand *getSrcOp() const { return getOperand(0); }
-    AsmOperand *getDstOp() const { return getOperand(1); }
 };
 
 class AsmLeaInst: public AsmInstruction {
@@ -140,12 +139,12 @@ private:
                        InsertBefore) {}
 
 public:
-    static AsmLeaInst *Create(std::unique_ptr<AsmOperand> Src,
+    static AsmLeaInst *create(std::unique_ptr<AsmOperand> Src,
                               std::unique_ptr<AsmOperand> Dst, AsmFunction *InsertAtEnd) {
         return new AsmLeaInst(std::move(Src), std::move(Dst), InsertAtEnd);
     }
 
-    static AsmLeaInst *Create(std::unique_ptr<AsmOperand> Src,
+    static AsmLeaInst *create(std::unique_ptr<AsmOperand> Src,
                               std::unique_ptr<AsmOperand> Dst,
                               AsmInstruction *InsertBefore) {
         return new AsmLeaInst(std::move(Src), std::move(Dst), InsertBefore);
@@ -154,9 +153,6 @@ public:
     static bool classof(const AsmInstruction *I) {
         return I->getInstKind() == AsmInstruction::Lea;
     }
-
-    AsmOperand *getSrcOp() const { return getOperand(0); }
-    AsmOperand *getDstOp() const { return getOperand(1); }
 };
 
 class AsmCmpInst: public AsmInstruction {
@@ -172,12 +168,12 @@ private:
                        InsertBefore) {}
 
 public:
-    static AsmCmpInst *Create(std::unique_ptr<AsmOperand> Src,
+    static AsmCmpInst *create(std::unique_ptr<AsmOperand> Src,
                               std::unique_ptr<AsmOperand> Dst, AsmFunction *InsertAtEnd) {
         return new AsmCmpInst(std::move(Src), std::move(Dst), InsertAtEnd);
     }
 
-    static AsmCmpInst *Create(std::unique_ptr<AsmOperand> Src,
+    static AsmCmpInst *create(std::unique_ptr<AsmOperand> Src,
                               std::unique_ptr<AsmOperand> Dst,
                               AsmInstruction *InsertBefore) {
         return new AsmCmpInst(std::move(Src), std::move(Dst), InsertBefore);
@@ -186,9 +182,6 @@ public:
     static bool classof(const AsmInstruction *I) {
         return I->getInstKind() == AsmInstruction::Cmp;
     }
-
-    AsmOperand *getSrcOp() const { return getOperand(0); }
-    AsmOperand *getDstOp() const { return getOperand(1); }
 };
 
 class AsmJmpInst: public AsmInstruction {
@@ -214,12 +207,12 @@ private:
         JmpKind(JmpKind) {}
 
 public:
-    static AsmJmpInst *Create(AsmJmpInst::JmpKindTy JmpKind,
+    static AsmJmpInst *create(AsmJmpInst::JmpKindTy JmpKind,
                               std::unique_ptr<AsmOperand> Op, AsmFunction *InsertAtEnd) {
         return new AsmJmpInst(JmpKind, std::move(Op), InsertAtEnd);
     }
 
-    static AsmJmpInst *Create(AsmJmpInst::JmpKindTy JmpKind,
+    static AsmJmpInst *create(AsmJmpInst::JmpKindTy JmpKind,
                               std::unique_ptr<AsmOperand> Op,
                               AsmInstruction *InsertBefore) {
         return new AsmJmpInst(JmpKind, std::move(Op), InsertBefore);
@@ -230,7 +223,6 @@ public:
     }
 
     AsmJmpInst::JmpKindTy getJmpKind() const { return JmpKind; }
-    AsmOperand *getOp() const { return getOperand(0); }
 
 private:
     AsmJmpInst::JmpKindTy JmpKind;
@@ -249,12 +241,12 @@ private:
                        InsertBefore) {}
 
 public:
-    static AsmAddInst *Create(std::unique_ptr<AsmOperand> Src,
+    static AsmAddInst *create(std::unique_ptr<AsmOperand> Src,
                               std::unique_ptr<AsmOperand> Dst, AsmFunction *InsertAtEnd) {
         return new AsmAddInst(std::move(Src), std::move(Dst), InsertAtEnd);
     }
 
-    static AsmAddInst *Create(std::unique_ptr<AsmOperand> Src,
+    static AsmAddInst *create(std::unique_ptr<AsmOperand> Src,
                               std::unique_ptr<AsmOperand> Dst,
                               AsmInstruction *InsertBefore) {
         return new AsmAddInst(std::move(Src), std::move(Dst), InsertBefore);
@@ -263,9 +255,6 @@ public:
     static bool classof(const AsmInstruction *I) {
         return I->getInstKind() == AsmInstruction::Add;
     }
-
-    AsmOperand *getSrcOp() const { return getOperand(0); }
-    AsmOperand *getDstOp() const { return getOperand(1); }
 };
 
 class AsmSubInst: public AsmInstruction {
@@ -281,12 +270,12 @@ private:
                        InsertBefore) {}
 
 public:
-    static AsmSubInst *Create(std::unique_ptr<AsmOperand> Src,
+    static AsmSubInst *create(std::unique_ptr<AsmOperand> Src,
                               std::unique_ptr<AsmOperand> Dst, AsmFunction *InsertAtEnd) {
         return new AsmSubInst(std::move(Src), std::move(Dst), InsertAtEnd);
     }
 
-    static AsmSubInst *Create(std::unique_ptr<AsmOperand> Src,
+    static AsmSubInst *create(std::unique_ptr<AsmOperand> Src,
                               std::unique_ptr<AsmOperand> Dst,
                               AsmInstruction *InsertBefore) {
         return new AsmSubInst(std::move(Src), std::move(Dst), InsertBefore);
@@ -295,9 +284,6 @@ public:
     static bool classof(const AsmInstruction *I) {
         return I->getInstKind() == AsmInstruction::Sub;
     }
-
-    AsmOperand *getSrcOp() const { return getOperand(0); }
-    AsmOperand *getDstOp() const { return getOperand(1); }
 };
 
 class AsmImulInst: public AsmInstruction {
@@ -313,13 +299,13 @@ private:
                        InsertBefore) {}
 
 public:
-    static AsmImulInst *Create(std::unique_ptr<AsmOperand> Src,
+    static AsmImulInst *create(std::unique_ptr<AsmOperand> Src,
                                std::unique_ptr<AsmOperand> Dst,
                                AsmFunction *InsertAtEnd) {
         return new AsmImulInst(std::move(Src), std::move(Dst), InsertAtEnd);
     }
 
-    static AsmImulInst *Create(std::unique_ptr<AsmOperand> Src,
+    static AsmImulInst *create(std::unique_ptr<AsmOperand> Src,
                                std::unique_ptr<AsmOperand> Dst,
                                AsmInstruction *InsertBefore) {
         return new AsmImulInst(std::move(Src), std::move(Dst), InsertBefore);
@@ -328,9 +314,6 @@ public:
     static bool classof(const AsmInstruction *I) {
         return I->getInstKind() == AsmInstruction::Imul;
     }
-
-    AsmOperand *getSrcOp() const { return getOperand(0); }
-    AsmOperand *getDstOp() const { return getOperand(1); }
 };
 
 class AsmIdivInst: public AsmInstruction {
@@ -342,11 +325,11 @@ private:
         AsmInstruction(AsmInstruction::Idiv, std::move(Op), InsertBefore) {}
 
 public:
-    static AsmIdivInst *Create(std::unique_ptr<AsmOperand> Op, AsmFunction *InsertAtEnd) {
+    static AsmIdivInst *create(std::unique_ptr<AsmOperand> Op, AsmFunction *InsertAtEnd) {
         return new AsmIdivInst(std::move(Op), InsertAtEnd);
     }
 
-    static AsmIdivInst *Create(std::unique_ptr<AsmOperand> Op,
+    static AsmIdivInst *create(std::unique_ptr<AsmOperand> Op,
                                AsmInstruction *InsertBefore) {
         return new AsmIdivInst(std::move(Op), InsertBefore);
     }
@@ -354,8 +337,6 @@ public:
     static bool classof(const AsmInstruction *I) {
         return I->getInstKind() == AsmInstruction::Idiv;
     }
-
-    AsmOperand *getOp() const { return getOperand(0); }
 };
 
 class AsmCqtoInst: public AsmInstruction {
@@ -367,11 +348,11 @@ private:
         AsmInstruction(AsmInstruction::Cqto, InsertBefore) {}
 
 public:
-    static AsmCqtoInst *Create(AsmFunction *InsertAtEnd) {
+    static AsmCqtoInst *create(AsmFunction *InsertAtEnd) {
         return new AsmCqtoInst(InsertAtEnd);
     }
 
-    static AsmCqtoInst *Create(AsmInstruction *InsertBefore) {
+    static AsmCqtoInst *create(AsmInstruction *InsertBefore) {
         return new AsmCqtoInst(InsertBefore);
     }
 
@@ -395,12 +376,12 @@ private:
         DirectCall(DirectCall) {}
 
 public:
-    static AsmCallInst *Create(std::unique_ptr<AsmOperand> Callee, bool DirectCall,
+    static AsmCallInst *create(std::unique_ptr<AsmOperand> Callee, bool DirectCall,
                                AsmFunction *InsertAtEnd) {
         return new AsmCallInst(std::move(Callee), DirectCall, InsertAtEnd);
     }
 
-    static AsmCallInst *Create(std::unique_ptr<AsmOperand> Callee, bool DirectCall,
+    static AsmCallInst *create(std::unique_ptr<AsmOperand> Callee, bool DirectCall,
                                AsmInstruction *InsertBefore) {
         return new AsmCallInst(std::move(Callee), DirectCall, InsertBefore);
     }
@@ -408,8 +389,6 @@ public:
     static bool classof(const AsmInstruction *I) {
         return I->getInstKind() == AsmInstruction::Call;
     }
-
-    AsmOperand *getCalleeOp() const { return getOperand(0); }
 
     bool isDirectCall() const { return DirectCall; }
 };
@@ -427,12 +406,12 @@ private:
                        InsertBefore) {}
 
 public:
-    static AsmXorInst *Create(std::unique_ptr<AsmOperand> Src,
+    static AsmXorInst *create(std::unique_ptr<AsmOperand> Src,
                               std::unique_ptr<AsmOperand> Dst, AsmFunction *InsertAtEnd) {
         return new AsmXorInst(std::move(Src), std::move(Dst), InsertAtEnd);
     }
 
-    static AsmXorInst *Create(std::unique_ptr<AsmOperand> Src,
+    static AsmXorInst *create(std::unique_ptr<AsmOperand> Src,
                               std::unique_ptr<AsmOperand> Dst,
                               AsmInstruction *InsertBefore) {
         return new AsmXorInst(std::move(Src), std::move(Dst), InsertBefore);
@@ -441,9 +420,6 @@ public:
     static bool classof(const AsmInstruction *I) {
         return I->getInstKind() == AsmInstruction::Xor;
     }
-
-    AsmOperand *getSrcOp() const { return getOperand(0); }
-    AsmOperand *getDstOp() const { return getOperand(1); }
 };
 
 class AsmPushInst: public AsmInstruction {
@@ -455,11 +431,11 @@ private:
         AsmInstruction(AsmInstruction::Push, std::move(Op), InsertBefore) {}
 
 public:
-    static AsmPushInst *Create(std::unique_ptr<AsmOperand> Op, AsmFunction *InsertAtEnd) {
+    static AsmPushInst *create(std::unique_ptr<AsmOperand> Op, AsmFunction *InsertAtEnd) {
         return new AsmPushInst(std::move(Op), InsertAtEnd);
     }
 
-    static AsmPushInst *Create(std::unique_ptr<AsmOperand> Op,
+    static AsmPushInst *create(std::unique_ptr<AsmOperand> Op,
                                AsmInstruction *InsertBefore) {
         return new AsmPushInst(std::move(Op), InsertBefore);
     }
@@ -467,8 +443,6 @@ public:
     static bool classof(const AsmInstruction *I) {
         return I->getInstKind() == AsmInstruction::Push;
     }
-
-    AsmOperand *getOp() const { return getOperand(0); }
 };
 
 class AsmPopInst: public AsmInstruction {
@@ -480,11 +454,11 @@ private:
         AsmInstruction(AsmInstruction::Pop, std::move(Op), InsertBefore) {}
 
 public:
-    static AsmPopInst *Create(std::unique_ptr<AsmOperand> Op, AsmFunction *InsertAtEnd) {
+    static AsmPopInst *create(std::unique_ptr<AsmOperand> Op, AsmFunction *InsertAtEnd) {
         return new AsmPopInst(std::move(Op), InsertAtEnd);
     }
 
-    static AsmPopInst *Create(std::unique_ptr<AsmOperand> Op,
+    static AsmPopInst *create(std::unique_ptr<AsmOperand> Op,
                               AsmInstruction *InsertBefore) {
         return new AsmPopInst(std::move(Op), InsertBefore);
     }
@@ -492,8 +466,6 @@ public:
     static bool classof(const AsmInstruction *I) {
         return I->getInstKind() == AsmInstruction::Pop;
     }
-
-    AsmOperand *getOp() const { return getOperand(0); }
 };
 
 class AsmRetInst: public AsmInstruction {
@@ -505,11 +477,11 @@ private:
         AsmInstruction(AsmInstruction::Ret, InsertBefore) {}
 
 public:
-    static AsmRetInst *Create(AsmFunction *InsertAtEnd) {
+    static AsmRetInst *create(AsmFunction *InsertAtEnd) {
         return new AsmRetInst(InsertAtEnd);
     }
 
-    static AsmRetInst *Create(AsmInstruction *InsertBefore) {
+    static AsmRetInst *create(AsmInstruction *InsertBefore) {
         return new AsmRetInst(InsertBefore);
     }
 
@@ -527,12 +499,12 @@ private:
         AsmInstruction(AsmInstruction::Label, std::move(LabelOp), InsertBefore) {}
 
 public:
-    static AsmLabelInst *Create(std::unique_ptr<AsmOperand> LabelOp,
+    static AsmLabelInst *create(std::unique_ptr<AsmOperand> LabelOp,
                                 AsmFunction *InsertAtEnd) {
         return new AsmLabelInst(std::move(LabelOp), InsertAtEnd);
     }
 
-    static AsmLabelInst *Create(std::unique_ptr<AsmOperand> LabelOp,
+    static AsmLabelInst *create(std::unique_ptr<AsmOperand> LabelOp,
                                 AsmInstruction *InsertBefore) {
         return new AsmLabelInst(std::move(LabelOp), InsertBefore);
     }
@@ -540,8 +512,6 @@ public:
     static bool classof(const AsmInstruction *I) {
         return I->getInstKind() == AsmInstruction::Label;
     }
-
-    AsmOperand *getLabelOp() const { return getOperand(0); }
 };
 
 }  // namespace remniw

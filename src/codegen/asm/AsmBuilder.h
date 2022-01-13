@@ -145,7 +145,7 @@ public:
     void createMov(std::unique_ptr<AsmOperand> Src, std::unique_ptr<AsmOperand> Dst) {
         updateAsmOperandLiveRanges(*Src);
         updateAsmOperandLiveRanges(*Dst);
-        auto *I = AsmMovInst::Create(std::move(Src), std::move(Dst), CurrentFunction);
+        auto *I = AsmMovInst::create(std::move(Src), std::move(Dst), CurrentFunction);
         LLVM_DEBUG({
             llvm::outs() << CurrentFunction->size();
             I->print(llvm::outs());
@@ -155,7 +155,7 @@ public:
     void createLea(std::unique_ptr<AsmOperand> Src, std::unique_ptr<AsmOperand> Dst) {
         updateAsmOperandLiveRanges(*Src);
         updateAsmOperandLiveRanges(*Dst);
-        auto *I = AsmLeaInst::Create(std::move(Src), std::move(Dst), CurrentFunction);
+        auto *I = AsmLeaInst::create(std::move(Src), std::move(Dst), CurrentFunction);
         LLVM_DEBUG({
             llvm::outs() << CurrentFunction->size();
             I->print(llvm::outs());
@@ -165,7 +165,7 @@ public:
     void createCmp(std::unique_ptr<AsmOperand> Src, std::unique_ptr<AsmOperand> Dst) {
         updateAsmOperandLiveRanges(*Src);
         updateAsmOperandLiveRanges(*Dst);
-        auto *I = AsmCmpInst::Create(std::move(Src), std::move(Dst), CurrentFunction);
+        auto *I = AsmCmpInst::create(std::move(Src), std::move(Dst), CurrentFunction);
         LLVM_DEBUG({
             llvm::outs() << CurrentFunction->size();
             I->print(llvm::outs());
@@ -174,7 +174,7 @@ public:
 
     void createJmp(AsmJmpInst::JmpKindTy JmpKind, std::unique_ptr<AsmOperand> Op) {
         updateAsmOperandLiveRanges(*Op);
-        auto *I = AsmJmpInst::Create(JmpKind, std::move(Op), CurrentFunction);
+        auto *I = AsmJmpInst::create(JmpKind, std::move(Op), CurrentFunction);
         LLVM_DEBUG({
             llvm::outs() << CurrentFunction->size();
             I->print(llvm::outs());
@@ -184,7 +184,7 @@ public:
     void createAdd(std::unique_ptr<AsmOperand> Src, std::unique_ptr<AsmOperand> Dst) {
         updateAsmOperandLiveRanges(*Src);
         updateAsmOperandLiveRanges(*Dst);
-        auto *I = AsmAddInst::Create(std::move(Src), std::move(Dst), CurrentFunction);
+        auto *I = AsmAddInst::create(std::move(Src), std::move(Dst), CurrentFunction);
         LLVM_DEBUG({
             llvm::outs() << CurrentFunction->size();
             I->print(llvm::outs());
@@ -194,7 +194,7 @@ public:
     void createSub(std::unique_ptr<AsmOperand> Src, std::unique_ptr<AsmOperand> Dst) {
         updateAsmOperandLiveRanges(*Src);
         updateAsmOperandLiveRanges(*Dst);
-        auto *I = AsmSubInst::Create(std::move(Src), std::move(Dst), CurrentFunction);
+        auto *I = AsmSubInst::create(std::move(Src), std::move(Dst), CurrentFunction);
         LLVM_DEBUG({
             llvm::outs() << CurrentFunction->size();
             I->print(llvm::outs());
@@ -204,7 +204,7 @@ public:
     void createImul(std::unique_ptr<AsmOperand> Src, std::unique_ptr<AsmOperand> Dst) {
         updateAsmOperandLiveRanges(*Src);
         updateAsmOperandLiveRanges(*Dst);
-        auto *I = AsmImulInst::Create(std::move(Src), std::move(Dst), CurrentFunction);
+        auto *I = AsmImulInst::create(std::move(Src), std::move(Dst), CurrentFunction);
         LLVM_DEBUG({
             llvm::outs() << CurrentFunction->size();
             I->print(llvm::outs());
@@ -215,7 +215,7 @@ public:
         updateAsmOperandLiveRanges(*Op);
         updateRegLiveRanges(Register::RAX);
         updateRegLiveRanges(Register::RDX);
-        auto *I = AsmIdivInst::Create(std::move(Op), CurrentFunction);
+        auto *I = AsmIdivInst::create(std::move(Op), CurrentFunction);
         LLVM_DEBUG({
             llvm::outs() << CurrentFunction->size();
             I->print(llvm::outs());
@@ -225,7 +225,7 @@ public:
     void createCqto() {
         updateRegLiveRanges(Register::RAX);
         updateRegLiveRanges(Register::RDX);
-        auto *I = AsmCqtoInst::Create(CurrentFunction);
+        auto *I = AsmCqtoInst::create(CurrentFunction);
         LLVM_DEBUG({
             llvm::outs() << CurrentFunction->size();
             I->print(llvm::outs());
@@ -234,7 +234,7 @@ public:
 
     void createCall(std::unique_ptr<AsmOperand> Callee, bool DirectCall) {
         updateAsmOperandLiveRanges(*Callee);
-        auto *I = AsmCallInst::Create(std::move(Callee), DirectCall, CurrentFunction);
+        auto *I = AsmCallInst::create(std::move(Callee), DirectCall, CurrentFunction);
         LLVM_DEBUG({
             llvm::outs() << CurrentFunction->size();
             I->print(llvm::outs());
@@ -245,7 +245,7 @@ public:
     void createXor(std::unique_ptr<AsmOperand> Src, std::unique_ptr<AsmOperand> Dst) {
         updateAsmOperandLiveRanges(*Src);
         updateAsmOperandLiveRanges(*Dst);
-        auto *I = AsmXorInst::Create(std::move(Src), std::move(Dst), CurrentFunction);
+        auto *I = AsmXorInst::create(std::move(Src), std::move(Dst), CurrentFunction);
         LLVM_DEBUG({
             llvm::outs() << CurrentFunction->size();
             I->print(llvm::outs());
@@ -253,7 +253,7 @@ public:
     }
 
     void createLabel(std::unique_ptr<AsmOperand> LabelOp) {
-        auto *I = AsmLabelInst::Create(std::move(LabelOp), CurrentFunction);
+        auto *I = AsmLabelInst::create(std::move(LabelOp), CurrentFunction);
         LLVM_DEBUG({
             llvm::outs() << CurrentFunction->size();
             I->print(llvm::outs());
