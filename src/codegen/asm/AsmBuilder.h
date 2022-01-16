@@ -232,9 +232,9 @@ public:
         });
     }
 
-    void createCall(std::unique_ptr<AsmOperand> Callee, bool DirectCall) {
+    void createCall(std::unique_ptr<AsmOperand> Callee, bool DirectCall, unsigned NumArgs) {
         updateAsmOperandLiveRanges(*Callee);
-        auto *I = AsmCallInst::create(std::move(Callee), DirectCall, CurrentFunction);
+        auto *I = AsmCallInst::create(std::move(Callee), DirectCall, NumArgs, CurrentFunction);
         LLVM_DEBUG({
             llvm::outs() << CurrentFunction->size();
             I->print(llvm::outs());

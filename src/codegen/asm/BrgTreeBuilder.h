@@ -232,8 +232,8 @@ struct BrgFunction {
             delete DM.second;
         for (const auto &DM : ArgToNodeMap)
             delete DM.second;
-        // for (auto *Node : TmpArgNode)
-        //     delete Node;
+        for (auto *Node : TmpArgNode)
+            delete Node;
     }
 
     std::string FuncName;

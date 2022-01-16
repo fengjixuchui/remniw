@@ -149,7 +149,7 @@ public:
         return index2VirtReg(VirtRegIndex++);
     }
 
-    static const char *convertRegisterToString(uint32_t Reg) {
+    static std::string convertRegisterToString(uint32_t Reg) {
         switch (Reg) {
         case Register::RAX: return "%rax";
         case Register::RBX: return "%rbx";
@@ -168,11 +168,10 @@ public:
         case Register::R14: return "%r14";
         case Register::R15: return "%r15";
         };
-        // TODO: remove this debug code
         if (isVirtualRegister(Reg))
-            return "%virtreg";
+            return std::string("%virtreg") + std::to_string(virtReg2Index(Reg));
         if (isStackSlot(Reg))
-            return "%stackslot";
+            return std::string("%stackslot") + std::to_string(stackSlot2Index(Reg));
         llvm_unreachable("unexpected Register\n");
     }
 };

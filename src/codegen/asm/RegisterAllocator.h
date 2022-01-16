@@ -40,7 +40,7 @@ private:
     std::vector<LiveInterval *> Spilled;
     llvm::SmallVector<bool, 32> FreeRegisters;
     std::unordered_map<uint32_t, uint32_t> VirtRegToAllocatedRegMap;
-
+    uint32_t StackSlotIndex;
 public:
     LinearScanRegisterAllocator(
         std::unordered_map<uint32_t, remniw::LiveRanges> &RegLiveRangesMap) {
@@ -58,6 +58,7 @@ public:
     }
 
     void LinearScan() {
+        StackSlotIndex = 0;
         while (!Unhandled.empty()) {
             LiveInterval *LI = Unhandled.top();
             Unhandled.pop();
@@ -172,7 +173,6 @@ private:
     }
 
     void spillAtInterval(LiveInterval *LI) {
-        static uint32_t StackSlotIndex = 1;
         if (!Active.empty() && Active.back()->EndPoint > LI->EndPoint) {
             VirtRegToAllocatedRegMap[LI->Reg] =
                 VirtRegToAllocatedRegMap[Active.back()->Reg];

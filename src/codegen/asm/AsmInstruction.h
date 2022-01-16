@@ -368,26 +368,27 @@ public:
 class AsmCallInst: public AsmInstruction {
 private:
     bool DirectCall;
+    unsigned NumArgs;
 
-    AsmCallInst(std::unique_ptr<AsmOperand> Callee, bool DirectCall,
+    AsmCallInst(std::unique_ptr<AsmOperand> Callee, bool DirectCall, unsigned NumArgs,
                 AsmFunction *InsertAtEnd):
         AsmInstruction(AsmInstruction::Call, std::move(Callee), InsertAtEnd),
-        DirectCall(DirectCall) {}
+        DirectCall(DirectCall), NumArgs(NumArgs) {}
 
-    AsmCallInst(std::unique_ptr<AsmOperand> Callee, bool DirectCall,
+    AsmCallInst(std::unique_ptr<AsmOperand> Callee, bool DirectCall, unsigned NumArgs,
                 AsmInstruction *InsertBefore):
         AsmInstruction(AsmInstruction::Call, std::move(Callee), InsertBefore),
-        DirectCall(DirectCall) {}
+        DirectCall(DirectCall), NumArgs(NumArgs) {}
 
 public:
     static AsmCallInst *create(std::unique_ptr<AsmOperand> Callee, bool DirectCall,
-                               AsmFunction *InsertAtEnd) {
-        return new AsmCallInst(std::move(Callee), DirectCall, InsertAtEnd);
+                               unsigned NumArgs, AsmFunction *InsertAtEnd) {
+        return new AsmCallInst(std::move(Callee), DirectCall, NumArgs, InsertAtEnd);
     }
 
     static AsmCallInst *create(std::unique_ptr<AsmOperand> Callee, bool DirectCall,
-                               AsmInstruction *InsertBefore) {
-        return new AsmCallInst(std::move(Callee), DirectCall, InsertBefore);
+                               unsigned NumArgs, AsmInstruction *InsertBefore) {
+        return new AsmCallInst(std::move(Callee), DirectCall, NumArgs, InsertBefore);
     }
 
     static bool classof(const AsmInstruction *I) {
@@ -395,6 +396,8 @@ public:
     }
 
     bool isDirectCall() const { return DirectCall; }
+
+    unsigned getNumArgs() const { return NumArgs; }
 };
 
 class AsmXorInst: public AsmInstruction {

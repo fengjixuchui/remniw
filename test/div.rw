@@ -12,7 +12,7 @@ func main() int {
     if( a > 17 ){
         a = 77*b;
     } else {
-        b = a/3; // b = 5
+        b = a/3; // b = 4
     }
     output b;
     b=117;
