@@ -7,11 +7,10 @@ namespace remniw {
 template<typename Derived>
 class RecursiveASTVisitor {
 public:
-    /// Return a reference to the derived class.
+    // Return a reference to the derived class.
     Derived &getDerived() { return *static_cast<Derived *>(this); }
 
     void visitExpr(ExprAST *);
-
     void visitStmt(StmtAST *);
 
     bool actBeforeVisitVarDeclNode(VarDeclNodeAST *) { return false; }
@@ -129,7 +128,7 @@ void RecursiveASTVisitor<Derived>::visitExpr(ExprAST *Expr) {
     case ASTNode::BinaryExpr:
         getDerived().visitBinaryExpr(static_cast<BinaryExprAST *>(Expr));
         break;
-    default: llvm_unreachable("unexpected expr!");
+    default: llvm_unreachable("Invalid expr");
     }
 }
 
@@ -164,7 +163,7 @@ void RecursiveASTVisitor<Derived>::visitStmt(StmtAST *Stmt) {
         getDerived().visitDerefAssignmentStmt(
             static_cast<DerefAssignmentStmtAST *>(Stmt));
         break;
-    default: llvm_unreachable("unexpected stmt!");
+    default: llvm_unreachable("Invalid stmt");
     }
 }
 

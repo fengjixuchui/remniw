@@ -4,7 +4,6 @@
 #include "RecursiveASTVisitor.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseMapInfo.h"
-#include <unordered_map>
 
 namespace remniw {
 

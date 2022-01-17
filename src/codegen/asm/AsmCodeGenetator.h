@@ -26,4 +26,5 @@ private:
     const llvm::DataLayout &DL;
     AsmContext AsmCtx;
 };
+
 }  // namespace remniw

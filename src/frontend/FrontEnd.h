@@ -12,7 +12,7 @@ public:
     FrontEnd(TypeContext& TheTypeContext): TheTypeContext(TheTypeContext) {}
 
     // Parse an input stream and return an AST.
-    std::unique_ptr<ProgramAST> parse(std::istream& stream);
+    std::unique_ptr<ProgramAST> parse(std::istream& Stream);
 };
 
 }  // namespace remniw

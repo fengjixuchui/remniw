@@ -59,11 +59,13 @@ public:
 
     virtual antlrcpp::Any visitFuncCallExpr(RemniwParser::FuncCallExprContext *Ctx);
 
-    // virtual antlrcpp::Any visitRecordCreateExpr(RemniwParser::RecordCreateExprContext
-    // *Ctx);
+    // // TODO
+    // virtual antlrcpp::Any
+    // visitRecordCreateExpr(RemniwParser::RecordCreateExprContext *Ctx);
 
-    // virtual antlrcpp::Any visitRecordAccessExpr(RemniwParser::RecordAccessExprContext
-    // *Ctx);
+    // // TODO
+    // virtual antlrcpp::Any
+    // visitRecordAccessExpr(RemniwParser::RecordAccessExprContext *Ctx);
 
     virtual antlrcpp::Any visitId(RemniwParser::IdContext *Ctx);
 
@@ -85,11 +87,13 @@ public:
     virtual antlrcpp::Any
     visitDerefAssignmentStmt(RemniwParser::DerefAssignmentStmtContext *Ctx);
 
-    virtual antlrcpp::Any visitRecordFieldBasicAssignmentStmt(
-        RemniwParser::RecordFieldBasicAssignmentStmtContext *Ctx);
+    // // TODO
+    // virtual antlrcpp::Any visitRecordFieldBasicAssignmentStmt(
+    //     RemniwParser::RecordFieldBasicAssignmentStmtContext *Ctx);
 
-    virtual antlrcpp::Any visitRecordFieldDerefAssignmentStmt(
-        RemniwParser::RecordFieldDerefAssignmentStmtContext *Ctx);
+    // // TODO
+    // virtual antlrcpp::Any visitRecordFieldDerefAssignmentStmt(
+    //     RemniwParser::RecordFieldDerefAssignmentStmtContext *Ctx);
 };
 
 }  // namespace remniw

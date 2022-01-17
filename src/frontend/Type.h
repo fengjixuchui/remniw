@@ -5,9 +5,6 @@
 #include "llvm/ADT/DenseMapInfo.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/Support/raw_ostream.h"
-#include <iostream>
-#include <memory>
-#include <unordered_map>
 #include <vector>
 
 namespace remniw {
@@ -22,7 +19,8 @@ class VarType;
 
 class Type {
 public:
-    enum TypeKind {
+    enum TypeKind
+    {
         TK_VARTYPE,
         TK_INTTYPE,
         TK_POINTERTYPE,

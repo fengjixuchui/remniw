@@ -12,7 +12,6 @@
 #include "llvm/IR/Verifier.h"
 #include "llvm/Support/TargetSelect.h"
 #include <cassert>
-#include <unordered_map>
 
 using namespace llvm;
 
@@ -24,7 +23,8 @@ llvm::Type *IRCodeGeneratorImpl::REMNIWTypeToLLVMType(remniw::Type *Ty) {
         return llvm::Type::getInt64Ty(*TheLLVMContext) /*->getScalarType()*/;
     } else if (auto *PointerTy = llvm::dyn_cast<remniw::PointerType>(Ty)) {
         llvm::Type *PointeeTy = REMNIWTypeToLLVMType(PointerTy->getPointeeType());
-        assert(PointeeTy != nullptr && "The pointee type of pointer type is nullptr");
+        assert(PointeeTy != nullptr &&
+               "The pointee type of pointer type must not be nullptr");
         return PointeeTy->getPointerTo();
     } else if (auto *FuncTy = llvm::dyn_cast<remniw::FunctionType>(Ty)) {
         SmallVector<llvm::Type *, 4> ParamTypes;
@@ -39,8 +39,8 @@ llvm::Type *IRCodeGeneratorImpl::REMNIWTypeToLLVMType(remniw::Type *Ty) {
 
 // utility function for emit scanf, printf
 Value *IRCodeGeneratorImpl::emitLibCall(StringRef LibFuncName, llvm::Type *ReturnType,
-                                      ArrayRef<llvm::Type *> ParamTypes,
-                                      ArrayRef<Value *> Operands, bool IsVaArgs) {
+                                        ArrayRef<llvm::Type *> ParamTypes,
+                                        ArrayRef<Value *> Operands, bool IsVaArgs) {
     Module *M = IRB->GetInsertBlock()->getModule();
     llvm::FunctionType *FuncType =
         llvm::FunctionType::get(ReturnType, ParamTypes, IsVaArgs);
@@ -77,8 +77,7 @@ Value *IRCodeGeneratorImpl::emitScanf(Value *Fmt, Value *VAList) {
                        /*IsVaArgs=*/true);
 }
 
-/// createEntryBlockAlloca - Create an alloca instruction in the entry block of
-/// the function.
+//  Create an alloca instruction in the entry block of the function.
 static AllocaInst *createEntryBlockAlloca(Function *TheFunction, Twine VarName,
                                           llvm::Type *Ty) {
     IRBuilder<> Tmp(&TheFunction->getEntryBlock(), TheFunction->getEntryBlock().begin());
@@ -90,7 +89,7 @@ IRCodeGeneratorImpl::IRCodeGeneratorImpl(llvm::LLVMContext *LLVMContext) {
     TheModule = std::make_unique<Module>("", *TheLLVMContext);
     InitializeNativeTarget();
     auto TM = std::unique_ptr<TargetMachine>(EngineBuilder().selectTarget());
-    assert(TM && "cannot initialize TargetMachine");
+    assert(TM && "Cannot initialize TargetMachine");
     TheModule->setDataLayout(TM->createDataLayout());
     IRB = std::make_unique<IRBuilder<>>(*TheLLVMContext);
     InputFmtStr = IRB->CreateGlobalString("%lli", "fmtstr", 0, TheModule.get());
@@ -128,7 +127,7 @@ Value *IRCodeGeneratorImpl::codegenExpr(ExprAST *Expr) {
         Ret = codegenBinaryExpr(static_cast<BinaryExprAST *>(Expr));
         break;
     default:
-        llvm_unreachable("unexpected expr!");
+        llvm_unreachable("Invalid expr");
     }
     return Ret;
 }
@@ -164,7 +163,7 @@ Value *IRCodeGeneratorImpl::codegenStmt(StmtAST *Stmt) {
         Ret = codegenDerefAssignmentStmt(static_cast<DerefAssignmentStmtAST *>(Stmt));
         break;
     default:
-        llvm_unreachable("unexpected stmt!");
+        llvm_unreachable("Invalid stmt");
     }
     return Ret;
 }
@@ -187,7 +186,7 @@ Value *IRCodeGeneratorImpl::codegenVariableExpr(VariableExprAST *VariableExpr) {
         return F;
     }
 
-    llvm_unreachable("unknown VariableExprAST!");
+    llvm_unreachable("Unknown VariableExprAST");
 }
 
 Value *IRCodeGeneratorImpl::codegenVarDeclNode(VarDeclNodeAST *VarDeclNode) {
@@ -206,8 +205,7 @@ Value *IRCodeGeneratorImpl::codegenFunctionCallExpr(FunctionCallExprAST *Functio
         assert(CalledFunction->arg_size() == FunctionCallExpr->getArgSize() &&
                "Incorrect #arguments passed");
         return IRB->CreateCall(CalledFunction, CallArgs, "call");
-    } else  // indirect call
-    {
+    } else {
         assert(CalledValue->getType()->isPointerTy() &&
                CalledValue->getType()->getPointerElementType()->isFunctionTy());
         auto *FT =
@@ -233,7 +231,7 @@ Value *IRCodeGeneratorImpl::codegenRefExpr(RefExprAST *RefExpr) {
 
 Value *IRCodeGeneratorImpl::codegenDerefExpr(DerefExprAST *DerefExpr) {
     Value *V = codegenExpr(DerefExpr->getPtr());
-    assert(V && "invalid operand of DerefExpr!");
+    assert(V && "Invalid operand of DerefExpr");
     return IRB->CreateLoad(V->getType()->getPointerElementType(), V);
 }
 
@@ -248,7 +246,7 @@ Value *IRCodeGeneratorImpl::codegenBinaryExpr(BinaryExprAST *BinaryExpr) {
     Value *V1 = codegenExpr(BinaryExpr->getLHS());
     Value *V2 = codegenExpr(BinaryExpr->getRHS());
     Value *V = nullptr;
-    assert((V1 && V2) && "invalid operand of BinaryExpr!");
+    assert((V1 && V2) && "Invalid operand of BinaryExpr");
     switch (BinaryExpr->getOp()) {
     case BinaryExprAST::OpKind::Mul: V = IRB->CreateMul(V1, V2, "mul"); break;
     case BinaryExprAST::OpKind::Div: V = IRB->CreateSDiv(V1, V2, "div"); break;
@@ -256,7 +254,7 @@ Value *IRCodeGeneratorImpl::codegenBinaryExpr(BinaryExprAST *BinaryExpr) {
     case BinaryExprAST::OpKind::Sub: V = IRB->CreateSub(V1, V2, "sub"); break;
     case BinaryExprAST::OpKind::Gt: V = IRB->CreateICmpSGT(V1, V2, "icmp.sgt"); break;
     case BinaryExprAST::OpKind::Eq: V = IRB->CreateICmpEQ(V1, V2, "icmp.eq"); break;
-    default: llvm_unreachable("unexpected binary operation!");
+    default: llvm_unreachable("Invalid binary operation!");
     }
     return V;
 }
@@ -273,7 +271,7 @@ Value *IRCodeGeneratorImpl::codegenEmptyStmt(EmptyStmtAST *EmptyStmt) {
 
 Value *IRCodeGeneratorImpl::codegenOutputStmt(OutputStmtAST *OutputStmt) {
     Value *V = codegenExpr(OutputStmt->getExpr());
-    assert(V && "invalid operand of OutputStmt!");
+    assert(V && "Invalid operand of OutputStmt");
     return emitPrintf(OutputFmtStr, V);
 }
 
@@ -290,7 +288,7 @@ Value *IRCodeGeneratorImpl::codegenReturnStmt(ReturnStmtAST *ReturnStmt) {
 
 Value *IRCodeGeneratorImpl::codegenIfStmt(IfStmtAST *IfStmt) {
     Value *CondV = codegenExpr(IfStmt->getCond());
-    assert(CondV && "invalid condtion operand of IfStmt!");
+    assert(CondV && "Invalid condtion operand of IfStmt");
     // Convert condition to a bool by comparing non-equal to 0.
     if (!CondV->getType()->isIntegerTy(1))
         CondV = IRB->CreateICmpNE(
@@ -336,7 +334,7 @@ Value *IRCodeGeneratorImpl::codegenWhileStmt(WhileStmtAST *WhileStmt) {
     IRB->SetInsertPoint(LoopCondBB);
 
     Value *CondV = codegenExpr(WhileStmt->getCond());
-    assert(CondV && "invalid condtion operand of WhileStmt!");
+    assert(CondV && "Invalid condtion operand of WhileStmt");
 
     // Convert condition to a bool by comparing non-equal to 0.
     if (!isa<CmpInst>(CondV))
@@ -364,7 +362,7 @@ Value *IRCodeGeneratorImpl::codegenBasicAssignmentStmt(
     BasicAssignmentStmtAST *BasicAssignmentStmt) {
     Value *Val = codegenExpr(BasicAssignmentStmt->getRHS());
     Value *Ptr = codegenExpr(BasicAssignmentStmt->getLHS());
-    assert((Ptr && Val) && "invalid operand of BasicAssignmentStmt");
+    assert((Ptr && Val) && "Invalid operand of BasicAssignmentStmt");
     return IRB->CreateStore(Val, Ptr);
 }
 
@@ -372,7 +370,7 @@ Value *IRCodeGeneratorImpl::codegenDerefAssignmentStmt(
     DerefAssignmentStmtAST *DerefAssignmentStmt) {
     Value *Val = codegenExpr(DerefAssignmentStmt->getRHS());
     Value *Ptr = codegenExpr(DerefAssignmentStmt->getLHS());
-    assert((Ptr && Val) && "invalid operand of DerefAssignmentStmt");
+    assert((Ptr && Val) && "Invalid operand of DerefAssignmentStmt");
     Ptr = IRB->CreateLoad(Ptr->getType()->getPointerElementType(), Ptr);
     return IRB->CreateStore(Val, Ptr);
 }
@@ -380,7 +378,7 @@ Value *IRCodeGeneratorImpl::codegenDerefAssignmentStmt(
 Value *IRCodeGeneratorImpl::codegenFunction(FunctionAST *Function) {
     // Get the function from the module symbol table.
     llvm::Function *F = TheModule->getFunction(Function->getFuncName());
-    assert(F && "function is not in the module symbol table");
+    assert(F && "Function is not in the module symbol table");
 
     // Create a new basic block to start insertion into.
     BasicBlock *BB = BasicBlock::Create(*TheLLVMContext, "entry", F);
@@ -433,9 +431,6 @@ std::unique_ptr<Module> IRCodeGeneratorImpl::codegen(ProgramAST *AST) {
         auto *FT = llvm::FunctionType::get(REMNIWTypeToLLVMType(FuncAST->getReturnType()),
                                            ParamTypes, false);
         TheModule->getOrInsertFunction(FuncAST->getFuncName(), FT);
-        // FIXME: Function::ExternalLinkage ?
-        // Function *F =
-        //     Function::Create(FT, Function::ExternalLinkage, FuncName, TheModule.get());
     }
 
     // Emit LLVM IR for all functions

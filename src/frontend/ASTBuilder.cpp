@@ -3,7 +3,7 @@
 
 namespace remniw {
 
-/// LogError* - These are little helper functions for error handling.
+// helper functions for error handling.
 void LogError(const char *Str) {
     fprintf(stderr, "Error: %s\n", Str);
 }
@@ -54,7 +54,6 @@ antlrcpp::Any ASTBuilder::visitProgram(RemniwParser::ProgramContext *Ctx) {
 antlrcpp::Any ASTBuilder::visitFun(RemniwParser::FunContext *Ctx) {
     // function name
     std::string FuncName = Ctx->id()->IDENTIFIER()->getText();
-
     // paramters
     std::vector<std::unique_ptr<VarDeclNodeAST>> ParamDecls;
     std::vector<Type *> ParamTypes;
@@ -70,7 +69,6 @@ antlrcpp::Any ASTBuilder::visitFun(RemniwParser::FunContext *Ctx) {
         ParamDecls.push_back(std::move(ParamDecl));
         ParamTypes.push_back(visitedType);
     }
-
     // var declarations
     std::vector<std::unique_ptr<VarDeclNodeAST>> Vars;
     for (auto *VarDeclCtx : Ctx->varDeclarations()) {
@@ -85,18 +83,15 @@ antlrcpp::Any ASTBuilder::visitFun(RemniwParser::FunContext *Ctx) {
     }
     auto LocalVarDecls =
         std::make_unique<LocalVarDeclStmtAST>(SourceLocation {0, 0}, std::move(Vars));
-
     // function body
     std::vector<std::unique_ptr<StmtAST>> Body;
     for (auto *StmtCtx : Ctx->stmt()) {
         visit(StmtCtx);
         Body.push_back(std::move(visitedStmt));
     }
-
     // return statement
     visit(Ctx->returnStmt());
     std::unique_ptr<ReturnStmtAST> Return = std::move(visitedReturnStmt);
-
     // return type
     visit(Ctx->type());
     Type *ReturnType = visitedType;
@@ -106,7 +101,6 @@ antlrcpp::Any ASTBuilder::visitFun(RemniwParser::FunContext *Ctx) {
                         Ctx->getStart()->getCharPositionInLine()},
         FuncName, Type::getFunctionType(ParamTypes, ReturnType), std::move(ParamDecls),
         std::move(LocalVarDecls), std::move(Body), std::move(Return));
-
     return nullptr;
 }
 
@@ -294,6 +288,18 @@ antlrcpp::Any ASTBuilder::visitFuncCallExpr(RemniwParser::FuncCallExprContext *C
     return nullptr;
 }
 
+// // TODO
+// virtual antlrcpp::Any
+// ASTBuilder::visitRecordCreateExpr(RemniwParser::RecordCreateExprContext *Ctx) {
+//     return nullptr;
+// }
+
+// // TODO
+// virtual antlrcpp::Any
+// ASTBuilder::visitRecordAccessExpr(RemniwParser::RecordAccessExprContext *Ctx) {
+//     return nullptr;
+// }
+
 antlrcpp::Any ASTBuilder::visitNullExpr(RemniwParser::NullExprContext *Ctx) {
     visitedExpr = std::make_unique<NullExprAST>(SourceLocation {
         Ctx->getStart()->getLine(), Ctx->getStart()->getCharPositionInLine()});
@@ -368,14 +374,15 @@ antlrcpp::Any ASTBuilder::visitIfStmt(RemniwParser::IfStmtContext *Ctx) {
             SourceLocation {Ctx->getStart()->getLine(),
                             Ctx->getStart()->getCharPositionInLine()},
             std::move(Cond), std::move(Then), std::move(Else));
-    } else  // Ctx->stmt().size() == 1
-    {
+    } else if (Ctx->stmt().size() == 1) {
         visit(Ctx->stmt(0));
         std::unique_ptr<StmtAST> Then = std::move(visitedStmt);
         visitedStmt = std::make_unique<IfStmtAST>(
             SourceLocation {Ctx->getStart()->getLine(),
                             Ctx->getStart()->getCharPositionInLine()},
             std::move(Cond), std::move(Then), nullptr);
+    } else {
+        assert(0 && "Unexpected IfStmtContext stmt().size()");
     }
     return nullptr;
 }
@@ -423,14 +430,16 @@ ASTBuilder::visitDerefAssignmentStmt(RemniwParser::DerefAssignmentStmtContext *C
     return nullptr;
 }
 
-antlrcpp::Any ASTBuilder::visitRecordFieldBasicAssignmentStmt(
-    RemniwParser::RecordFieldBasicAssignmentStmtContext *Ctx) {
-    return nullptr;
-}
+// // TODO
+// antlrcpp::Any ASTBuilder::visitRecordFieldBasicAssignmentStmt(
+//     RemniwParser::RecordFieldBasicAssignmentStmtContext *Ctx) {
+//     return nullptr;
+// }
 
-antlrcpp::Any ASTBuilder::visitRecordFieldDerefAssignmentStmt(
-    RemniwParser::RecordFieldDerefAssignmentStmtContext *Ctx) {
-    return nullptr;
-}
+// // TODO
+// antlrcpp::Any ASTBuilder::visitRecordFieldDerefAssignmentStmt(
+//     RemniwParser::RecordFieldDerefAssignmentStmtContext *Ctx) {
+//     return nullptr;
+// }
 
 }  // namespace remniw

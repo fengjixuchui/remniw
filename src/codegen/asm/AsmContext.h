@@ -20,8 +20,8 @@ public:
 private:
     llvm::DenseMap<llvm::Value *, AsmSymbol *> SymbolTable;
     llvm::StringMap<bool> UsedNames;
-    /// The next ID to dole out to an unnamed assembler temporary symbol with
-    /// a given prefix.
+    // The next ID to dole out to an unnamed assembler temporary symbol with
+    // a given prefix.
     llvm::StringMap<unsigned> NextID;
 };
 

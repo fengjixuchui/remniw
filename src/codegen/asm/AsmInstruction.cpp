@@ -113,7 +113,7 @@ void AsmInstruction::deleteValue() {
     case AsmInstruction::Pop: delete static_cast<AsmPopInst *>(this); break;
     case AsmInstruction::Ret: delete static_cast<AsmRetInst *>(this); break;
     case AsmInstruction::Label: delete static_cast<AsmLabelInst *>(this); break;
-    default: llvm_unreachable("attempting to delete unknown value kind");
+    default: llvm_unreachable("Attempting to delete unknown kind AsmInstruction");
     }
 }
 

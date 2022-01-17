@@ -100,32 +100,32 @@ public:
     bool isLabel() const { return Kind == Label; }
 
     uint32_t getReg() const {
-        assert(Kind == Register && "Invalid access!");
+        assert(Kind == Register && "Not a Register AsmOperand");
         return Reg.RegNo;
     }
 
     uint32_t getMemDisp() const {
-        assert(Kind == Memory && "Invalid access!");
+        assert(Kind == Memory && "Not a Memory AsmOperand");
         return Mem.Disp;
     }
 
     uint32_t getMemBaseReg() const {
-        assert(Kind == Memory && "Invalid access!");
+        assert(Kind == Memory && "Not a Memory AsmOperand");
         return Mem.BaseReg;
     }
 
     uint32_t getMemIndexReg() const {
-        assert(Kind == Memory && "Invalid access!");
+        assert(Kind == Memory && "Not a Memory AsmOperand");
         return Mem.IndexReg;
     }
 
     uint32_t getMemScale() const {
-        assert(Kind == Memory && "Invalid access!");
+        assert(Kind == Memory && "Not a Memory AsmOperand");
         return Mem.Scale;
     }
 
     AsmSymbol* getLabel() const {
-        assert(Kind == Label && "Invalid access!");
+        assert(Kind == Label && "Not a Label AsmOperand");
         return Lbl.Symbol;
     }
 

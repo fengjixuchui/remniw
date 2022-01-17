@@ -11,8 +11,8 @@ using namespace antlr4;
 
 namespace remniw {
 
-std::unique_ptr<ProgramAST> FrontEnd::parse(std::istream& stream) {
-    ANTLRInputStream Input(stream);
+std::unique_ptr<ProgramAST> FrontEnd::parse(std::istream& Stream) {
+    ANTLRInputStream Input(Stream);
     RemniwLexer Lexer(&Input);
     CommonTokenStream Tokens(&Lexer);
     Tokens.fill();

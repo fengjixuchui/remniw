@@ -227,6 +227,7 @@ public:
     }
 };
 
+// // TODO
 // class RecordCreateExprAST : public ExprAST
 // {
 // public:
@@ -234,6 +235,7 @@ public:
 //         : ExprAST(Loc) {}
 // };
 
+// // TODO
 // class RecordAccessExprAST : public ExprAST
 // {
 // public:
@@ -438,13 +440,15 @@ private:
     std::unique_ptr<ExprAST> LHS, RHS;
 };
 
+// // TODO
 // class RecordFieldBasicAssignmentStmtAST : public StmtAST
 // {
 // public:
 //     RecordFieldBasicAssignmentStmtAST(SourceLocation Loc)
-//         : StmtAST(Loc) {}
+//         : StmtAST(ASTNode::Re,Loc) {}
 // };
 
+// // TODO
 // class RecordFieldDerefAssignmentStmtAST : public StmtAST
 // {
 // public:

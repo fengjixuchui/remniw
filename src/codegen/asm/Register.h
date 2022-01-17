@@ -172,7 +172,7 @@ public:
             return std::string("%virtreg") + std::to_string(virtReg2Index(Reg));
         if (isStackSlot(Reg))
             return std::string("%stackslot") + std::to_string(stackSlot2Index(Reg));
-        llvm_unreachable("unexpected Register\n");
+        llvm_unreachable("Invalid Register\n");
     }
 };
 

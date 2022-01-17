@@ -57,7 +57,7 @@ private:
         AsmInstruction *AsmInst,
         std::unordered_map<uint32_t, uint32_t> &VirtRegToAllocatedRegMap) {
         size_t NumOperands = AsmInst->getNumOperands();
-        assert(NumOperands <= 2 && "The operands count of AsmInst must <= 2");
+        assert(NumOperands <= 2 && "The #operands of AsmInst must <= 2");
         NumReversedStackSlotForReg = 0;
         llvm::SmallVector<uint32_t, 4> UsedRegs;
         getUsedRegisters(AsmInst, UsedRegs);

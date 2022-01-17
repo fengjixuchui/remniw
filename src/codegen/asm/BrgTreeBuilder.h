@@ -83,7 +83,7 @@ public:
         case ArgsNode: return "ArgsNode";
         case LabelNode: return "LabelNode";
         }
-        llvm_unreachable("unexpected NodeKind");
+        llvm_unreachable("Invalid NodeKind");
     };
 
     int getOp() { return Op; }
@@ -369,7 +369,7 @@ public:
             } else {
                 auto *ICI = llvm::cast<llvm::ICmpInst>(BI.getCondition());
                 assert(CurrentFunction->InstToNodeMap.count(ICI) &&
-                       "BI.getCondition() not in InstMap");
+                       "BI.getCondition() must in InstToNodeMap");
                 InstNode = BrgTreeNode::createInstNode(
                     &BI, {CurrentFunction->InstToNodeMap[ICI],
                           getBrgNodeForValue(BI.getSuccessor(0)),
@@ -447,17 +447,17 @@ private:
         } else if (auto *GV = llvm::dyn_cast<llvm::GlobalVariable>(V)) {
             auto it = GlobalVariableToNodeMap.find(GV);
             assert(it != GlobalVariableToNodeMap.end() &&
-                   "operands must be previously defined");
+                   "GlobalVariable operand must in GlobalVariableToNodeMap");
             return it->second;
         } else if (auto *I = llvm::dyn_cast<llvm::Instruction>(V)) {
             auto it = CurrentFunction->InstToNodeMap.find(I);
             assert(it != CurrentFunction->InstToNodeMap.end() &&
-                   "operands must be previously defined");
+                   "Instruction operand must in InstToNodeMap");
             return it->second;
         } else if (auto *Arg = llvm::dyn_cast<llvm::Argument>(V)) {
             auto it = CurrentFunction->ArgToNodeMap.find(Arg);
             assert(it != CurrentFunction->ArgToNodeMap.end() &&
-                   "operands must be previously defined");
+                   "Argument operand must in ArgToNodeMap");
             return it->second;
         } else if (auto *F = llvm::dyn_cast<llvm::Function>(V)) {
             if (!FunctionToNodeMap.count(F)) {
@@ -486,7 +486,7 @@ private:
         if (AI.isArrayAllocation()) {
             const llvm::ConstantInt *CI =
                 llvm::dyn_cast<llvm::ConstantInt>(AI.getArraySize());
-            assert(CI && "non-constant array size");
+            assert(CI && "Non-constant array size");
             ArraySize = CI->getZExtValue();
         }
         llvm::Type *Ty = AI.getAllocatedType();
