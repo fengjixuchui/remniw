@@ -1,70 +1,85 @@
 # REMNIW
 
-项目名来源于：
+> **寒暑**易节，始一反焉。—— 《愚公移山》
 
-> 寒暑易节，始一反焉。—— 愚公移山
-
-**win**ter, sum**mer** ➡ ret**niw**, **rem**mus ➡ **rem**mus,ret**niw** ➡ **remniw**
+**win**ter, sum**mer** ➡ **rem**mus,ret**niw** ➡ **remniw**
 
 ## 初衷
 
-本项目最初是本人为了学习 [Static Program Analysis](https://cs.au.dk/~amoeller/spa/)  而开的一个项目，想要动手实现书中的各种静态分析技术。
+以往我在学习编译技术时，更多是阅读 LLVM 源码，t停留在读上面，因此可能对编译原理理解不够深刻。
 
-随着项目逐渐发展，不再限于 SPA 这本书中内容，演变成了一个将 remniw 源代码编译为 x64 汇编的编译器。
+本项目的初衷是通过动手实践来加深理解，帮助我更好地学习编译技术（包括不限于静态分析、机器无关优化、代码生成、垃圾回收）。
 
-希望本项目对想自己实现编译器的爱好者有所帮助。因本人水平有限，代码中很多不足之处，欢迎各位以 Issue 和 Pull Request 的方式批评指正，感激不尽。
+目前，该项目实现了一个简单的编译器，该编译器将 remniw 语言（自己设计的一个玩具语言）源代码编译为 x64 汇编。
+
+未来，预计会在该编译器上实现更多的内容：如经典的机器无关优化算法、垃圾回收算法等。
+
+希望本项目对编译技术爱好者有所帮助。因本人水平有限，代码中很多不足之处，欢迎各位以 Issue 和 Pull Request 的方式批评指正，感激不尽。
 
 ## 设计
 
 remniw 编译器包含 5 个 phase：
 
-- [frontend]() 输入为 remniw 的源代码，输出为 AST。remniw 使用 [ANTLR4](https://www.antlr.org/) 来定义 remniw 的语法、生成 Lexer 和 Parser
-- [semantic analysis]() 语义分析阶段只在 AST 上做了非常简单的 type checking
-- [ir code generation]() 输入为 AST，输出为 IR。remnniw 编译器的中间表示使用的是 [LLVM](https://www.llvm.org/) IR 的一个子集，只使用 LLVM IR 的子集有一个好处，在实现程序的静态分析、优化时只需要考虑有限的 llvm instruction，这样方便我们实现算法，更专注于分析、优化算法本身，而不会陷于繁多的 llvm instruction
-- [optimization]() 输入为 LLVM IR，输出为优化后的 LLVM IR
-- asm code generation 输入为优化后的 LLVM IR，输出为 x64 汇编。remniw 编译器基于 [Olive Code Generator Generator](https://suif.stanford.edu/pub/tjiang/olive.tar.gz) 实现 x64 汇编的自动生成
+- [frontend]() 前端。输入为 remniw 的源代码，输出为 AST。remniw 使用 [ANTLR4](https://www.antlr.org/) 来定义 remniw 的语法、生成 Lexer 和 Parser。
+- [semantic analysis]() 语义分析。不是本项目的重点，只在 AST 上做了非常简单的 type checking。
+- [ir code generation]() 生成 LLVM IR。输入为 AST，输出为 IR。remnniw 编译器的中间表示使用的是 [LLVM](https://www.llvm.org/) IR 的一个子集，只使用 LLVM IR 的子集有一个好处，在实现程序的静态分析、优化时只需要考虑有限的 llvm instruction，这样方便我们实现算法，更专注于分析、优化算法本身，而不会陷于繁多的 llvm instruction。
+- [optimization]() 机器无关优化。输入为 LLVM IR，输出为优化后的 LLVM IR。
+- [asm code generation]() 生成汇编代码。输入为优化后的 LLVM IR，输出为 x64 汇编。
 
 ### 语法 Syntax
 
-remniw 语言的语法设计脱胎于 SPA 中的 TIP 语言的语法，下面给出一个使用 remniw 语言编写的计算阶乘的程序源代码：
+remniw 语言的语法设计脱胎于 [Static Program Analysis](https://cs.au.dk/~amoeller/spa/) 中的 TIP 语言，目前只支持整型、指针这两种变量类型。
+
+下面给出一个使用 remniw 语言编写的计算斐波那契数列的程序源代码：
 
 ```
-func rec(n int) int {
-    var f int;
-    if (n==0) { f=1; }
-    else { f=n*rec(n-1); }
-    return f;
+func apply(f func(int) int, a int) int {
+    return f(a);
+}
+
+func fib(n int) int {
+    var result int;
+
+    if( n>1 ){
+        result = fib(n-1)+fib(n-2);
+    } else {
+        result=1;
+    }
+
+    return result;
 }
 
 func main() int {
-    var n int;
-    n = input;
-    output rec(n);
+    output apply(fib,5);
     return 0;
 }
 ```
 
-### 中间表示 IR
+### 中间表示 Intermediate Representation
 
 remnniw 编译器的中间表示使用的是 LLVM IR 的一个子集，目前只使用了如下 instruction：
 
-- ‘ret’ Instruction
-- ‘br’ Instruction
-- ‘add’ Instruction
-- ‘sub’ Instruction
-- ‘mul’ Instruction
-- ‘sdiv’ Instruction
-- 'alloca' instruction
-- ‘load’ Instruction
-- ‘store’ Instruction
-- ‘icmp’ Instruction
-- ‘call’ Instruction
+- `ret` Instruction
+- `br` Instruction
+- `add` Instruction
+- `sub` Instruction
+- `mul` Instruction
+- `sdiv` Instruction
+- `alloca` instruction
+- `load` Instruction
+- `store` Instruction
+- `icmp` Instruction
+- `call` Instruction
 
-只使用 LLVM IR 的子集有一个好处，在 middle-end 实现程序的静态分析、优化时只需要考虑有限的 llvm instruction，这样方便我们实现算法，更专注于分析、优化算法本身，而不会陷于繁多的 llvm instruction。
+只使用 LLVM IR 的子集有一个好处，在实现机器无关优化时只需要考虑有限的 llvm instruction，这样方便我们更专注于分析、优化算法本身，而不会陷于繁多的 llvm instruction。
+
+### 汇编代码 Assembly Code
+
+本项目与其他一些基于 LLVM 实现的编译器相比，不同点在于：没有使用 LLVM 的提供的由 LLVM IR 生成汇编代码的接口，而是自己动手实现了从 LLVM IR（子集）生成 x64 汇编。
 
 ## 文档
 
-remniw 编译器 5 个 phase 的详细文档位于 docs 目录下：
+remniw 编译器 5 个 phase 的详细文档位于 docs 目录下，这些详细文档中记录了我在实现各个 phase 时的思路及参考资料：
 
 - [frontend]()
 - [semantic analysis]()
