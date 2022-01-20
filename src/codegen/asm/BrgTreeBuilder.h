@@ -17,6 +17,19 @@
 
 struct burm_state;
 
+// To make changes to BrgTerm, make sure to synced up with
+// %term defined in BrgTerm.gen
+enum BrgTerm
+{
+    Undef = 0,
+    Const,
+    Label,
+    Args,
+    Reg,
+#define HANDLE_INST(N, OPC, CLASS) OPC,
+#include "llvm/IR/Instruction.def"
+};
+
 class BrgTreeNode {
 public:
     enum KindTy
@@ -105,30 +118,39 @@ public:
     void setActionExecuted() { ActionExecuted = true; }
 
     static BrgTreeNode *getUndefNode() {
-        static BrgTreeNode Undef(KindTy::UndefNode, /*Undef*/ 0);
+        static BrgTreeNode Undef(KindTy::UndefNode, BrgTerm::Undef);
         return &Undef;
     }
 
     static BrgTreeNode *createArgsNode(std::vector<BrgTreeNode *> Kids) {
-        auto *Ret = new BrgTreeNode(KindTy::ArgsNode, /*Args*/ 70, Kids);
+        auto *Ret = new BrgTreeNode(KindTy::ArgsNode, BrgTerm::Args, Kids);
         return Ret;
     }
 
     static BrgTreeNode *createInstNode(llvm::Instruction *I,
                                        std::vector<BrgTreeNode *> Kids) {
-        auto *Ret = new BrgTreeNode(KindTy::InstNode, I->getOpcode(), Kids);
-        Ret->Inst = I;
-        return Ret;
+
+        switch (I->getOpcode()) {
+        // Build the switch statement using the Instruction.def file...
+    #define HANDLE_INST(NUM, OPCODE, CLASS) \
+        case llvm::Instruction::OPCODE: {\
+        auto *Ret = new BrgTreeNode(KindTy::InstNode, BrgTerm::OPCODE, Kids); \
+        Ret->Inst = I; \
+        return Ret; }
+    #include "llvm/IR/Instruction.def"
+        }
+        llvm_unreachable("Unknown instruction type encountered");
+        return nullptr;
     }
 
     static BrgTreeNode *createRegNode(uint32_t RegNo) {
-        auto *Ret = new BrgTreeNode(KindTy::RegNode, /*Reg*/ 71);
+        auto *Ret = new BrgTreeNode(KindTy::RegNode, BrgTerm::Reg);
         Ret->Reg.RegNo = RegNo;
         return Ret;
     }
 
     static BrgTreeNode *createMemNode(int64_t Offset, std::vector<BrgTreeNode *> Kids) {
-        auto *Ret = new BrgTreeNode(KindTy::MemNode, /*Alloca*/ 31, Kids);
+        auto *Ret = new BrgTreeNode(KindTy::MemNode, BrgTerm::Alloca, Kids);
         Ret->Mem.Disp = Offset;
         Ret->Mem.BaseReg = remniw::Register::RBP;
         Ret->Mem.IndexReg = remniw::Register::NoRegister;
@@ -137,13 +159,13 @@ public:
     }
 
     static BrgTreeNode *createImmNode(int64_t Val) {
-        auto *Ret = new BrgTreeNode(KindTy::ImmNode, /*Const*/ 68);
+        auto *Ret = new BrgTreeNode(KindTy::ImmNode, BrgTerm::Const);
         Ret->Imm.Val = Val;
         return Ret;
     }
 
     static BrgTreeNode *createLabelNode(remniw::AsmSymbol *Symbol) {
-        auto *Ret = new BrgTreeNode(KindTy::LabelNode, /*Label*/ 69);
+        auto *Ret = new BrgTreeNode(KindTy::LabelNode, BrgTerm::Label);
         Ret->Label.Symbol = Symbol;
         return Ret;
     }

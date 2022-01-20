@@ -3,97 +3,10 @@
 #define DEBUG_TYPE "remniw-asmbuilderhelper"
 %}
 
-# TODO: autogen from llvm/include/llvm/IR/Instruction.def
-
-%term BRG_UNDEF         =  0
-
-# Terminator Instructions
-%term BRG_RET           =  1
-%term BRG_BR            =  2
-%term BRG_SWITCH        =  3
-%term BRG_INDIRECTBR    =  4
-%term BRG_INVOKE        =  5
-%term BRG_RESUME        =  6
-%term BRG_UNREACHABLE   =  7
-%term BRG_CLEANUPRET    =  8
-%term BRG_CATCHRET      =  9
-%term BRG_CATCHSWITCH   = 10
-%term BRG_CALLBR        = 11
-
-# Standard unary operators
-%term BRG_FNEG          = 12
-
-# Standard binary operators
-%term BRG_ADD  = 13
-%term BRG_FADD = 14
-%term BRG_SUB  = 15
-%term BRG_FSUB = 16
-%term BRG_MUL  = 17
-%term BRG_FMUL = 18
-%term BRG_UDIV = 19
-%term BRG_SDIV = 20
-%term BRG_FDIV = 21
-%term BRG_UREM = 22
-%term BRG_SREM = 23
-%term BRG_FREM = 24
-
-# Logical operators (integer operands)
-%term BRG_SHL  = 25
-%term BRG_LSHR = 26
-%term BRG_ASHR = 27
-%term BRG_AND  = 28
-%term BRG_OR   = 29
-%term BRG_XOR  = 30
-
-# Memory operators
-%term BRG_ALLOCA        = 31
-%term BRG_LOAD          = 32
-%term BRG_STORE         = 33
-%term BRG_GETELEMENTPTR = 34
-%term BRG_FENCE         = 35
-%term BRG_ATOMICCMPXCHG = 36
-%term BRG_ATOMICRMW     = 37
-
-# Cast operators
-%term BRG_TRUNC         = 38
-%term BRG_ZEXT          = 39
-%term BRG_SEXT          = 40
-%term BRG_FPTOUI        = 41
-%term BRG_FPTOSI        = 42
-%term BRG_UITOFP        = 43
-%term BRG_SITOFP        = 44
-%term BRG_FPTRUNC       = 45
-%term BRG_FPEXT         = 46
-%term BRG_PTRTOINT      = 47
-%term BRG_INTTOPTR      = 48
-%term BRG_BITCAST       = 49
-%term BRG_ADDRSPACECAST = 50
-
-# FUNCLETPAD
-%term BRG_CLEANUPPAD    = 51
-%term BRG_CATCHPAD      = 52
-
-# Other operators
-%term BRG_ICMP              = 53
-%term BRG_FCMP              = 54
-%term BRG_PHI               = 55
-%term BRG_CALL              = 56
-%term BRG_SELECT            = 57
-%term BRG_USEROP1           = 58
-%term BRG_USEROP2           = 59
-%term BRG_VAARG             = 60
-%term BRG_EXTRACTELEMENT    = 61
-%term BRG_INSERTELEMENT     = 62
-%term BRG_SHUFFLEVECTOR     = 63
-%term BRG_EXTRACTVALUE      = 64
-%term BRG_INSERTVALUE       = 65
-%term BRG_LANDINGPAD        = 66
-%term BRG_FREEZE            = 67
-
-%term BRG_CONST            = 68
-%term BRG_LABEL            = 69
-%term BRG_ARGS             = 70
-%term BRG_REG              = 71
+# Do not delete the following lines
+# The content of BrgTerm.gen will be inserted here during cmake
+# %term define begin
+# %term defind end
 
 %declare<void> stmt<remniw::AsmBuilderPtr Builder>;
 %declare<void> reg<remniw::AsmBuilderPtr Builder>;
@@ -747,7 +660,7 @@ void AsmBuilder::buildAsmFunction(const BrgFunction *BrgFunc) {
     for (auto* RootNode: BrgFunc->Insts) {
         printDebugTree(RootNode);
         // FIXME: Label Instruction
-        if (RootNode->getOp() == /*Label*/69)
+        if (RootNode->getOp() == BrgTerm::Label)
             createLabel(AsmOperand::createLabel(RootNode->getLabel()));
         gen(RootNode, this);
     }
